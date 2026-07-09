@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "LoanVerify AI ΓÇö Smart Loan Verification System",
+  title: "LoanVerify AI — Smart Loan Verification System",
   description:
     "LoanVerify AI streamlines loan approvals with intelligent document verification, real-time risk scoring, and automated compliance checks.",
   keywords: "loan verification, AI lending, credit scoring, document verification, fintech",

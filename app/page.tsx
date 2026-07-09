@@ -1,10 +1,10 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 
-// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ──────────────────────────────────────────────
 // Small reusable components
-// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ──────────────────────────────────────────────
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -52,7 +52,7 @@ function Navbar() {
             fontSize: "18px",
           }}
         >
-          Γ£ª
+          ✦
         </div>
         <span
           style={{
@@ -80,7 +80,7 @@ function Navbar() {
           Sign In
         </a>
         <a href="#" className="btn-primary" style={{ padding: "9px 20px", fontSize: "13px", borderRadius: "9px" }}>
-          Get Started ΓåÆ
+          Get Started →
         </a>
       </div>
     </nav>
@@ -304,7 +304,7 @@ function LiveDemoCard() {
         {status === "done" && (
           <div style={{ marginTop: "16px" }}>
             <span className="badge badge-green" style={{ fontSize: "13px" }}>
-              Γ£ô APPROVED ΓÇö Low Risk
+              ✓ APPROVED — Low Risk
             </span>
           </div>
         )}
@@ -320,7 +320,7 @@ function LiveDemoCard() {
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
             <span style={{ fontSize: "12px", color: "rgba(232,240,254,0.55)" }}>{m.label}</span>
             <span style={{ fontSize: "12px", fontWeight: 600, color: "#4F8EF7" }}>
-              {m.done ? `${m.value}%` : "ΓÇö"}
+              {m.done ? `${m.value}%` : "—"}
             </span>
           </div>
           <div className="progress-bar">
@@ -344,17 +344,17 @@ function LiveDemoCard() {
           opacity: status === "analyzing" ? 0.7 : 1,
         }}
       >
-        {status === "idle" && "Γû╢ Run Analysis"}
-        {status === "analyzing" && "Γƒ│ Analyzing..."}
-        {status === "done" && "Γå║ Run Again"}
+        {status === "idle" && "▶ Run Analysis"}
+        {status === "analyzing" && "⟳ Analyzing..."}
+        {status === "done" && "↺ Run Again"}
       </button>
     </div>
   );
 }
 
-// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ──────────────────────────────────────────────
 // Main Page
-// ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// ──────────────────────────────────────────────
 export default function Home() {
   return (
     <>
@@ -366,7 +366,7 @@ export default function Home() {
       <Navbar />
 
       <main style={{ position: "relative", zIndex: 1 }}>
-        {/* ΓöÇΓöÇ HERO ΓöÇΓöÇ */}
+        {/* ── HERO ── */}
         <section
           style={{
             minHeight: "100vh",
@@ -395,7 +395,7 @@ export default function Home() {
               }}
             >
               <span className="dot-pulse" style={{ color: "#4F8EF7" }} />
-              AI-Powered ┬╖ Real-Time ┬╖ 99.4% Accuracy
+              AI-Powered · Real-Time · 99.4% Accuracy
             </span>
           </div>
 
@@ -429,7 +429,7 @@ export default function Home() {
             }}
           >
             LoanVerify AI automates document verification, credit risk scoring,
-            and compliance checks ΓÇö reducing decision time from days to{" "}
+            and compliance checks — reducing decision time from days to{" "}
             <strong style={{ color: "#00D4AA" }}>seconds</strong>.
           </p>
 
@@ -439,10 +439,10 @@ export default function Home() {
             style={{ display: "flex", gap: "14px", flexWrap: "wrap", justifyContent: "center", marginBottom: "72px" }}
           >
             <a href="#" className="btn-primary" id="hero-cta-primary">
-              ≡ƒÜÇ Start Verifying Now
+              🚀 Start Verifying Now
             </a>
             <a href="#" className="btn-secondary" id="hero-cta-secondary">
-              Γû╢ Watch Demo
+              ▶ Watch Demo
             </a>
           </div>
 
@@ -456,17 +456,17 @@ export default function Home() {
               justifyContent: "center",
             }}
           >
-            <StatCard value="2.4M+" label="Loans Processed" icon="≡ƒôï" delay={1} />
-            <StatCard value="99.4%" label="Accuracy Rate" icon="≡ƒÄ»" delay={2} />
-            <StatCard value="< 8s" label="Avg. Decision Time" icon="ΓÜí" delay={3} />
-            <StatCard value="$8.2B" label="Disbursed Safely" icon="≡ƒÅª" delay={4} />
+            <StatCard value="2.4M+" label="Loans Processed" icon="📋" delay={1} />
+            <StatCard value="99.4%" label="Accuracy Rate" icon="🎯" delay={2} />
+            <StatCard value="< 8s" label="Avg. Decision Time" icon="⚡" delay={3} />
+            <StatCard value="$8.2B" label="Disbursed Safely" icon="🏦" delay={4} />
           </div>
         </section>
 
         {/* Glow divider */}
         <div className="glow-divider" style={{ maxWidth: "900px", margin: "0 auto 80px" }} />
 
-        {/* ΓöÇΓöÇ LIVE DEMO + HOW IT WORKS ΓöÇΓöÇ */}
+        {/* ── LIVE DEMO + HOW IT WORKS ── */}
         <section
           style={{
             maxWidth: "1200px",
@@ -478,7 +478,7 @@ export default function Home() {
             alignItems: "center",
           }}
         >
-          {/* Left ΓÇö How it works */}
+          {/* Left — How it works */}
           <div>
             <div style={{ marginBottom: "14px" }}>
               <span className="badge badge-blue">How It Works</span>
@@ -527,7 +527,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right ΓÇö Interactive demo */}
+          {/* Right — Interactive demo */}
           <div style={{ display: "flex", justifyContent: "center" }}>
             <div className="float">
               <LiveDemoCard />
@@ -535,7 +535,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ΓöÇΓöÇ FEATURES ΓöÇΓöÇ */}
+        {/* ── FEATURES ── */}
         <section
           style={{
             maxWidth: "1200px",
@@ -568,7 +568,7 @@ export default function Home() {
             }}
           >
             <FeatureCard
-              icon="≡ƒöì"
+              icon="🔍"
               title="Intelligent OCR & Document Parsing"
               description="Accurately extracts data from PDFs, scanned documents, and photos with 99.8% field-level precision. Supports 30+ document types globally."
               tag="Live"
@@ -576,7 +576,7 @@ export default function Home() {
               delay={1}
             />
             <FeatureCard
-              icon="≡ƒºá"
+              icon="🧠"
               title="ML Credit Scoring Engine"
               description="Proprietary ML model trained on 10M+ loans generates explainable credit scores with 200+ behavioral and financial signals."
               tag="AI Powered"
@@ -584,7 +584,7 @@ export default function Home() {
               delay={2}
             />
             <FeatureCard
-              icon="≡ƒ¢í∩╕Å"
+              icon="🛡️"
               title="Fraud & Identity Detection"
               description="Multi-layer identity verification using biometric matching, liveness detection, and document tampering analysis."
               tag="Secure"
@@ -592,7 +592,7 @@ export default function Home() {
               delay={3}
             />
             <FeatureCard
-              icon="ΓÜû∩╕Å"
+              icon="⚖️"
               title="Regulatory Compliance Checks"
               description="Automated AML, KYC, and lending compliance screening across 40+ jurisdictions. Keeps you audit-ready automatically."
               tag="Compliant"
@@ -600,7 +600,7 @@ export default function Home() {
               delay={4}
             />
             <FeatureCard
-              icon="≡ƒôè"
+              icon="📊"
               title="Real-Time Risk Dashboard"
               description="Visual analytics with drill-down into each application. Track approval rates, fraud trends, and portfolio health live."
               tag="Real-time"
@@ -608,7 +608,7 @@ export default function Home() {
               delay={5}
             />
             <FeatureCard
-              icon="≡ƒöù"
+              icon="🔗"
               title="API-First Integration"
               description="RESTful APIs and webhooks integrate with any LOS, CRM, or banking core in under a day. SDKs for Python, Node, and Java."
               tag="Developer"
@@ -618,7 +618,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ΓöÇΓöÇ CTA BANNER ΓöÇΓöÇ */}
+        {/* ── CTA BANNER ── */}
         <section style={{ padding: "0 24px 100px" }}>
           <div
             style={{
@@ -669,16 +669,16 @@ export default function Home() {
             </p>
             <div style={{ display: "flex", gap: "14px", justifyContent: "center", flexWrap: "wrap" }}>
               <a href="#" className="btn-primary" id="cta-start-free">
-                ≡ƒÄ» Start Free Trial
+                🎯 Start Free Trial
               </a>
               <a href="#" className="btn-secondary" id="cta-contact-sales">
-                ≡ƒÆ¼ Contact Sales
+                💬 Contact Sales
               </a>
             </div>
           </div>
         </section>
 
-        {/* ΓöÇΓöÇ FOOTER ΓöÇΓöÇ */}
+        {/* ── FOOTER ── */}
         <footer
           style={{
             borderTop: "1px solid rgba(255,255,255,0.06)",
@@ -701,11 +701,11 @@ export default function Home() {
                 fontSize: "14px",
               }}
             >
-              Γ£ª
+              ✦
             </div>
             <span style={{ fontWeight: 700, color: "rgba(232,240,254,0.6)" }}>LoanVerify AI</span>
           </div>
-          <p>┬⌐ 2026 LoanVerify AI. Built for the future of lending.</p>
+          <p>© 2026 LoanVerify AI. Built for the future of lending.</p>
         </footer>
       </main>
     </>
