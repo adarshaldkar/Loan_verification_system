@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { use } from "react";
 import {
@@ -10,85 +10,84 @@ import {
 } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { getAgentCaseDetailsApi, updateAgentCaseStatusApi } from "@/lib/api";
 
-type CaseStatus = "PENDING" | "ASSIGNED" | "TRAVELLING" | "AT_LOCATION" | "IN_PROGRESS" | "COMPLETED" | "REJECTED";
-type Priority = "High" | "Medium" | "Low";
+/* ─── Mock Case Data ─────────────────────────────────────────────────────── */
 
-interface Customer {
-  id: string;
-  applicationId: string;
-  firstName: string;
-  lastName: string;
-  phone: string | null;
-  email: string | null;
-  address: string;
-  loanAmount: number;
-  loanType: string;
-  businessName: string | null;
-  branch: string | null;
-}
+type CaseStatus = "ASSIGNED" | "TRAVELLING" | "AT_LOCATION" | "IN_PROGRESS" | "SUBMITTED" | "COMPLETED" | "RE_VERIFICATION";
 
-interface CaseItem {
-  id: string;
-  status: CaseStatus;
-  type: string;
-  branch: string | null;
-  customerId: string;
-  createdAt: string;
-  customer: Customer;
-  remarks: string | null;
-  profileData: string | null;
-}
+const CASES: Record<string, {
+  id: string; customer: string; phone: string; email: string;
+  address: string; lat: number; lng: number;
+  loanType: string; loanAmount: string; verType: "RESIDENTIAL" | "BUSINESS";
+  branch: string; priority: string; assignedOn: string;
+  status: CaseStatus; agentNote?: string;
+}> = {
+  "LV-2026-10821": {
+    id: "LV-2026-10821", customer: "Priya Sharma",
+    phone: "+91 87654 32109", email: "priya.sharma@email.com",
+    address: "45, Park Street, Dadar West, Mumbai — 400028",
+    lat: 19.018255, lng: 72.847145,
+    loanType: "Business Loan", loanAmount: "₹12,00,000",
+    verType: "BUSINESS", branch: "Mumbai West",
+    priority: "High", assignedOn: "09 Jul 2026, 09:00 AM",
+    status: "ASSIGNED",
+  },
+  "LV-2026-10819": {
+    id: "LV-2026-10819", customer: "Sandeep Yadav",
+    phone: "+91 76543 21098", email: "sandeep.y@email.com",
+    address: "78, Civil Lines, Connaught Place, Delhi — 110001",
+    lat: 28.632450, lng: 77.219640,
+    loanType: "Home Loan", loanAmount: "₹45,00,000",
+    verType: "RESIDENTIAL", branch: "Delhi North",
+    priority: "High", assignedOn: "09 Jul 2026, 08:30 AM",
+    status: "IN_PROGRESS",
+  },
+  "LV-2026-10817": {
+    id: "LV-2026-10817", customer: "Rahul Gupta",
+    phone: "+91 54321 09876", email: "rahul.g@email.com",
+    address: "23, Station Road, Kothrud, Pune — 411038",
+    lat: 18.507800, lng: 73.807700,
+    loanType: "Personal Loan", loanAmount: "₹5,00,000",
+    verType: "RESIDENTIAL", branch: "Pune",
+    priority: "Medium", assignedOn: "08 Jul 2026",
+    status: "SUBMITTED",
+  },
+  "LV-2026-10814": {
+    id: "LV-2026-10814", customer: "Arvind Patel",
+    phone: "+91 32109 87654", email: "arvind.p@email.com",
+    address: "89, Gandhi Nagar, CG Road, Ahmedabad — 380009",
+    lat: 23.022505, lng: 72.571362,
+    loanType: "Business Loan", loanAmount: "₹8,50,000",
+    verType: "BUSINESS", branch: "Ahmedabad",
+    priority: "Medium", assignedOn: "06 Jul 2026",
+    status: "RE_VERIFICATION",
+    agentNote: "Admin rejected: Signboard photo missing. Please re-capture.",
+  },
+};
+
+/* ─── Status Config ──────────────────────────────────────────────────────── */
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
-  PENDING:         { label: "Pending",     color: "#1E3A5F", bg: "#EEF2FF" },
   ASSIGNED:        { label: "Assigned",    color: "#1E3A5F", bg: "#EEF2FF" },
   TRAVELLING:      { label: "Travelling",  color: "#7C3AED", bg: "#EDE9FE" },
   AT_LOCATION:     { label: "At Location", color: "#0D9488", bg: "#CCFBF1" },
   IN_PROGRESS:     { label: "In Progress", color: "#D97706", bg: "#FEF3C7" },
+  SUBMITTED:       { label: "Submitted",   color: "#2563EB", bg: "#DBEAFE" },
   COMPLETED:       { label: "Completed",   color: "#0D9488", bg: "#CCFBF1" },
-  REJECTED:        { label: "Rejected",    color: "#DC2626", bg: "#FEE2E2" },
+  RE_VERIFICATION: { label: "Re-verify",   color: "#DC2626", bg: "#FEE2E2" },
 };
+
+/* ─── Case Details Page ──────────────────────────────────────────────────── */
 
 export default function CaseDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id }  = use(params);
   const router  = useRouter();
-  
-  const [loading, setLoading] = useState(true);
-  const [caseObj, setCaseObj] = useState<CaseItem | null>(null);
-  const [showMap, setShowMap] = useState(false);
+  const caseData = CASES[id];
 
-  const fetchCaseDetails = async () => {
-    try {
-      const res = await getAgentCaseDetailsApi(id);
-      if (res.data.success) {
-        setCaseObj(res.data.data);
-      }
-    } catch (err: any) {
-      toast.error("Failed to load case details.");
-      if (err.response?.status === 401) {
-        router.push("/agent/login");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [status, setStatus]     = useState<CaseStatus>(caseData?.status ?? "ASSIGNED");
+  const [showMap, setShowMap]   = useState(false);
 
-  useEffect(() => {
-    fetchCaseDetails();
-  }, [id]);
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <div className="w-10 h-10 rounded-full border-4 border-slate-100 border-t-[#1E3A5F] animate-spin" />
-        <p className="text-xs font-semibold text-gray-400">Loading case details...</p>
-      </div>
-    );
-  }
-
-  if (!caseObj) {
+  if (!caseData) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <FiBriefcase className="w-12 h-12 text-slate-300 mb-3" />
@@ -100,74 +99,41 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const { status, customer } = caseObj;
-  const s = STATUS_STYLE[status] || STATUS_STYLE["PENDING"];
+  const s = STATUS_STYLE[status];
 
-  const getPriority = (): Priority => {
-    if (customer.loanAmount > 1000000) return "High";
-    if (customer.loanAmount > 500000) return "Medium";
-    return "Low";
-  };
-
-  const getLatitude = () => 12.9716;
-  const getLongitude = () => 77.5946;
-
-  // ── Action Handlers ──
-  async function updateStatus(newStatus: CaseStatus) {
-    try {
-      const res = await updateAgentCaseStatusApi(id, newStatus);
-      if (res.data.success) {
-        setCaseObj(prev => prev ? { ...prev, status: newStatus } : null);
-        return true;
-      }
-    } catch (err: any) {
-      toast.error("Failed to update status: " + (err.response?.data?.message || err.message));
-    }
-    return false;
-  }
-
+  // ── Action handlers ──
   function handleCallCustomer() {
-    if (customer.phone) {
-      window.open(`tel:${customer.phone}`);
-    } else {
-      toast.error("Customer phone number not available.");
-    }
+    window.open(`tel:${caseData.phone}`);
   }
 
-  async function handleStartNavigation() {
-    if (status === "ASSIGNED" || status === "PENDING") {
-      const success = await updateStatus("TRAVELLING");
-      if (success) {
-        setShowMap(true);
-        toast.success("Navigation started. Case status: Travelling");
-      }
+  function handleStartNavigation() {
+    if (status === "ASSIGNED") {
+      setStatus("TRAVELLING");
+      setShowMap(true);
+      toast.success("Navigation started. Case status: Travelling");
     } else {
       setShowMap(true);
     }
   }
 
-  async function handleArrived() {
-    const success = await updateStatus("AT_LOCATION");
-    if (success) {
-      setShowMap(false);
-      toast.success("Arrival confirmed! You can now start verification.");
-    }
+  function handleArrived() {
+    setStatus("AT_LOCATION");
+    setShowMap(false);
+    toast.success("Arrival confirmed! You can now start verification.");
   }
 
-  async function handleStartVerification() {
-    const success = await updateStatus("IN_PROGRESS");
-    if (success) {
-      router.push(`/agent/verify/${id}`);
-    }
+  function handleStartVerification() {
+    setStatus("IN_PROGRESS");
+    router.push(`/agent/verify/${id}`);
   }
 
-  const canNavigate    = ["PENDING", "ASSIGNED", "TRAVELLING", "AT_LOCATION", "IN_PROGRESS", "REJECTED"].includes(status);
+  const canNavigate    = ["ASSIGNED", "TRAVELLING", "AT_LOCATION", "IN_PROGRESS", "SUBMITTED", "RE_VERIFICATION"].includes(status);
   const canArrived     = status === "TRAVELLING";
-  const canVerify      = status === "AT_LOCATION" || status === "IN_PROGRESS";
-  const isReadOnly     = status === "COMPLETED" || status === "REJECTED";
+  const canVerify      = status === "AT_LOCATION" || status === "IN_PROGRESS" || status === "RE_VERIFICATION";
+  const isReadOnly     = status === "SUBMITTED" || status === "COMPLETED";
 
   return (
-    <div className="space-y-4 pb-24 text-slate-800">
+    <div className="space-y-4 pb-24">
       {/* Back + Title */}
       <div>
         <button
@@ -178,13 +144,13 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
         </button>
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-[11px] font-mono text-slate-400">{caseObj.id.slice(-12)}</p>
+            <p className="text-[11px] font-mono text-slate-400">{caseData.id}</p>
             <h1 className="text-xl font-bold text-slate-900 mt-0.5" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-              {customer.firstName} {customer.lastName}
+              {caseData.customer}
             </h1>
           </div>
           <span
-            className="text-[11px] font-semibold px-2.5 py-1 rounded-full mt-1 uppercase"
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-full mt-1"
             style={{ color: s.color, background: s.bg }}
           >
             {s.label}
@@ -192,18 +158,29 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
+      {/* Re-verification alert */}
+      {status === "RE_VERIFICATION" && caseData.agentNote && (
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-3">
+          <FiAlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-rose-700">Re-verification Required</p>
+            <p className="text-xs text-rose-600 mt-0.5">{caseData.agentNote}</p>
+          </div>
+        </div>
+      )}
+
       {/* Customer Info */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
           <FiUser className="w-4 h-4 text-slate-400" />
           <h2 className="text-[13px] font-semibold text-slate-900">Customer Information</h2>
         </div>
         <div className="p-4 space-y-3 text-sm">
           {[
-            { label: "Full Name",  value: `${customer.firstName} ${customer.lastName}`, icon: <FiUser className="w-3.5 h-3.5" /> },
-            { label: "Phone",      value: customer.phone || "Not Available", icon: <FiPhone className="w-3.5 h-3.5" /> },
-            { label: "Email",      value: customer.email || "Not Available", icon: <FiMail className="w-3.5 h-3.5" /> },
-            { label: "Address",    value: customer.address,  icon: <FiMapPin className="w-3.5 h-3.5" /> },
+            { label: "Full Name",  value: caseData.customer, icon: <FiUser className="w-3.5 h-3.5" /> },
+            { label: "Phone",      value: caseData.phone,    icon: <FiPhone className="w-3.5 h-3.5" /> },
+            { label: "Email",      value: caseData.email,    icon: <FiMail className="w-3.5 h-3.5" /> },
+            { label: "Address",    value: caseData.address,  icon: <FiMapPin className="w-3.5 h-3.5" /> },
           ].map(({ label, value, icon }) => (
             <div key={label} className="flex items-start gap-3">
               <span className="text-slate-400 mt-0.5">{icon}</span>
@@ -217,19 +194,19 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Loan & Case Info */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100">
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
           <FiBriefcase className="w-4 h-4 text-slate-400" />
           <h2 className="text-[13px] font-semibold text-slate-900">Loan & Case Details</h2>
         </div>
         <div className="grid grid-cols-2 gap-px bg-slate-100">
           {[
-            { label: "Loan Type",         value: customer.loanType },
-            { label: "Loan Amount",       value: `₹${customer.loanAmount.toLocaleString("en-IN")}` },
-            { label: "Verification Type", value: caseObj.type === "RESIDENTIAL" ? "Residential" : "Business" },
-            { label: "Branch",            value: caseObj.branch || customer.branch || "Not Set" },
-            { label: "Priority",          value: getPriority() },
-            { label: "Assigned On",       value: new Date(caseObj.createdAt).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) },
+            { label: "Loan Type",         value: caseData.loanType },
+            { label: "Loan Amount",       value: caseData.loanAmount },
+            { label: "Verification Type", value: caseData.verType === "RESIDENTIAL" ? "Residential" : "Business" },
+            { label: "Branch",            value: caseData.branch },
+            { label: "Priority",          value: caseData.priority },
+            { label: "Assigned On",       value: caseData.assignedOn },
           ].map(({ label, value }) => (
             <div key={label} className="bg-white p-3">
               <p className="text-[10px] text-slate-400 mb-0.5">{label}</p>
@@ -241,7 +218,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
 
       {/* Map */}
       {showMap && (
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100 animate-[fadeIn_0.3s_ease]">
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FiMap className="w-4 h-4 text-[#1E3A5F]" />
@@ -251,7 +228,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
               Travelling
             </span>
           </div>
-          {/* Embedded Map */}
+          {/* Embedded Google Maps */}
           <div className="relative">
             <iframe
               title="Customer Location"
@@ -260,19 +237,19 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
               style={{ border: 0 }}
               loading="lazy"
               allowFullScreen
-              src={`https://www.google.com/maps?q=${getLatitude()},${getLongitude()}&z=15&output=embed`}
+              src={`https://www.google.com/maps?q=${caseData.lat},${caseData.lng}&z=15&output=embed`}
             />
           </div>
-          <div className="px-4 py-3 flex items-center justify-between bg-slate-50 border-t border-slate-100">
-            <div className="min-w-0 flex-1 pr-2">
-              <p className="text-xs font-semibold text-slate-700 truncate">{customer.address}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Lat: {getLatitude()} · Lng: {getLongitude()}</p>
+          <div className="px-4 py-3 flex items-center justify-between bg-slate-50">
+            <div>
+              <p className="text-xs font-medium text-slate-700">{caseData.address}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Lat: {caseData.lat} · Lng: {caseData.lng}</p>
             </div>
             <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${getLatitude()},${getLongitude()}`}
+              href={`https://www.google.com/maps/dir/?api=1&destination=${caseData.lat},${caseData.lng}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-2 rounded-lg shrink-0"
+              className="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg"
               style={{ background: "#1E3A5F" }}
             >
               <FiNavigation className="w-3 h-3" /> Open Maps
@@ -286,10 +263,10 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
         {isReadOnly ? (
           <div className="text-center py-2">
             <span
-              className="text-sm font-semibold px-4 py-2 rounded-xl inline-block"
+              className="text-sm font-semibold px-4 py-2 rounded-xl"
               style={{ color: STATUS_STYLE[status]?.color, background: STATUS_STYLE[status]?.bg }}
             >
-              {STATUS_STYLE[status]?.label} — Report Submitted Successfully
+              {STATUS_STYLE[status]?.label} — No further action needed
             </span>
           </div>
         ) : (
@@ -335,11 +312,11 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
               style={{ background: canVerify ? "#1E3A5F" : "#94A3B8" }}
             >
               <FiPlayCircle className="w-4.5 h-4.5" />
-              <span>Start Verification</span>
+              {status === "RE_VERIFICATION" ? "Re-start Verification" : "Start Verification"}
               {canVerify && <FiArrowRight className="w-4 h-4 ml-1" />}
             </button>
 
-            {!canVerify && (status === "ASSIGNED" || status === "PENDING") && (
+            {!canVerify && status === "ASSIGNED" && (
               <p className="text-center text-[11px] text-slate-400">
                 ⚠️ Navigate to the location first, then confirm arrival to unlock verification
               </p>

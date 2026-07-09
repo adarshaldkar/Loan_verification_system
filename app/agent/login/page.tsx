@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { loginApi } from "@/lib/api";
 import { FiShield, FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
 import { toast } from "sonner";
 
 export default function AgentLoginPage() {
   const router = useRouter();
-  const [email, setEmail]       = useState("ravi.kumar@lvms.com");
+  const [email, setEmail]       = useState("agent@lvms.com");
   const [password, setPassword] = useState("agent123");
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
@@ -20,21 +19,10 @@ export default function AgentLoginPage() {
       return;
     }
     setLoading(true);
-    try {
-      const res = await loginApi(email, password);
-      if (res.data.success) {
-        localStorage.setItem("lvms_token", res.data.token);
-        localStorage.setItem("lvms_user", JSON.stringify(res.data.user));
-        toast.success("Welcome back, Agent!");
-        router.push("/agent");
-      } else {
-        toast.error(res.data.message || "Invalid credentials");
-      }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Login failed. Please check your credentials.");
-    } finally {
-      setLoading(false);
-    }
+    await new Promise((r) => setTimeout(r, 800));
+    setLoading(false);
+    toast.success("Welcome back, Agent!");
+    router.push("/agent");
   }
 
   return (
