@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  FIELD_AGENT
+}
+
+enum VerificationStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+enum VerificationType {
+  RESIDENTIAL
+  BUSINESS
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  role      Role     @default(FIELD_AGENT)
+  branch    String?  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignedCases VerificationCase[]
+}
+
+model Customer {
+  id             String   @id @default(uuid())
+  applicationId  String   @unique
+  firstName      String
+  lastName       String
+  phone          String?
+  email          String?
+  address        String
+  loanAmount     Float
+  businessName   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  verificationCases VerificationCase[]
+}
+
+model VerificationCase {
+  id           String             @id @default(uuid())
+  status       VerificationStatus @default(PENDING)
+  type         VerificationType
+  
+  // Relations
+  customerId   String
+  customer     Customer           @relation(fields: [customerId], references: [id])
+  
+  agentId      String?
+  agent        User?              @relation(fields: [agentId], references: [id])
+
+  // Data filled by agent
+  gpsLatitude  Float?
+  gpsLongitude Float?
+  remarks      String?            @db.Text
+  
+  // Specific profile data (stored as JSON for flexibility between Residential/Business)
+  profileData  Json?
+
+  createdAt    DateTime           @default(now())
+  completedAt  DateTime?
+
+  media        Media[]
+}
+
+model Media {
+  id                 String           @id @default(uuid())
+  url                String           // Cloudinary URL
+  publicId           String           // Cloudinary public ID
+  type               String           // e.g., "PHOTO", "DOCUMENT"
+  
+  verificationCaseId String
+  verificationCase   VerificationCase @relation(fields: [verificationCaseId], references: [id])
+  
+  createdAt          DateTime         @default(now())
+}
