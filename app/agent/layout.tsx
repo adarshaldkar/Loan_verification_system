@@ -209,6 +209,13 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
 /* ── Layout ── */
 export default function AgentLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const pathname = usePathname();
+
+  const isLoginPage = pathname === "/agent/login";
+
+  if (isLoginPage) {
+    return <div className="min-h-screen bg-[#F4F6FB]">{children}</div>;
+  }
 
   return (
     <div className="min-h-screen bg-[#F4F6FB] flex">
