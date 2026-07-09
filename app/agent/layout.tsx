@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FiGrid, FiBriefcase, FiCheckSquare, FiBell, FiUser, FiLogOut,
   FiShield, FiMenu, FiX, FiRefreshCw, FiWifi, FiWifiOff,
@@ -208,8 +208,14 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
 
 /* ── Layout ── */
 export default function AgentLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const pathname = usePathname();
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  }, []);
 
   const isLoginPage = pathname === "/agent/login";
 
@@ -220,7 +226,12 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen bg-[#F4F6FB] flex">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-56 shrink-0 sticky top-0 h-screen shadow-sm">
+      <aside
+        className={cn(
+          "hidden lg:flex flex-col shrink-0 sticky top-0 h-screen shadow-sm transition-all duration-300 ease-in-out bg-white border-r border-gray-100",
+          sidebarOpen ? "w-56" : "w-0 overflow-hidden border-r-0"
+        )}
+      >
         <Sidebar />
       </aside>
 
