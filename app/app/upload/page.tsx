@@ -2,42 +2,56 @@
 
 import { useState, useRef } from "react";
 import {
-  FiUploadCloud, FiDownload, FiFile, FiX, FiCheckCircle, FiAlertCircle,
+  FiUploadCloud, FiDownload, FiFile, FiX, FiCheckCircle, FiAlertCircle, FiFileText,
 } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 /* ─── Mock validation result ─────────────────────────────────────────────── */
 
 const mockResults = [
-  { row: 2, name: "Ravi Kumar",    phone: "+91 98765 43210", address: "12 MG Road, Bangalore", status: "valid",  error: null },
-  { row: 3, name: "Sneha Patel",   phone: "+91 87654 32109", address: "45 Park St, Mumbai",    status: "valid",  error: null },
-  { row: 4, name: "Ajay Sharma",   phone: "",                address: "78 Civil Lines, Delhi",  status: "error",  error: "Missing phone number" },
-  { row: 5, name: "",              phone: "+91 76543 21098", address: "90 Ring Rd, Hyderabad",  status: "error",  error: "Missing customer name" },
-  { row: 6, name: "Reena Singh",   phone: "+91 65432 10987", address: "23 Station Rd, Pune",   status: "valid",  error: null },
-  { row: 7, name: "Mohan Reddy",   phone: "+91 54321 09876", address: "",                       status: "error",  error: "Missing address" },
-  { row: 8, name: "Priti Joshi",   phone: "+91 43210 98765", address: "56 Lake View, Chennai",  status: "valid",  error: null },
+  { row: 2, name: "Ravi Kumar",  phone: "+91 98765 43210", address: "12 MG Road, Bangalore",  status: "valid",  error: null },
+  { row: 3, name: "Sneha Patel", phone: "+91 87654 32109", address: "45 Park St, Mumbai",      status: "valid",  error: null },
+  { row: 4, name: "Ajay Sharma", phone: "",                address: "78 Civil Lines, Delhi",   status: "error",  error: "Missing phone number" },
+  { row: 5, name: "",            phone: "+91 76543 21098", address: "90 Ring Rd, Hyderabad",   status: "error",  error: "Missing customer name" },
+  { row: 6, name: "Reena Singh", phone: "+91 65432 10987", address: "23 Station Rd, Pune",     status: "valid",  error: null },
+  { row: 7, name: "Mohan Reddy", phone: "+91 54321 09876", address: "",                        status: "error",  error: "Missing address" },
+  { row: 8, name: "Priti Joshi", phone: "+91 43210 98765", address: "56 Lake View, Chennai",   status: "valid",  error: null },
 ];
 
 type UploadState = "idle" | "uploading" | "validating" | "done";
 
+/* ─── Helpers ────────────────────────────────────────────────────────────── */
+
+function downloadBlob(content: string, filename: string, mime = "text/plain") {
+  const blob = new Blob([content], { type: mime });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href     = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const TEMPLATE_CSV = `Customer Name,Phone,Address,Loan Type\nRavi Kumar,+91 98765 43210,"12 MG Road, Bangalore",Home Loan\nSneha Patel,+91 87654 32109,"45 Park St, Mumbai",Business Loan`;
+const ERROR_CSV    = `Row,Name,Phone,Address,Error\n4,Ajay Sharma,,"78 Civil Lines, Delhi",Missing phone number\n5,,,,"90 Ring Rd, Hyderabad",Missing customer name\n7,Mohan Reddy,+91 54321 09876,,Missing address`;
+
 /* ─── Upload Page ────────────────────────────────────────────────────────── */
 
 export default function UploadPage() {
-  const [state, setState] = useState<UploadState>("idle");
+  const [state, setState]     = useState<UploadState>("idle");
   const [progress, setProgress] = useState(0);
   const [dragOver, setDragOver] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [file, setFile]       = useState<File | null>(null);
+  const inputRef              = useRef<HTMLInputElement>(null);
 
   function simulateUpload(f: File) {
     setFile(f);
     setState("uploading");
     setProgress(0);
-
     let p = 0;
     const interval = setInterval(() => {
       p += Math.random() * 15 + 5;
@@ -55,6 +69,7 @@ export default function UploadPage() {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (f) simulateUpload(f);
+    e.target.value = ""; // reset so same file can be re-selected
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -73,14 +88,21 @@ export default function UploadPage() {
         title="Excel Upload"
         description="Upload a customer Excel file to bulk create verification cases."
         action={
-          <Button variant="outline" className="gap-2 text-sm">
+          <Button
+            variant="outline"
+            className="gap-2 text-sm"
+            onClick={() => {
+              downloadBlob(TEMPLATE_CSV, "lvms_upload_template.csv", "text/csv");
+              toast.success("Template downloaded successfully");
+            }}
+          >
             <FiDownload className="w-4 h-4" />
             Download Template
           </Button>
         }
       />
 
-      {/* Drop Zone */}
+      {/* Drop Zone — shown when idle */}
       {state === "idle" && (
         <div
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -90,7 +112,7 @@ export default function UploadPage() {
           className={cn(
             "card-flat flex flex-col items-center justify-center gap-4 py-16 cursor-pointer transition-colors duration-200 border-2 border-dashed",
             dragOver
-              ? "border-[--color-brand-900] bg-[--color-brand-50]"
+              ? "border-[#1E3A5F] bg-blue-50"
               : "border-border hover:border-slate-300 hover:bg-slate-50"
           )}
         >
@@ -102,10 +124,10 @@ export default function UploadPage() {
               Drag and drop your Excel file here
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              or click to browse · .xlsx, .xls accepted · Max 10 MB
+              or click to browse · .xlsx, .xls, .csv accepted · Max 10 MB
             </p>
           </div>
-          <Button className="bg-[--color-brand-900] hover:bg-[--color-brand-800] text-white gap-2">
+          <Button className="text-white gap-2" style={{ background: "#1E3A5F" }}>
             <FiUploadCloud className="w-4 h-4" />
             Choose File
           </Button>
@@ -122,14 +144,18 @@ export default function UploadPage() {
       {/* Progress */}
       {(state === "uploading" || state === "validating") && (
         <div className="card-flat p-8 flex flex-col items-center gap-5">
-          <div className="w-14 h-14 rounded-2xl bg-[--color-brand-50] flex items-center justify-center">
-            <FiFile className="w-7 h-7 text-[--color-brand-900]" />
+          {/* Uploaded file info */}
+          <div className="flex items-center gap-3 w-full max-w-sm bg-slate-50 border border-border rounded-xl px-4 py-3">
+            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+              <FiFileText className="w-5 h-5 text-[#1E3A5F]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-slate-900 truncate">{file?.name}</p>
+              <p className="text-xs text-slate-400">{file ? (file.size / 1024).toFixed(1) + " KB" : ""}</p>
+            </div>
           </div>
           <div className="w-full max-w-sm text-center">
-            <p className="text-sm font-medium text-slate-900 mb-1">
-              {file?.name}
-            </p>
-            <p className="text-xs text-slate-400 mb-4">
+            <p className="text-xs text-slate-400 mb-3">
               {state === "uploading" ? "Uploading…" : "Validating rows…"}
             </p>
             <Progress value={progress} className="h-2" />
@@ -141,6 +167,24 @@ export default function UploadPage() {
       {/* Results */}
       {state === "done" && (
         <div className="space-y-5">
+          {/* Uploaded file banner */}
+          <div className="flex items-center gap-3 card-flat px-5 py-4">
+            <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+              <FiFileText className="w-5 h-5 text-[#1E3A5F]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-slate-900 truncate">{file?.name}</p>
+              <p className="text-xs text-slate-400">{file ? (file.size / 1024).toFixed(1) + " KB · Uploaded just now" : ""}</p>
+            </div>
+            <Button
+              variant="ghost" size="sm"
+              className="text-xs text-slate-400 gap-1.5"
+              onClick={() => { setState("idle"); setFile(null); }}
+            >
+              <FiX className="w-3.5 h-3.5" /> Remove
+            </Button>
+          </div>
+
           {/* Summary */}
           <div className="grid grid-cols-3 gap-4">
             <div className="card-flat p-5 text-center">
@@ -149,14 +193,14 @@ export default function UploadPage() {
               </p>
               <p className="text-xs text-slate-400 mt-1">Total Rows</p>
             </div>
-            <div className="card-flat p-5 text-center border-[--color-status-completed]/30">
-              <p className="text-2xl font-bold" style={{ color: "var(--color-status-completed)", fontFamily: "var(--font-plus-jakarta)" }}>
+            <div className="card-flat p-5 text-center">
+              <p className="text-2xl font-bold text-teal-600" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
                 {validCount}
               </p>
               <p className="text-xs text-slate-400 mt-1">Valid Rows</p>
             </div>
-            <div className="card-flat p-5 text-center border-[--color-status-rejected]/30">
-              <p className="text-2xl font-bold" style={{ color: "var(--color-status-rejected)", fontFamily: "var(--font-plus-jakarta)" }}>
+            <div className="card-flat p-5 text-center">
+              <p className="text-2xl font-bold text-rose-600" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
                 {errorCount}
               </p>
               <p className="text-xs text-slate-400 mt-1">Error Rows</p>
@@ -165,7 +209,7 @@ export default function UploadPage() {
 
           {/* Validation Table */}
           <div className="card-flat overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-wrap gap-3">
               <div>
                 <h3 className="text-[14px] font-semibold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
                   Validation Results
@@ -173,11 +217,23 @@ export default function UploadPage() {
                 <p className="text-xs text-slate-400 mt-0.5">{file?.name}</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                <Button
+                  variant="outline" size="sm"
+                  className="gap-1.5 text-xs"
+                  onClick={() => {
+                    downloadBlob(ERROR_CSV, "lvms_error_report.csv", "text/csv");
+                    toast.success("Error report downloaded");
+                  }}
+                >
                   <FiDownload className="w-3.5 h-3.5" />
                   Download Error Report
                 </Button>
-                <Button size="sm" className="gap-1.5 text-xs bg-[--color-brand-900] hover:bg-[--color-brand-800] text-white">
+                <Button
+                  size="sm"
+                  className="gap-1.5 text-xs text-white"
+                  style={{ background: "#1E3A5F" }}
+                  onClick={() => toast.success(`${validCount} valid rows imported successfully!`)}
+                >
                   <FiCheckCircle className="w-3.5 h-3.5" />
                   Confirm Import ({validCount} rows)
                 </Button>
@@ -217,13 +273,6 @@ export default function UploadPage() {
                 </tbody>
               </table>
             </div>
-          </div>
-
-          <div className="flex justify-end">
-            <Button variant="ghost" size="sm" className="text-xs text-slate-400" onClick={() => { setState("idle"); setFile(null); }}>
-              <FiX className="w-3.5 h-3.5 mr-1" />
-              Upload a different file
-            </Button>
           </div>
         </div>
       )}

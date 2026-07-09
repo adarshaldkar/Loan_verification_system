@@ -11,8 +11,18 @@ import { toast } from "sonner";
 
 export default function SettingsPage() {
   const [orgName, setOrgName] = useState("Apex Financial Services Ltd.");
-  const [email, setEmail] = useState("admin@lvms.com");
+  const [email, setEmail]     = useState("admin@lvms.com");
   const [slaDays, setSlaDays] = useState("3");
+  const [toggles, setToggles] = useState({
+    "Email alerts for overdue cases": true,
+    "Email digest — daily summary": true,
+    "Notify on new Excel upload": false,
+    "Notify when agent completes a case": false,
+  });
+
+  function flipToggle(label: string) {
+    setToggles((prev) => ({ ...prev, [label]: !prev[label as keyof typeof prev] }));
+  }
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -71,24 +81,34 @@ export default function SettingsPage() {
             Notifications
           </h2>
         </div>
-        {[
-          "Email alerts for overdue cases",
-          "Email digest — daily summary",
-          "Notify on new Excel upload",
-          "Notify when agent completes a case",
-        ].map((label) => (
+        {(Object.keys(toggles) as Array<keyof typeof toggles>).map((label) => (
           <div key={label} className="flex items-center justify-between py-1">
             <span className="text-sm text-slate-700">{label}</span>
-            <button className="w-10 h-5 rounded-full bg-[#1E3A5F] relative flex-shrink-0">
-              <span className="absolute right-0.5 top-0.5 w-4 h-4 rounded-full bg-white shadow-sm" />
+            <button
+              onClick={() => flipToggle(label)}
+              className="w-10 h-5 rounded-full relative flex-shrink-0 transition-colors duration-200"
+              style={{ background: toggles[label] ? "#1E3A5F" : "#CBD5E1" }}
+              aria-label={toggles[label] ? "Disable" : "Enable"}
+            >
+              <span
+                className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-200"
+                style={{ left: toggles[label] ? "calc(100% - 18px)" : "2px" }}
+              />
             </button>
           </div>
         ))}
       </div>
 
       <Button
-        onClick={() => toast.success("Settings saved successfully")}
-        className="bg-[#1E3A5F] hover:bg-[#2A4E7F] text-white gap-2"
+        onClick={() => {
+          if (!orgName.trim() || !email.trim()) {
+            toast.error("Organisation name and email are required.");
+            return;
+          }
+          toast.success("Settings saved successfully");
+        }}
+        className="text-white gap-2"
+        style={{ background: "#1E3A5F" }}
       >
         <FiSave className="w-4 h-4" />
         Save Settings

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FiSearch, FiEye, FiUserPlus, FiUserX, FiUserCheck } from "react-icons/fi";
+import { FiSearch, FiEye, FiUserPlus, FiUserX, FiUserCheck, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -38,15 +38,23 @@ const agents: Agent[] = [
 
 /* ─── Agents Page ────────────────────────────────────────────────────────── */
 
+const PAGE_SIZE = 4;
+
 export default function AgentsPage() {
-  const [search, setSearch] = useState("");
+  const [search, setSearch]     = useState("");
   const [agentList, setAgentList] = useState<Agent[]>(agents);
   const [selected, setSelected] = useState<Agent | null>(null);
+  const [page, setPage]         = useState(1);
 
   const filtered = agentList.filter((a) =>
     a.name.toLowerCase().includes(search.toLowerCase()) ||
     a.branch.toLowerCase().includes(search.toLowerCase())
   );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const paginated  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  function goTo(p: number) { setPage(Math.max(1, Math.min(p, totalPages))); }
 
   return (
     <div className="space-y-6">
@@ -54,7 +62,11 @@ export default function AgentsPage() {
         title="Agents"
         description="Manage the field agent roster, workload, and performance."
         action={
-          <Button className="bg-[--color-brand-900] hover:bg-[--color-brand-800] text-white gap-2">
+          <Button
+            className="text-white gap-2"
+            style={{ background: "#1E3A5F" }}
+            onClick={() => toast.info("Add Agent form coming soon")}
+          >
             <FiUserPlus className="w-4 h-4" />
             Add Agent
           </Button>
@@ -67,7 +79,7 @@ export default function AgentsPage() {
         <Input
           placeholder="Search agents or branch…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           className="pl-9"
         />
       </div>
@@ -86,7 +98,7 @@ export default function AgentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.map((a) => (
+              {paginated.map((a) => (
                 <tr key={a.id} className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => setSelected(a)}>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
@@ -129,8 +141,42 @@ export default function AgentsPage() {
             </tbody>
           </table>
         </div>
-        <div className="px-5 py-3 border-t border-border text-xs text-slate-500">
-          {filtered.length} agents — {agents.filter((a) => a.status === "Active").length} active, {agents.filter((a) => a.status === "Inactive").length} inactive
+        <div className="px-5 py-3 border-t border-border flex items-center justify-between text-xs text-slate-500">
+          <span>
+            Showing {filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length} agents
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline" size="sm"
+              className="h-7 px-2.5 text-xs gap-1"
+              disabled={safePage === 1}
+              onClick={() => goTo(safePage - 1)}
+            >
+              <FiChevronLeft className="w-3.5 h-3.5" /> Previous
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <Button
+                key={p}
+                variant="outline"
+                size="sm"
+                className={`h-7 w-7 p-0 text-xs font-semibold ${
+                  p === safePage ? "text-white border-[#1E3A5F]" : "text-slate-700 hover:bg-slate-50"
+                }`}
+                style={p === safePage ? { background: "#1E3A5F" } : {}}
+                onClick={() => goTo(p)}
+              >
+                {p}
+              </Button>
+            ))}
+            <Button
+              variant="outline" size="sm"
+              className="h-7 px-2.5 text-xs gap-1"
+              disabled={safePage === totalPages}
+              onClick={() => goTo(safePage + 1)}
+            >
+              Next <FiChevronRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -142,7 +188,7 @@ export default function AgentsPage() {
               <SheetHeader className="mb-6">
                 <div className="flex items-center gap-4">
                   <Avatar className="w-14 h-14">
-                    <AvatarFallback className="text-lg bg-[--color-brand-50] text-[--color-brand-900] font-bold">
+                    <AvatarFallback className="text-lg font-bold" style={{ background: "#E8EFF8", color: "#1E3A5F" }}>
                       {selected.name.split(" ").map((n) => n[0]).join("")}
                     </AvatarFallback>
                   </Avatar>

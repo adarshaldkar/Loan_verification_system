@@ -1,40 +1,107 @@
 "use client";
 
 import { useState } from "react";
-import { FiDownload, FiLoader, FiFileText, FiCalendar } from "react-icons/fi";
+import { FiDownload, FiFileText, FiCalendar, FiChevronDown } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
 import { PageHeader } from "@/components/shared/page-header";
 import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
-/* ─── Mock Generated Reports ─────────────────────────────────────────────── */
+/* ─── Data ───────────────────────────────────────────────────────────────── */
 
-const reports = [
-  { name: "Weekly Verification Summary",   type: "PDF",   generatedBy: "Rohit Admin", generatedAt: "18 May 2026, 09:00 AM", size: "1.2 MB" },
-  { name: "Agent Performance Report",      type: "Excel", generatedBy: "Rohit Admin", generatedAt: "17 May 2026, 05:30 PM", size: "845 KB" },
-  { name: "Branch Coverage Report",        type: "PDF",   generatedBy: "Rohit Admin", generatedAt: "16 May 2026, 11:00 AM", size: "2.1 MB" },
-  { name: "Monthly Cases Audit Export",    type: "Excel", generatedBy: "Rohit Admin", generatedAt: "15 May 2026, 06:00 PM", size: "3.4 MB" },
+const DATE_RANGES = [
+  { label: "This Week",  value: "07 Jul – 13 Jul 2026" },
+  { label: "Last Week",  value: "30 Jun – 06 Jul 2026" },
+  { label: "This Month", value: "01 Jul – 09 Jul 2026" },
+  { label: "Last Month", value: "01 Jun – 30 Jun 2026" },
 ];
+
+const REPORT_TYPES = [
+  { value: "weekly",  label: "Weekly Verification Summary" },
+  { value: "agent",   label: "Agent Performance Report" },
+  { value: "branch",  label: "Branch Coverage Report" },
+  { value: "audit",   label: "Cases Audit Export" },
+];
+
+const FORMATS = [
+  { value: "pdf",   label: "PDF Document" },
+  { value: "excel", label: "Excel Spreadsheet" },
+];
+
+type Report = { name: string; type: string; generatedBy: string; generatedAt: string; size: string };
+
+const initialReports: Report[] = [
+  { name: "Weekly Verification Summary", type: "PDF",   generatedBy: "Rohit Admin", generatedAt: "18 May 2026, 09:00 AM", size: "1.2 MB" },
+  { name: "Agent Performance Report",    type: "Excel", generatedBy: "Rohit Admin", generatedAt: "17 May 2026, 05:30 PM", size: "845 KB" },
+  { name: "Branch Coverage Report",      type: "PDF",   generatedBy: "Rohit Admin", generatedAt: "16 May 2026, 11:00 AM", size: "2.1 MB" },
+  { name: "Monthly Cases Audit Export",  type: "Excel", generatedBy: "Rohit Admin", generatedAt: "15 May 2026, 06:00 PM", size: "3.4 MB" },
+];
+
+function downloadBlob(content: string, filename: string, mime = "text/plain") {
+  const blob = new Blob([content], { type: mime });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
 
 /* ─── Reports Page ───────────────────────────────────────────────────────── */
 
 export default function ReportsPage() {
   const [reportType, setReportType] = useState("");
-  const [format, setFormat] = useState("");
+  const [format, setFormat]         = useState("");
+  const [dateRange, setDateRange]   = useState(DATE_RANGES[0]);
+  const [calOpen, setCalOpen]       = useState(false);
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState(0);
+  const [reports, setReports]       = useState<Report[]>(initialReports);
 
   function handleGenerate() {
+    if (!reportType || !format) {
+      toast.error("Please select a report type and format.");
+      return;
+    }
     setGenerating(true);
     setGenProgress(0);
     let p = 0;
     const iv = setInterval(() => {
       p += Math.random() * 20 + 10;
-      if (p >= 100) { p = 100; clearInterval(iv); setTimeout(() => setGenerating(false), 500); }
+      if (p >= 100) {
+        p = 100;
+        clearInterval(iv);
+        setTimeout(() => {
+          setGenerating(false);
+          const typeName = REPORT_TYPES.find((r) => r.value === reportType)?.label ?? "Report";
+          const fmtName  = format === "pdf" ? "PDF" : "Excel";
+          const newReport: Report = {
+            name: typeName,
+            type: fmtName,
+            generatedBy: "Rohit Admin",
+            generatedAt: new Date().toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+            size: `${(Math.random() * 3 + 0.5).toFixed(1)} MB`,
+          };
+          setReports((prev) => [newReport, ...prev]);
+          toast.success(`${typeName} generated successfully!`);
+          setReportType("");
+          setFormat("");
+        }, 400);
+      }
       setGenProgress(Math.min(p, 100));
-    }, 200);
+    }, 180);
+  }
+
+  function handleDownload(r: Report) {
+    const content = `Report: ${r.name}\nFormat: ${r.type}\nGenerated By: ${r.generatedBy}\nDate: ${r.generatedAt}\n\n[Sample report data — connect to backend for real export]`;
+    const ext = r.type === "PDF" ? "txt" : "csv";
+    downloadBlob(content, `${r.name.replace(/\s+/g, "_")}.${ext}`);
+    toast.success(`Downloading ${r.name}`);
   }
 
   return (
@@ -44,34 +111,62 @@ export default function ReportsPage() {
         description="Generate and export verification and performance reports."
       />
 
-      {/* Config Card */}
+      {/* ── Generate New Report ── */}
       <div className="card-flat p-6">
         <h3 className="text-[14px] font-semibold text-slate-900 mb-5" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
           Generate New Report
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+          {/* Report Type */}
           <Select value={reportType} onValueChange={(v) => v && setReportType(v)}>
             <SelectTrigger>
               <SelectValue placeholder="Report type…" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="weekly">Weekly Verification Summary</SelectItem>
-              <SelectItem value="agent">Agent Performance</SelectItem>
-              <SelectItem value="branch">Branch Coverage</SelectItem>
-              <SelectItem value="audit">Cases Audit Export</SelectItem>
+              {REPORT_TYPES.map((r) => (
+                <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
-          <div className="flex items-center gap-2 border border-border rounded-lg px-3 py-2 text-sm text-slate-500 cursor-pointer hover:border-slate-300">
-            <FiCalendar className="w-4 h-4 shrink-0 text-slate-400" />
-            <span>12 May – 18 May 2026</span>
-          </div>
+
+          {/* Date Range Picker */}
+          <Popover open={calOpen} onOpenChange={setCalOpen}>
+            <PopoverTrigger className="flex items-center gap-2 border border-[#E2E8F0] rounded-lg px-3 py-2 text-sm text-slate-600 bg-white hover:border-slate-300 outline-none transition-colors">
+              <FiCalendar className="w-4 h-4 text-slate-400 shrink-0" />
+              <span className="flex-1 text-left">{dateRange.value}</span>
+              <FiChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-52 p-1">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-2 py-1.5">
+                Select Range
+              </p>
+              {DATE_RANGES.map((r) => (
+                <button
+                  key={r.label}
+                  onClick={() => { setDateRange(r); setCalOpen(false); }}
+                  className={cn(
+                    "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
+                    dateRange.label === r.label
+                      ? "bg-blue-50 text-[#1E3A5F] font-semibold"
+                      : "text-slate-700 hover:bg-slate-50"
+                  )}
+                >
+                  {r.label}
+                  <span className="block text-[10px] text-slate-400 font-normal mt-0.5">{r.value}</span>
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
+
+          {/* Format */}
           <Select value={format} onValueChange={(v) => v && setFormat(v)}>
             <SelectTrigger>
               <SelectValue placeholder="Format…" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="pdf">PDF Document</SelectItem>
-              <SelectItem value="excel">Excel Spreadsheet</SelectItem>
+              {FORMATS.map((f) => (
+                <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -88,7 +183,8 @@ export default function ReportsPage() {
           <Button
             onClick={handleGenerate}
             disabled={!reportType || !format}
-            className="bg-[--color-brand-900] hover:bg-[--color-brand-800] text-white gap-2"
+            className="text-white gap-2 disabled:opacity-40"
+            style={{ background: "#1E3A5F" }}
           >
             <FiFileText className="w-4 h-4" />
             Generate Report
@@ -96,7 +192,7 @@ export default function ReportsPage() {
         )}
       </div>
 
-      {/* Previous Reports */}
+      {/* ── Generated Reports Table ── */}
       <div className="card-flat overflow-hidden">
         <div className="px-5 py-4 border-b border-border">
           <h3 className="text-[14px] font-semibold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
@@ -115,8 +211,8 @@ export default function ReportsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {reports.map((r) => (
-                <tr key={r.name} className="hover:bg-slate-50 transition-colors">
+              {reports.map((r, i) => (
+                <tr key={i} className="hover:bg-slate-50 transition-colors">
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2">
                       <FiFileText className="w-4 h-4 text-slate-300 shrink-0" />
@@ -132,7 +228,12 @@ export default function ReportsPage() {
                   <td className="px-5 py-3.5 text-slate-400 text-xs font-mono whitespace-nowrap">{r.generatedAt}</td>
                   <td className="px-5 py-3.5 text-slate-400 text-xs">{r.size}</td>
                   <td className="px-5 py-3.5">
-                    <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-[--color-brand-900]">
+                    <Button
+                      variant="ghost" size="sm"
+                      className="gap-1.5 text-xs font-semibold"
+                      style={{ color: "#1E3A5F" }}
+                      onClick={() => handleDownload(r)}
+                    >
                       <FiDownload className="w-3.5 h-3.5" />
                       Download
                     </Button>

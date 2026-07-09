@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FiSearch, FiFilter, FiEye, FiBriefcase, FiPhone, FiMapPin } from "react-icons/fi";
+import { FiSearch, FiFilter, FiEye, FiBriefcase, FiPhone, FiMapPin, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import {
 import { StatusBadge, type VerificationStatus } from "@/components/shared/status-badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 /* ─── Mock Data ──────────────────────────────────────────────────────────── */
 
@@ -29,22 +31,27 @@ type Customer = {
 };
 
 const customers: Customer[] = [
-  { id: "CUST-001", name: "Amit Kumar",     phone: "+91 98765 43210", address: "12, MG Road, Bangalore", loanType: "Home Loan",     caseStatus: "Completed",   branch: "Bangalore HQ", uploadDate: "18 May 2026" },
-  { id: "CUST-002", name: "Priya Sharma",   phone: "+91 87654 32109", address: "45, Park St, Mumbai",    loanType: "Business Loan", caseStatus: "In Progress", branch: "Mumbai West",   uploadDate: "18 May 2026" },
-  { id: "CUST-003", name: "Sandeep Yadav",  phone: "+91 76543 21098", address: "78, Civil Lines, Delhi", loanType: "Home Loan",     caseStatus: "Pending",     branch: "Delhi North",   uploadDate: "17 May 2026" },
-  { id: "CUST-004", name: "Neha Verma",     phone: "+91 65432 10987", address: "90, Ring Rd, Hyderabad", loanType: "Business Loan", caseStatus: "Rejected",    branch: "Hyderabad",     uploadDate: "17 May 2026" },
-  { id: "CUST-005", name: "Rahul Gupta",    phone: "+91 54321 09876", address: "23, Station Rd, Pune",   loanType: "Personal Loan", caseStatus: "Pending",     branch: "Pune",          uploadDate: "16 May 2026" },
-  { id: "CUST-006", name: "Kavita Singh",   phone: "+91 43210 98765", address: "56, Lake View, Chennai", loanType: "Vehicle Loan",  caseStatus: "Completed",   branch: "Chennai South", uploadDate: "16 May 2026" },
-  { id: "CUST-007", name: "Arvind Patel",   phone: "+91 32109 87654", address: "89, Gandhi Nagar, Ahmedabad", loanType: "Home Loan", caseStatus: "Completed", branch: "Ahmedabad",    uploadDate: "15 May 2026" },
-  { id: "CUST-008", name: "Sunita Joshi",   phone: "+91 21098 76543", address: "34, Mall Rd, Jaipur",    loanType: "Business Loan", caseStatus: "In Progress", branch: "Jaipur",        uploadDate: "15 May 2026" },
+  { id: "CUST-001", name: "Amit Kumar",    phone: "+91 98765 43210", address: "12, MG Road, Bangalore",       loanType: "Home Loan",     caseStatus: "Completed",   branch: "Bangalore HQ", uploadDate: "18 May 2026" },
+  { id: "CUST-002", name: "Priya Sharma",  phone: "+91 87654 32109", address: "45, Park St, Mumbai",          loanType: "Business Loan", caseStatus: "In Progress", branch: "Mumbai West",   uploadDate: "18 May 2026" },
+  { id: "CUST-003", name: "Sandeep Yadav", phone: "+91 76543 21098", address: "78, Civil Lines, Delhi",       loanType: "Home Loan",     caseStatus: "Pending",     branch: "Delhi North",   uploadDate: "17 May 2026" },
+  { id: "CUST-004", name: "Neha Verma",    phone: "+91 65432 10987", address: "90, Ring Rd, Hyderabad",       loanType: "Business Loan", caseStatus: "Rejected",    branch: "Hyderabad",     uploadDate: "17 May 2026" },
+  { id: "CUST-005", name: "Rahul Gupta",   phone: "+91 54321 09876", address: "23, Station Rd, Pune",         loanType: "Personal Loan", caseStatus: "Pending",     branch: "Pune",          uploadDate: "16 May 2026" },
+  { id: "CUST-006", name: "Kavita Singh",  phone: "+91 43210 98765", address: "56, Lake View, Chennai",       loanType: "Vehicle Loan",  caseStatus: "Completed",   branch: "Chennai South", uploadDate: "16 May 2026" },
+  { id: "CUST-007", name: "Arvind Patel",  phone: "+91 32109 87654", address: "89, Gandhi Nagar, Ahmedabad",  loanType: "Home Loan",     caseStatus: "Completed",   branch: "Ahmedabad",     uploadDate: "15 May 2026" },
+  { id: "CUST-008", name: "Sunita Joshi",  phone: "+91 21098 76543", address: "34, Mall Rd, Jaipur",          loanType: "Business Loan", caseStatus: "In Progress", branch: "Jaipur",        uploadDate: "15 May 2026" },
+  { id: "CUST-009", name: "Rakesh Mehra",  phone: "+91 99887 76655", address: "11, SV Road, Mumbai",          loanType: "Personal Loan", caseStatus: "Pending",     branch: "Mumbai West",   uploadDate: "14 May 2026" },
+  { id: "CUST-010", name: "Divya Nair",    phone: "+91 88776 65544", address: "67, Anna Nagar, Chennai",      loanType: "Home Loan",     caseStatus: "Completed",   branch: "Chennai South", uploadDate: "14 May 2026" },
 ];
+
+const PAGE_SIZE = 5;
 
 /* ─── Customers Page ─────────────────────────────────────────────────────── */
 
 export default function CustomersPage() {
-  const [search, setSearch] = useState("");
+  const [search, setSearch]         = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [selected, setSelected] = useState<Customer | null>(null);
+  const [selected, setSelected]     = useState<Customer | null>(null);
+  const [page, setPage]             = useState(1);
 
   const filtered = customers.filter((c) => {
     const matchSearch =
@@ -54,6 +61,12 @@ export default function CustomersPage() {
     const matchStatus = statusFilter === "All" || c.caseStatus === statusFilter;
     return matchSearch && matchStatus;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const paginated  = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  function goTo(p: number) { setPage(Math.max(1, Math.min(p, totalPages))); }
 
   return (
     <div className="space-y-6">
@@ -69,11 +82,11 @@ export default function CustomersPage() {
           <Input
             placeholder="Search by name, ID, or phone…"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="pl-9"
           />
         </div>
-        <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
+        <Select value={statusFilter} onValueChange={(v) => { if (v) { setStatusFilter(v); setPage(1); } }}>
           <SelectTrigger className="w-44">
             <FiFilter className="w-4 h-4 text-slate-400 mr-2" />
             <SelectValue placeholder="Status" />
@@ -102,19 +115,19 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.length === 0 ? (
+              {paginated.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-16 text-center text-slate-400 text-sm">
                     No customers found. Try adjusting your filters.
                   </td>
                 </tr>
               ) : (
-                filtered.map((c) => (
+                paginated.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => setSelected(c)}>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <Avatar className="w-8 h-8 shrink-0">
-                          <AvatarFallback className="text-xs bg-[--color-brand-50] text-[--color-brand-900] font-semibold">
+                          <AvatarFallback className="text-xs font-semibold" style={{ background: "#E8EFF8", color: "#1E3A5F" }}>
                             {c.name.split(" ").map((n) => n[0]).join("")}
                           </AvatarFallback>
                         </Avatar>
@@ -131,7 +144,7 @@ export default function CustomersPage() {
                     <td className="px-5 py-4 text-slate-500 whitespace-nowrap">{c.branch}</td>
                     <td className="px-5 py-4 text-slate-400 text-xs whitespace-nowrap">{c.uploadDate}</td>
                     <td className="px-5 py-4">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelected(c)}>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setSelected(c); }}>
                         <FiEye className="w-4 h-4 text-slate-400" />
                       </Button>
                     </td>
@@ -141,14 +154,46 @@ export default function CustomersPage() {
             </tbody>
           </table>
         </div>
-        {/* Pagination */}
+
+        {/* ── Pagination ── */}
         <div className="px-5 py-3 border-t border-border flex items-center justify-between text-xs text-slate-500">
-          <span>Showing {filtered.length} of {customers.length} customers</span>
-          <div className="flex gap-1">
-            <Button variant="outline" size="sm" className="h-7 px-3 text-xs" disabled>Previous</Button>
-            <Button variant="outline" size="sm" className="h-7 px-3 text-xs bg-[--color-brand-900] text-white border-[--color-brand-900]">1</Button>
-            <Button variant="outline" size="sm" className="h-7 px-3 text-xs">2</Button>
-            <Button variant="outline" size="sm" className="h-7 px-3 text-xs">Next</Button>
+          <span>
+            Showing {filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length} customers
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline" size="sm"
+              className="h-7 px-2.5 text-xs gap-1"
+              disabled={safePage === 1}
+              onClick={() => goTo(safePage - 1)}
+            >
+              <FiChevronLeft className="w-3.5 h-3.5" /> Previous
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+              <Button
+                key={p}
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "h-7 w-7 p-0 text-xs font-semibold",
+                  p === safePage
+                    ? "text-white border-[#1E3A5F]"
+                    : "text-slate-700 hover:bg-slate-50"
+                )}
+                style={p === safePage ? { background: "#1E3A5F" } : {}}
+                onClick={() => goTo(p)}
+              >
+                {p}
+              </Button>
+            ))}
+            <Button
+              variant="outline" size="sm"
+              className="h-7 px-2.5 text-xs gap-1"
+              disabled={safePage === totalPages}
+              onClick={() => goTo(safePage + 1)}
+            >
+              Next <FiChevronRight className="w-3.5 h-3.5" />
+            </Button>
           </div>
         </div>
       </div>
@@ -161,7 +206,7 @@ export default function CustomersPage() {
               <SheetHeader className="mb-6">
                 <div className="flex items-center gap-4">
                   <Avatar className="w-14 h-14">
-                    <AvatarFallback className="text-lg bg-[--color-brand-50] text-[--color-brand-900] font-bold">
+                    <AvatarFallback className="text-lg font-bold" style={{ background: "#E8EFF8", color: "#1E3A5F" }}>
                       {selected.name.split(" ").map((n) => n[0]).join("")}
                     </AvatarFallback>
                   </Avatar>
@@ -175,10 +220,10 @@ export default function CustomersPage() {
               <Separator className="mb-6" />
               <div className="space-y-4 text-sm">
                 {[
-                  { icon: <FiPhone />, label: "Phone", value: selected.phone },
-                  { icon: <FiMapPin />, label: "Address", value: selected.address },
+                  { icon: <FiPhone />, label: "Phone",       value: selected.phone },
+                  { icon: <FiMapPin />, label: "Address",    value: selected.address },
                   { icon: <FiBriefcase />, label: "Loan Type", value: selected.loanType },
-                  { icon: <FiMapPin />, label: "Branch", value: selected.branch },
+                  { icon: <FiMapPin />, label: "Branch",     value: selected.branch },
                   { icon: <FiSearch />, label: "Upload Date", value: selected.uploadDate },
                 ].map(({ icon, label, value }) => (
                   <div key={label} className="flex items-start gap-3">
@@ -191,7 +236,11 @@ export default function CustomersPage() {
                 ))}
               </div>
               <div className="mt-8">
-                <Button className="w-full bg-[--color-brand-900] hover:bg-[--color-brand-800] text-white">
+                <Button
+                  className="w-full text-white"
+                  style={{ background: "#1E3A5F" }}
+                  onClick={() => { toast.info(`Opening cases for ${selected.name}`); setSelected(null); }}
+                >
                   View Linked Case
                 </Button>
               </div>

@@ -143,6 +143,8 @@ export default function DashboardPage() {
   const [period, setPeriod] = useState("This Week");
   const [dateRange, setDateRange] = useState(DATE_RANGES[2]);
   const [calOpen, setCalOpen] = useState(false);
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
 
   return (
     <div className="space-y-6">
@@ -164,7 +166,12 @@ export default function DashboardPage() {
               {DATE_RANGES.map((r) => (
                 <button
                   key={r.label}
-                  onClick={() => { setDateRange(r); setCalOpen(false); }}
+                  onClick={() => {
+                    if (r.label !== "Custom Range") {
+                      setDateRange(r);
+                      setCalOpen(false);
+                    }
+                  }}
                   className={cn(
                     "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
                     dateRange.label === r.label
@@ -173,9 +180,43 @@ export default function DashboardPage() {
                   )}
                 >
                   {r.label}
-                  <span className="block text-[10px] text-slate-400 font-normal mt-0.5">{r.value}</span>
+                  {r.label !== "Custom Range" && (
+                    <span className="block text-[10px] text-slate-400 font-normal mt-0.5">{r.value}</span>
+                  )}
                 </button>
               ))}
+              {/* Custom Range inputs */}
+              <div className="px-3 pt-1 pb-2 border-t border-slate-100 mt-1">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Custom Range</p>
+                <div className="flex flex-col gap-1.5">
+                  <input
+                    type="date"
+                    value={customFrom}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    className="w-full text-xs border border-[#E2E8F0] rounded-lg px-2 py-1.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1E3A5F]"
+                  />
+                  <input
+                    type="date"
+                    value={customTo}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    className="w-full text-xs border border-[#E2E8F0] rounded-lg px-2 py-1.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1E3A5F]"
+                  />
+                  <button
+                    onClick={() => {
+                      if (customFrom && customTo) {
+                        const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+                        setDateRange({ label: "Custom Range", value: `${fmt(customFrom)} – ${fmt(customTo)}` });
+                        setCalOpen(false);
+                      }
+                    }}
+                    disabled={!customFrom || !customTo}
+                    className="w-full text-xs text-white rounded-lg py-1.5 font-semibold transition-colors disabled:opacity-40"
+                    style={{ background: "#1E3A5F" }}
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
             </PopoverContent>
           </Popover>
         }
@@ -293,7 +334,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Bottom Row: Recent Cases + Right Panels ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-stretch">
         {/* Recent Cases — fills available height */}
         <div className="lg:col-span-3 flex flex-col">
           <SectionCard title="Recent Cases" viewAllHref="/app/cases">
@@ -375,7 +416,7 @@ export default function DashboardPage() {
                   <div key={agent.name} className="grid grid-cols-4 items-center gap-2">
                     <div className="col-span-2 flex items-center gap-2">
                       <Avatar className="w-7 h-7 shrink-0">
-                        <AvatarFallback className="text-[10px] font-semibold bg-[--color-brand-50] text-[--color-brand-900]">
+                        <AvatarFallback className="text-[10px] font-semibold" style={{ background: "#E8EFF8", color: "#1E3A5F" }}>
                           {agent.name.split(" ").map((n) => n[0]).join("")}
                         </AvatarFallback>
                       </Avatar>
