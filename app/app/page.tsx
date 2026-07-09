@@ -129,7 +129,7 @@ export default function DashboardPage() {
     { label: "Pending Cases",   value: pendingCount,                     icon: <FiClock />,        iconBg: "bg-amber-50",   trend: 8.5  },
     { label: "Completed Cases", value: completedCount,                   icon: <FiCheckCircle />,  iconBg: "bg-teal-50",    trend: 18.7 },
     { label: "Active Agents",   value: analytics?.totalAgents ?? 0,     icon: <FiUserCheck />,    iconBg: "bg-indigo-50",  trend: 9.4  },
-    { label: "Branches",        value: 0,                                icon: <FiGitBranch />,    iconBg: "bg-slate-100",  trend: 0    },
+    { label: "Branches",        value: analytics?.totalBranches ?? 0,                     icon: <FiGitBranch />,    iconBg: "bg-slate-100",  trend: 0    },
   ];
 
   const pieData = [

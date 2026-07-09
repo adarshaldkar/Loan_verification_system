@@ -530,6 +530,7 @@ export const getAnalytics = async (req: Request, res: Response) => {
   try {
     const totalAgents = await prisma.user.count({ where: { role: 'FIELD_AGENT', isActive: true } });
     const totalCustomers = await prisma.customer.count();
+    const totalBranches = await prisma.branch.count();
     const casesByStatus = await prisma.verificationCase.groupBy({
       by: ['status'],
       _count: { status: true },
@@ -540,6 +541,7 @@ export const getAnalytics = async (req: Request, res: Response) => {
       data: {
         totalAgents,
         totalCustomers,
+        totalBranches,
         caseBreakdown: casesByStatus.map((c) => ({ status: c.status, count: c._count.status })),
       },
     });

@@ -489,6 +489,7 @@ const getAnalytics = async (req, res) => {
     try {
         const totalAgents = await db_1.default.user.count({ where: { role: 'FIELD_AGENT', isActive: true } });
         const totalCustomers = await db_1.default.customer.count();
+        const totalBranches = await db_1.default.branch.count();
         const casesByStatus = await db_1.default.verificationCase.groupBy({
             by: ['status'],
             _count: { status: true },
@@ -498,6 +499,7 @@ const getAnalytics = async (req, res) => {
             data: {
                 totalAgents,
                 totalCustomers,
+                totalBranches,
                 caseBreakdown: casesByStatus.map((c) => ({ status: c.status, count: c._count.status })),
             },
         });
