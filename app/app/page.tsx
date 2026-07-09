@@ -406,8 +406,8 @@ export default function DashboardPage() {
                 <span className="text-right">Rate</span>
               </div>
               <div className="space-y-3 pt-3">
-                {topAgents.map((agent) => (
-                  <div key={agent.name} className="grid grid-cols-4 items-center gap-2">
+                {topAgents.map((agent, index) => (
+                  <div key={`${agent.name}-${index}`} className="grid grid-cols-4 items-center gap-2">
                     <div className="col-span-2 flex items-center gap-2">
                       <Avatar className="w-7 h-7 shrink-0">
                         <AvatarFallback className="text-[10px] font-semibold" style={{ background: "#E8EFF8", color: "#1E3A5F" }}>
