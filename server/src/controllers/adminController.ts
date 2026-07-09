@@ -86,7 +86,7 @@ export const getCases = async (req: Request, res: Response) => {
 
 export const assignCase = async (req: Request, res: Response) => {
   try {
-    const { caseId } = req.params;
+    const caseId = String(req.params.caseId);
     const { agentId } = req.body;
 
     // Verify agent exists
@@ -114,7 +114,7 @@ export const assignCase = async (req: Request, res: Response) => {
  */
 export const updateCaseStatus = async (req: Request, res: Response) => {
   try {
-    const { caseId } = req.params;
+    const caseId = String(req.params.caseId);
     const { status } = req.body; // e.g., COMPLETED or REJECTED
 
     if (!['COMPLETED', 'REJECTED'].includes(status)) {
