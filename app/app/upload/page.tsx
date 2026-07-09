@@ -55,11 +55,11 @@ export default function UploadPage() {
     Papa.parse(f, {
       header: true,
       skipEmptyLines: true,
-      complete: (result) => {
+      complete: (result: any) => {
         setProgress(75);
         setState("validating");
         
-        const parsed: ParsedRow[] = result.data.map((r: any, index) => {
+        const parsed: ParsedRow[] = result.data.map((r: any, index: number) => {
           const name = r['Customer Name'] || r['Name'] || '';
           const phone = r['Phone'] || r['Phone Number'] || '';
           const address = r['Address'] || '';

@@ -1,4 +1,4 @@
-import axios from "axios";
+import axios, { InternalAxiosRequestConfig, AxiosResponse } from "axios";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -8,18 +8,20 @@ const api = axios.create({
 });
 
 // Auto-attach JWT to every request
-api.interceptors.request.use((config) => {
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (typeof window !== "undefined") {
     const token = localStorage.getItem("lvms_token");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });
 
 // Auto-logout on 401
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response: AxiosResponse) => response,
+  (error: any) => {
     if (error.response?.status === 401 && typeof window !== "undefined") {
       localStorage.removeItem("lvms_token");
       localStorage.removeItem("lvms_user");
@@ -87,3 +89,16 @@ export const getAuditLogsApi = () => api.get("/admin/audit-logs");
 export const getProfileApi = () => api.get("/admin/profile");
 export const getSettingsApi = () => api.get("/admin/settings");
 export const updateSettingsApi = (data: any) => api.put("/admin/settings", data);
+
+// ─── Agent Endpoints ──────────────────────────────────────────────────────
+export const getAgentCasesApi = () => api.get("/agent/cases");
+export const getAgentCaseDetailsApi = (id: string) => api.get(`/agent/cases/${id}`);
+export const updateAgentCaseStatusApi = (id: string, status: string) => api.put(`/agent/cases/${id}/status`, { status });
+export const submitAgentVerificationApi = (id: string, data: {
+  gpsLatitude?: number;
+  gpsLongitude?: number;
+  remarks?: string;
+  profileData?: any;
+  photos?: string[];
+  status?: string;
+}) => api.post(`/agent/cases/${id}/verify`, data);

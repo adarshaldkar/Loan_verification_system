@@ -320,7 +320,7 @@ export const getAgents = async (req: Request, res: Response) => {
 
 export const toggleAgentStatus = async (req: Request, res: Response) => {
   try {
-    const { agentId } = req.params;
+    const agentId = req.params.agentId as string;
     const agent = await prisma.user.findUnique({ where: { id: agentId } });
     if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
 
@@ -369,8 +369,8 @@ export const getCases = async (req: Request, res: Response) => {
 
 export const assignCase = async (req: Request, res: Response) => {
   try {
-    const { caseId } = req.params;
-    const { agentId } = req.body;
+    const caseId = req.params.caseId as string;
+    const agentId = req.body.agentId as string;
     const agent = await prisma.user.findUnique({ where: { id: agentId, role: 'FIELD_AGENT' } });
     if (!agent) return res.status(404).json({ success: false, message: 'Field Agent not found' });
 
@@ -397,7 +397,7 @@ export const assignCase = async (req: Request, res: Response) => {
 
 export const updateCaseStatus = async (req: Request, res: Response) => {
   try {
-    const { caseId } = req.params;
+    const caseId = req.params.caseId as string;
     const { status } = req.body;
     if (!['COMPLETED', 'REJECTED'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status update' });

@@ -411,7 +411,7 @@ export default function DashboardPage() {
                     <div className="col-span-2 flex items-center gap-2">
                       <Avatar className="w-7 h-7 shrink-0">
                         <AvatarFallback className="text-[10px] font-semibold" style={{ background: "#E8EFF8", color: "#1E3A5F" }}>
-                          {agent.name.split(" ").map((n) => n[0]).join("")}
+                          {agent.name.split(" ").map((n: string) => n[0]).join("")}
                         </AvatarFallback>
                       </Avatar>
                       <span className="text-xs font-medium text-slate-900 truncate">{agent.name}</span>
