@@ -16,6 +16,10 @@ import {
   DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
@@ -148,27 +152,99 @@ function SidebarContent({
 
 function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const [notifOpen, setNotifOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
 
-  return (
-    <header className="sticky top-0 z-40 h-14 border-b border-border bg-white/90 backdrop-blur-sm flex items-center px-4 gap-4">
-      {/* Mobile hamburger */}
-      <button
-        onClick={onMenuClick}
-        className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
-        aria-label="Open navigation"
-      >
-        <FiMenu className="w-5 h-5" />
-      </button>
+  const quickLinks = [
+    { label: "Dashboard",    href: "/app",             icon: FiGrid,        hint: "Overview" },
+    { label: "Customers",    href: "/app/customers",   icon: FiUsers,       hint: "All customers" },
+    { label: "Cases",        href: "/app/cases",       icon: FiBriefcase,   hint: "Verification cases" },
+    { label: "Agents",       href: "/app/agents",      icon: FiUserCheck,   hint: "Field agents" },
+    { label: "Excel Upload", href: "/app/upload",      icon: FiUploadCloud, hint: "Import data" },
+    { label: "Reports",      href: "/app/reports",     icon: FiBarChart2,   hint: "Generate reports" },
+    { label: "Branches",     href: "/app/branches",    icon: FiGitBranch,   hint: "Branch offices" },
+    { label: "Audit Logs",   href: "/app/audit-logs",  icon: FiFileText,    hint: "Activity trail" },
+    { label: "Settings",     href: "/app/settings",    icon: FiSettings,    hint: "System settings" },
+    { label: "Profile",      href: "/app/profile",     icon: FiUser,        hint: "My account" },
+  ];
 
-      {/* Search */}
-      <div className="flex-1 max-w-md hidden sm:flex items-center gap-2 h-9 px-3 rounded-lg border border-border bg-slate-50 text-slate-400 text-sm cursor-not-allowed">
-        <FiSearch className="w-4 h-4 shrink-0" />
-        <span>Search anything...</span>
-        <span className="ml-auto flex items-center gap-0.5 text-[11px] text-slate-300 border border-slate-200 rounded px-1 py-0.5">
-          ⌘K
-        </span>
-      </div>
+  const filtered = quickLinks.filter(
+    (l) =>
+      searchQuery === "" ||
+      l.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      l.hint.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <>
+      {/* Search Dialog */}
+      <Dialog open={searchOpen} onOpenChange={(o) => { setSearchOpen(o); if (!o) setSearchQuery(""); }}>
+        <DialogContent className="max-w-md p-0 gap-0 overflow-hidden">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Search</DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E2E8F0]">
+            <FiSearch className="w-4 h-4 text-slate-400 shrink-0" />
+            <Input
+              autoFocus
+              placeholder="Search pages, cases, agents..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="border-0 shadow-none focus-visible:ring-0 text-sm p-0 h-auto bg-transparent"
+            />
+            <kbd className="text-[10px] text-slate-400 border border-slate-200 rounded px-1.5 py-0.5">ESC</kbd>
+          </div>
+          <div className="py-2 max-h-80 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="px-4 py-6 text-sm text-slate-400 text-center">No results found</p>
+            ) : (
+              <>
+                <p className="px-4 py-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                  Quick Navigation
+                </p>
+                {filtered.map(({ label, href, icon: Icon, hint }) => (
+                  <button
+                    key={href}
+                    onClick={() => { router.push(href); setSearchOpen(false); setSearchQuery(""); }}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors text-left"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                      <Icon className="w-4 h-4 text-[#1E3A5F]" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-slate-900">{label}</p>
+                      <p className="text-xs text-slate-400">{hint}</p>
+                    </div>
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <header className="sticky top-0 z-40 h-14 border-b border-border bg-white/90 backdrop-blur-sm flex items-center px-4 gap-4">
+        {/* Mobile hamburger */}
+        <button
+          onClick={onMenuClick}
+          className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
+          aria-label="Open navigation"
+        >
+          <FiMenu className="w-5 h-5" />
+        </button>
+
+        {/* Search trigger */}
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="flex-1 max-w-md hidden sm:flex items-center gap-2 h-9 px-3 rounded-lg border border-[#E2E8F0] bg-slate-50 text-slate-400 text-sm hover:border-slate-300 hover:bg-white transition-colors text-left"
+        >
+          <FiSearch className="w-4 h-4 shrink-0" />
+          <span>Search anything...</span>
+          <span className="ml-auto flex items-center gap-0.5 text-[11px] text-slate-300 border border-slate-200 rounded px-1 py-0.5">
+            ⌘K
+          </span>
+        </button>
 
       <div className="ml-auto flex items-center gap-2">
         {/* Notifications dropdown */}
@@ -269,7 +345,8 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </header>
+      </header>
+    </>
   );
 }
 

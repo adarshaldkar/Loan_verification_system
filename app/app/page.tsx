@@ -8,11 +8,14 @@ import {
 } from "recharts";
 import {
   FiUsers, FiBriefcase, FiClock, FiCheckCircle,
-  FiUserCheck, FiGitBranch, FiFile, FiUploadCloud, FiUserPlus,
+  FiUserCheck, FiGitBranch, FiFile, FiUploadCloud, FiUserPlus, FiCalendar, FiChevronDown,
 } from "react-icons/fi";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
 import { StatsCard } from "@/components/shared/stats-card";
 import { StatusBadge, type VerificationStatus } from "@/components/shared/status-badge";
 import { SectionCard } from "@/components/shared/section-card";
@@ -124,10 +127,22 @@ function ChartTooltip({ active, payload, label }: any) {
   );
 }
 
+const DATE_RANGES = [
+  { label: "Today",          value: "09 Jul 2026" },
+  { label: "Last 7 days",    value: "02 Jul – 09 Jul 2026" },
+  { label: "This Week",      value: "07 Jul – 13 Jul 2026" },
+  { label: "Last Week",      value: "30 Jun – 06 Jul 2026" },
+  { label: "This Month",     value: "01 Jul – 09 Jul 2026" },
+  { label: "Last Month",     value: "01 Jun – 30 Jun 2026" },
+  { label: "Custom Range",   value: "12 May – 18 May 2026" },
+];
+
 /* ─── Dashboard Page ─────────────────────────────────────────────────────── */
 
 export default function DashboardPage() {
   const [period, setPeriod] = useState("This Week");
+  const [dateRange, setDateRange] = useState(DATE_RANGES[2]);
+  const [calOpen, setCalOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -136,13 +151,33 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Welcome back, Rohit! Here's what's happening today."
         action={
-          <div className="flex items-center gap-1 border border-border rounded-lg px-3 py-2 text-sm text-slate-600 bg-white cursor-pointer hover:border-slate-300 transition-colors">
-            <FiClock className="w-4 h-4 mr-1 text-slate-400" />
-            May 12, 2026 – May 18, 2026
-            <svg className="ml-2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
+          <Popover open={calOpen} onOpenChange={setCalOpen}>
+            <PopoverTrigger className="flex items-center gap-2 border border-[#E2E8F0] rounded-lg px-3 py-2 text-sm text-slate-600 bg-white hover:border-slate-300 transition-colors outline-none">
+              <FiCalendar className="w-4 h-4 text-slate-400" />
+              <span className="font-medium">{dateRange.value}</span>
+              <FiChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-52 p-1">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-2 py-1.5">
+                Select Range
+              </p>
+              {DATE_RANGES.map((r) => (
+                <button
+                  key={r.label}
+                  onClick={() => { setDateRange(r); setCalOpen(false); }}
+                  className={cn(
+                    "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
+                    dateRange.label === r.label
+                      ? "bg-blue-50 text-[#1E3A5F] font-semibold"
+                      : "text-slate-700 hover:bg-slate-50"
+                  )}
+                >
+                  {r.label}
+                  <span className="block text-[10px] text-slate-400 font-normal mt-0.5">{r.value}</span>
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
         }
       />
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { FiSearch, FiEye, FiUserPlus, FiUserX } from "react-icons/fi";
+import { FiSearch, FiEye, FiUserPlus, FiUserX, FiUserCheck } from "react-icons/fi";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -39,9 +40,10 @@ const agents: Agent[] = [
 
 export default function AgentsPage() {
   const [search, setSearch] = useState("");
+  const [agentList, setAgentList] = useState<Agent[]>(agents);
   const [selected, setSelected] = useState<Agent | null>(null);
 
-  const filtered = agents.filter((a) =>
+  const filtered = agentList.filter((a) =>
     a.name.toLowerCase().includes(search.toLowerCase()) ||
     a.branch.toLowerCase().includes(search.toLowerCase())
   );
@@ -179,12 +181,42 @@ export default function AgentsPage() {
                 </div>
               </div>
               <div className="mt-8 flex gap-3">
-                <Button className="flex-1 bg-[--color-brand-900] hover:bg-[--color-brand-800] text-white">
+                <Button
+                  className="flex-1 text-white"
+                  style={{ background: "#1E3A5F" }}
+                  onClick={() => {
+                    setSelected(null);
+                    toast.info(`Opening case history for ${selected.name}`);
+                  }}
+                >
                   View Case History
                 </Button>
-                <Button variant="outline" className="flex-1 text-rose-600 border-rose-200 hover:bg-rose-50 gap-2">
-                  <FiUserX className="w-4 h-4" />
-                  Deactivate
+                <Button
+                  variant="outline"
+                  className={`flex-1 gap-2 ${
+                    selected.status === "Active"
+                      ? "text-rose-600 border-rose-200 hover:bg-rose-50"
+                      : "text-teal-600 border-teal-200 hover:bg-teal-50"
+                  }`}
+                  onClick={() => {
+                    const next = selected.status === "Active" ? "Inactive" : "Active";
+                    const updated = agentList.map((a) =>
+                      a.id === selected.id ? { ...a, status: next as Agent["status"] } : a
+                    );
+                    setAgentList(updated);
+                    setSelected({ ...selected, status: next as Agent["status"] });
+                    toast.success(
+                      `Agent ${selected.name} has been ${
+                        next === "Inactive" ? "deactivated" : "reactivated"
+                      }.`
+                    );
+                  }}
+                >
+                  {selected.status === "Active" ? (
+                    <><FiUserX className="w-4 h-4" /> Deactivate</>
+                  ) : (
+                    <><FiUserCheck className="w-4 h-4" /> Reactivate</>
+                  )}
                 </Button>
               </div>
             </>

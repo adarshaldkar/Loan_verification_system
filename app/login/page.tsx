@@ -50,7 +50,7 @@ export default function LoginPage() {
         <div className="card-flat p-8 shadow-sm">
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-[--color-brand-900] flex items-center justify-center mb-4 shadow-md">
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shadow-md" style={{ background: "#1E3A5F" }}>
               <FiShield className="text-white w-7 h-7" />
             </div>
             <h1
@@ -133,7 +133,8 @@ export default function LoginPage() {
               </label>
               <button
                 type="button"
-                className="text-xs text-[--color-brand-900] hover:underline font-medium"
+                className="text-xs font-medium hover:underline"
+                style={{ color: "#1E3A5F" }}
               >
                 Forgot password?
               </button>
@@ -143,7 +144,8 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-[--color-brand-900] hover:bg-[--color-brand-800] text-white gap-2 mt-2"
+              className="w-full text-white gap-2 mt-2 font-semibold"
+              style={{ background: loading ? "#2A4E7F" : "#1E3A5F" }}
             >
               {loading ? (
                 <>
