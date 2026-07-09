@@ -20,6 +20,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  function autofillDemo() {
+    setEmail("admin@loanverify.com");
+    setPassword("admin123");
+    setError("");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -88,7 +94,7 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@lvms.com"
+                  placeholder="admin@loanverify.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10"
@@ -171,7 +177,14 @@ export default function LoginPage() {
 
           {/* Demo hint */}
           <p className="text-center text-xs text-slate-400 mt-6">
-            Demo: <span className="font-mono">admin@lvms.com</span> / <span className="font-mono">admin123</span>
+            Demo:{" "}
+            <button
+              type="button"
+              onClick={autofillDemo}
+              className="font-mono text-[#1E3A5F] underline underline-offset-2 hover:opacity-80 transition-opacity"
+            >
+              admin@loanverify.com / admin123
+            </button>
           </p>
         </div>
 

@@ -21,7 +21,22 @@ import { StatusBadge, type VerificationStatus } from "@/components/shared/status
 import { SectionCard } from "@/components/shared/section-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
-import { getAnalyticsApi, getCasesApi, getAgentsApi } from "@/lib/api";
+import { getAnalyticsApi, getDashboardApi } from "@/lib/api";
+
+/* ─── Static fallback activity icons map ─────────────────────────────────── */
+const ICON_MAP: Record<string, React.ReactNode> = {
+  success: <FiCheckCircle className="w-4 h-4" style={{ color: "#0D9488" }} />,
+  info:    <FiBriefcase className="w-4 h-4" style={{ color: "#1D4ED8" }} />,
+  upload:  <FiUploadCloud className="w-4 h-4" style={{ color: "#1E3A5F" }} />,
+  activity:<FiUserPlus className="w-4 h-4 text-amber-700" />,
+};
+
+const STATIC_ACTIVITY = [
+  { icon: "success", bg: "bg-teal-50",  title: "Verification completed",  desc: "System is ready",   time: "Just now" },
+  { icon: "info",    bg: "bg-blue-50",  title: "New case pending",         desc: "No cases yet",      time: "—" },
+  { icon: "upload",  bg: "bg-blue-50",  title: "System initialized",       desc: "Database synced",   time: "—" },
+  { icon: "activity",bg: "bg-amber-50",  title: "Admin logged in",          desc: "Welcome back!",     time: "Just now" },
+];
 
 /* ─── Static chart seed data (visual only) ───────────────────────────────── */
 const lineData = [
@@ -75,19 +90,25 @@ export default function DashboardPage() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [recentCases, setRecentCases] = useState<any[]>([]);
   const [topAgents, setTopAgents] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any[]>(STATIC_ACTIVITY);
+  const [liveLineData, setLiveLineData] = useState<any[]>(lineData);
+  const [livePieData, setLivePieData] = useState<any[] | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const [analyticsRes, casesRes, agentsRes] = await Promise.all([
+        const [dashRes, analyticsRes] = await Promise.all([
+          getDashboardApi(),
           getAnalyticsApi(),
-          getCasesApi(),
-          getAgentsApi(),
         ]);
+        const dash = dashRes.data.data;
         setAnalytics(analyticsRes.data.data);
-        setRecentCases(casesRes.data.data.slice(0, 8));
-        setTopAgents(agentsRes.data.data.slice(0, 5));
+        setRecentCases(dash.recentCases ?? []);
+        setTopAgents(dash.topAgents ?? []);
+        if (dash.recentActivity?.length) setRecentActivity(dash.recentActivity);
+        if (dash.lineData?.length) setLiveLineData(dash.lineData);
+        if (dash.pieData?.length) setLivePieData(dash.pieData);
       } catch (err) {
         console.error("Failed to load dashboard data:", err);
       } finally {
@@ -220,7 +241,7 @@ export default function DashboardPage() {
             </select>
           </div>
           <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={lineData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+            <LineChart data={liveLineData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
               <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: "#94A3B8" }} axisLine={false} tickLine={false} />
@@ -258,7 +279,7 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height={160}>
                 <PieChart>
                   <Pie
-                    data={pieData}
+                    data={livePieData ?? pieData}
                     cx="50%"
                     cy="50%"
                     innerRadius={50}
@@ -266,7 +287,7 @@ export default function DashboardPage() {
                     dataKey="value"
                     strokeWidth={2}
                   >
-                    {pieData.map((entry) => (
+                    {(livePieData ?? pieData).map((entry) => (
                       <Cell key={entry.name} fill={entry.color} />
                     ))}
                   </Pie>
@@ -279,15 +300,16 @@ export default function DashboardPage() {
               {/* Centre label */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                 <p className="text-2xl font-bold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-                  10,820
+                  {(livePieData ?? pieData).reduce((s: number, d: any) => s + d.value, 0).toLocaleString()}
                 </p>
                 <p className="text-[11px] text-slate-400">Total</p>
               </div>
             </div>
             {/* Legend rows */}
             <div className="mt-3 space-y-1.5">
-              {pieData.map(({ name, value, color }) => {
-                const pct = ((value / 10820) * 100).toFixed(1);
+              {(livePieData ?? pieData).map(({ name, value, color }: any) => {
+                const total = (livePieData ?? pieData).reduce((s: number, d: any) => s + d.value, 0);
+                const pct = total === 0 ? "0.0" : ((value / total) * 100).toFixed(1);
                 return (
                   <div key={name} className="flex items-center justify-between text-xs text-slate-600">
                     <div className="flex items-center gap-2">
@@ -352,7 +374,7 @@ export default function DashboardPage() {
               {recentActivity.map((item, i) => (
                 <div key={i} className="flex gap-3 px-5 py-3.5 hover:bg-slate-50 transition-colors">
                   <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-base", item.bg)}>
-                    {item.icon}
+                    {typeof item.icon === "string" ? ICON_MAP[item.icon] ?? ICON_MAP["activity"] : item.icon}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-900 leading-tight">{item.title}</p>

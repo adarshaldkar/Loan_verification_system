@@ -1,0 +1,11 @@
+Customer Name,Phone,Address,Loan Amount,Loan Type
+Ravi Kumar,9876543210,12 MG Road Bangalore,1500000,Home Loan
+Sneha Patel,8765432109,45 Park St Mumbai,500000,Personal
+Ajay Sharma,7654321098,78 Civil Lines Delhi,800000,Auto Loan
+Missing Phone User,,90 Ring Rd Hyderabad,300000,Personal
+Reena Singh,6543210987,23 Station Rd Pune,1200000,Business
+Mohan Reddy,5432109876,56 Lake View Chennai,400000,Personal
+Priti Joshi,4321098765,11 Green Park Jaipur,2500000,Home Loan
+Invalid Address,3210987654,,100000,Personal
+Suresh Gupta,2109876543,99 High Street Kolkata,750000,Auto Loan
+Anjali Verma,1098765432,88 Cyber City Gurgaon,3000000,Business

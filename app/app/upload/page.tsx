@@ -9,20 +9,21 @@ import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-/* ─── Mock validation result ─────────────────────────────────────────────── */
-
-const mockResults = [
-  { row: 2, name: "Ravi Kumar",  phone: "+91 98765 43210", address: "12 MG Road, Bangalore",  status: "valid",  error: null },
-  { row: 3, name: "Sneha Patel", phone: "+91 87654 32109", address: "45 Park St, Mumbai",      status: "valid",  error: null },
-  { row: 4, name: "Ajay Sharma", phone: "",                address: "78 Civil Lines, Delhi",   status: "error",  error: "Missing phone number" },
-  { row: 5, name: "",            phone: "+91 76543 21098", address: "90 Ring Rd, Hyderabad",   status: "error",  error: "Missing customer name" },
-  { row: 6, name: "Reena Singh", phone: "+91 65432 10987", address: "23 Station Rd, Pune",     status: "valid",  error: null },
-  { row: 7, name: "Mohan Reddy", phone: "+91 54321 09876", address: "",                        status: "error",  error: "Missing address" },
-  { row: 8, name: "Priti Joshi", phone: "+91 43210 98765", address: "56 Lake View, Chennai",   status: "valid",  error: null },
-];
+import Papa from "papaparse";
+import { uploadBulkCasesApi } from "@/lib/api";
 
 type UploadState = "idle" | "uploading" | "validating" | "done";
+
+type ParsedRow = {
+  row: number;
+  name: string;
+  phone: string;
+  address: string;
+  loanAmount: string;
+  loanType: string;
+  status: "valid" | "error";
+  error: string | null;
+};
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
 
@@ -36,9 +37,6 @@ function downloadBlob(content: string, filename: string, mime = "text/plain") {
   URL.revokeObjectURL(url);
 }
 
-const TEMPLATE_CSV = `Customer Name,Phone,Address,Loan Type\nRavi Kumar,+91 98765 43210,"12 MG Road, Bangalore",Home Loan\nSneha Patel,+91 87654 32109,"45 Park St, Mumbai",Business Loan`;
-const ERROR_CSV    = `Row,Name,Phone,Address,Error\n4,Ajay Sharma,,"78 Civil Lines, Delhi",Missing phone number\n5,,,,"90 Ring Rd, Hyderabad",Missing customer name\n7,Mohan Reddy,+91 54321 09876,,Missing address`;
-
 /* ─── Upload Page ────────────────────────────────────────────────────────── */
 
 export default function UploadPage() {
@@ -46,29 +44,55 @@ export default function UploadPage() {
   const [progress, setProgress] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [file, setFile]       = useState<File | null>(null);
+  const [results, setResults] = useState<ParsedRow[]>([]);
   const inputRef              = useRef<HTMLInputElement>(null);
 
-  function simulateUpload(f: File) {
+  function processFile(f: File) {
     setFile(f);
     setState("uploading");
-    setProgress(0);
-    let p = 0;
-    const interval = setInterval(() => {
-      p += Math.random() * 15 + 5;
-      if (p >= 100) {
-        p = 100;
-        clearInterval(interval);
-        setProgress(100);
+    setProgress(25);
+    
+    Papa.parse(f, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (result) => {
+        setProgress(75);
         setState("validating");
-        setTimeout(() => setState("done"), 1200);
+        
+        const parsed: ParsedRow[] = result.data.map((r: any, index) => {
+          const name = r['Customer Name'] || r['Name'] || '';
+          const phone = r['Phone'] || r['Phone Number'] || '';
+          const address = r['Address'] || '';
+          const loanAmount = r['Loan Amount'] || '';
+          const loanType = r['Loan Type'] || '';
+          
+          let status: "valid" | "error" = "valid";
+          let error = null;
+
+          if (!name) { status = "error"; error = "Missing customer name"; }
+          else if (!phone) { status = "error"; error = "Missing phone number"; }
+          else if (!address) { status = "error"; error = "Missing address"; }
+          
+          return { row: index + 2, name, phone, address, loanAmount, loanType, status, error };
+        });
+
+        setTimeout(() => {
+          setResults(parsed);
+          setProgress(100);
+          setState("done");
+        }, 800);
+      },
+      error: () => {
+        toast.error("Failed to parse the file. Please ensure it's a valid CSV.");
+        setState("idle");
+        setFile(null);
       }
-      setProgress(Math.min(p, 100));
-    }, 200);
+    });
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (f) simulateUpload(f);
+    if (f) processFile(f);
     e.target.value = ""; // reset so same file can be re-selected
   }
 
@@ -76,11 +100,29 @@ export default function UploadPage() {
     e.preventDefault();
     setDragOver(false);
     const f = e.dataTransfer.files?.[0];
-    if (f) simulateUpload(f);
+    if (f) processFile(f);
   }
 
-  const validCount = mockResults.filter((r) => r.status === "valid").length;
-  const errorCount = mockResults.filter((r) => r.status === "error").length;
+  async function handleConfirmImport() {
+    const validRows = results.filter(r => r.status === "valid");
+    if (validRows.length === 0) {
+      toast.error("No valid rows to import.");
+      return;
+    }
+
+    try {
+      const res = await uploadBulkCasesApi(validRows);
+      toast.success(res.data.message || `${validRows.length} valid rows imported successfully!`);
+      setState("idle");
+      setFile(null);
+      setResults([]);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Failed to import data.");
+    }
+  }
+
+  const validCount = results.filter((r) => r.status === "valid").length;
+  const errorCount = results.filter((r) => r.status === "error").length;
 
   return (
     <div className="space-y-6">
@@ -92,12 +134,14 @@ export default function UploadPage() {
             variant="outline"
             className="gap-2 text-sm"
             onClick={() => {
-              downloadBlob(TEMPLATE_CSV, "lvms_upload_template.csv", "text/csv");
-              toast.success("Template downloaded successfully");
+              const link = document.createElement("a");
+              link.href = "/sample_leads.csv";
+              link.download = "sample_leads.csv";
+              link.click();
             }}
           >
             <FiDownload className="w-4 h-4" />
-            Download Template
+            Download Sample CSV
           </Button>
         }
       />
@@ -121,10 +165,10 @@ export default function UploadPage() {
           </div>
           <div className="text-center">
             <p className="text-sm font-medium text-slate-700">
-              Drag and drop your Excel file here
+              Drag and drop your Excel/CSV file here
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              or click to browse · .xlsx, .xls, .csv accepted · Max 10 MB
+              or click to browse · .csv accepted · Max 10 MB
             </p>
           </div>
           <Button className="text-white gap-2" style={{ background: "#1E3A5F" }}>
@@ -134,7 +178,7 @@ export default function UploadPage() {
           <input
             ref={inputRef}
             type="file"
-            accept=".xlsx,.xls,.csv"
+            accept=".csv"
             className="hidden"
             onChange={handleFileChange}
           />
@@ -144,7 +188,6 @@ export default function UploadPage() {
       {/* Progress */}
       {(state === "uploading" || state === "validating") && (
         <div className="card-flat p-8 flex flex-col items-center gap-5">
-          {/* Uploaded file info */}
           <div className="flex items-center gap-3 w-full max-w-sm bg-slate-50 border border-border rounded-xl px-4 py-3">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
               <FiFileText className="w-5 h-5 text-[#1E3A5F]" />
@@ -167,7 +210,6 @@ export default function UploadPage() {
       {/* Results */}
       {state === "done" && (
         <div className="space-y-5">
-          {/* Uploaded file banner */}
           <div className="flex items-center gap-3 card-flat px-5 py-4">
             <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
               <FiFileText className="w-5 h-5 text-[#1E3A5F]" />
@@ -179,17 +221,16 @@ export default function UploadPage() {
             <Button
               variant="ghost" size="sm"
               className="text-xs text-slate-400 gap-1.5"
-              onClick={() => { setState("idle"); setFile(null); }}
+              onClick={() => { setState("idle"); setFile(null); setResults([]); }}
             >
               <FiX className="w-3.5 h-3.5" /> Remove
             </Button>
           </div>
 
-          {/* Summary */}
           <div className="grid grid-cols-3 gap-4">
             <div className="card-flat p-5 text-center">
               <p className="text-2xl font-bold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-                {mockResults.length}
+                {results.length}
               </p>
               <p className="text-xs text-slate-400 mt-1">Total Rows</p>
             </div>
@@ -207,7 +248,6 @@ export default function UploadPage() {
             </div>
           </div>
 
-          {/* Validation Table */}
           <div className="card-flat overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-wrap gap-3">
               <div>
@@ -221,7 +261,9 @@ export default function UploadPage() {
                   variant="outline" size="sm"
                   className="gap-1.5 text-xs"
                   onClick={() => {
-                    downloadBlob(ERROR_CSV, "lvms_error_report.csv", "text/csv");
+                    const errorRows = results.filter(r => r.status === "error");
+                    const csvContent = "Row,Name,Phone,Address,Error\n" + errorRows.map(r => `${r.row},"${r.name}","${r.phone}","${r.address}","${r.error}"`).join("\n");
+                    downloadBlob(csvContent, "lvms_error_report.csv", "text/csv");
                     toast.success("Error report downloaded");
                   }}
                 >
@@ -232,7 +274,8 @@ export default function UploadPage() {
                   size="sm"
                   className="gap-1.5 text-xs text-white"
                   style={{ background: "#1E3A5F" }}
-                  onClick={() => toast.success(`${validCount} valid rows imported successfully!`)}
+                  onClick={handleConfirmImport}
+                  disabled={validCount === 0}
                 >
                   <FiCheckCircle className="w-3.5 h-3.5" />
                   Confirm Import ({validCount} rows)
@@ -251,7 +294,7 @@ export default function UploadPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {mockResults.map((r) => (
+                  {results.map((r) => (
                     <tr key={r.row} className={cn(r.status === "error" && "bg-rose-50/40")}>
                       <td className="px-5 py-3 text-slate-400 text-xs font-mono">{r.row}</td>
                       <td className="px-5 py-3 text-slate-900">{r.name || <span className="text-rose-500 italic">Missing</span>}</td>

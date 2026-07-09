@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiSearch, FiFilter, FiDownload } from "react-icons/fi";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,25 +8,28 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { PageHeader } from "@/components/shared/page-header";
-
-/* ─── Mock Data ──────────────────────────────────────────────────────────── */
-
-const auditLogs = [
-  { actor: "Rohit Admin",  action: "Approved verification",  entity: "Case LV-2026-10818",   timestamp: "2026-05-18 09:20:14", ip: "192.168.1.10" },
-  { actor: "Amit Kumar",   action: "Submitted verification", entity: "Case LV-2026-10818",    timestamp: "2026-05-18 09:15:02", ip: "10.0.0.45"    },
-  { actor: "Rohit Admin",  action: "Assigned case",          entity: "Case LV-2026-10819",    timestamp: "2026-05-18 08:30:55", ip: "192.168.1.10" },
-  { actor: "System",       action: "Excel import completed", entity: "Batch customers_may_18", timestamp: "2026-05-18 08:00:00", ip: "system"       },
-  { actor: "Rohit Admin",  action: "Registered new agent",   entity: "Agent Suresh Yadav",    timestamp: "2026-05-17 05:12:34", ip: "192.168.1.10" },
-  { actor: "Vikash Patel", action: "Rejected verification",  entity: "Case LV-2026-10817",    timestamp: "2026-05-17 04:45:11", ip: "10.0.0.22"    },
-  { actor: "Rohit Admin",  action: "Deactivated branch",     entity: "Branch: Kolkata",        timestamp: "2026-05-16 03:00:00", ip: "192.168.1.10" },
-  { actor: "System",       action: "Scheduled backup run",   entity: "DB Backup",              timestamp: "2026-05-16 02:00:00", ip: "system"       },
-];
+import { getAuditLogsApi } from "@/lib/api";
+import { toast } from "sonner";
 
 /* ─── Audit Logs Page ────────────────────────────────────────────────────── */
 
 export default function AuditLogsPage() {
   const [search, setSearch] = useState("");
   const [actorFilter, setActorFilter] = useState("All");
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  const fetchLogs = async () => {
+    try {
+      const res = await getAuditLogsApi();
+      setAuditLogs(res.data.data);
+    } catch (err) {
+      toast.error("Failed to load audit logs");
+    }
+  };
 
   const filtered = auditLogs.filter((l) => {
     const matchSearch =

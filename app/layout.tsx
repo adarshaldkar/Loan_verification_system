@@ -51,10 +51,11 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${inter.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} h-full`}
     >
-      <body className="h-full antialiased">
+      <body className="h-full antialiased" suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
+          forcedTheme="light"
           enableSystem={false}
           disableTransitionOnChange
         >

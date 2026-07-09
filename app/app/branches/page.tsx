@@ -1,41 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiGitBranch, FiPlus, FiX, FiMapPin, FiUser, FiPhone } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/shared/page-header";
 import { toast } from "sonner";
-
-/* ─── Types & Data ───────────────────────────────────────────────────────── */
-
-type Branch = {
-  id: string;
-  name: string;
-  city: string;
-  agents: number;
-  activeCases: number;
-  manager: string;
-  phone: string;
-};
-
-const initialBranches: Branch[] = [
-  { id: "BR-001", name: "Bangalore HQ",  city: "Bangalore",  agents: 32, activeCases: 124, manager: "Rajesh Iyer",   phone: "+91 80 2345 6789" },
-  { id: "BR-002", name: "Mumbai West",   city: "Mumbai",     agents: 28, activeCases: 98,  manager: "Sunita Shah",   phone: "+91 22 9876 5432" },
-  { id: "BR-003", name: "Delhi North",   city: "Delhi",      agents: 24, activeCases: 87,  manager: "Pankaj Sharma", phone: "+91 11 8765 4321" },
-  { id: "BR-004", name: "Hyderabad",     city: "Hyderabad",  agents: 18, activeCases: 65,  manager: "Anita Reddy",   phone: "+91 40 7654 3210" },
-  { id: "BR-005", name: "Pune",          city: "Pune",       agents: 15, activeCases: 54,  manager: "Sunil Pawar",   phone: "+91 20 6543 2109" },
-  { id: "BR-006", name: "Chennai South", city: "Chennai",    agents: 22, activeCases: 76,  manager: "Meera Nair",    phone: "+91 44 5432 1098" },
-  { id: "BR-007", name: "Ahmedabad",     city: "Ahmedabad",  agents: 12, activeCases: 42,  manager: "Ravi Patel",    phone: "+91 79 4321 0987" },
-  { id: "BR-008", name: "Jaipur",        city: "Jaipur",     agents: 10, activeCases: 35,  manager: "Sanjay Gupta",  phone: "+91 14 3210 9876" },
-];
+import { getBranchesApi, createBranchApi } from "@/lib/api";
 
 /* ─── Branches Page ──────────────────────────────────────────────────────── */
 
 export default function BranchesPage() {
-  const [branches, setBranches]   = useState<Branch[]>(initialBranches);
+  const [branches, setBranches]   = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Form state
   const [name, setName]       = useState("");
@@ -43,24 +22,42 @@ export default function BranchesPage() {
   const [manager, setManager] = useState("");
   const [phone, setPhone]     = useState("");
 
-  function handleAddBranch() {
+  useEffect(() => {
+    fetchBranches();
+  }, []);
+
+  const fetchBranches = async () => {
+    try {
+      const res = await getBranchesApi();
+      setBranches(res.data.data);
+    } catch (err) {
+      toast.error("Failed to load branches");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  async function handleAddBranch() {
     if (!name.trim() || !city.trim() || !manager.trim()) {
       toast.error("Please fill in Branch Name, City and Manager Name.");
       return;
     }
-    const newBranch: Branch = {
-      id: `BR-${String(branches.length + 1).padStart(3, "0")}`,
-      name: name.trim(),
-      city: city.trim(),
-      manager: manager.trim(),
-      phone: phone.trim() || "—",
-      agents: 0,
-      activeCases: 0,
-    };
-    setBranches((prev) => [...prev, newBranch]);
-    toast.success(`Branch "${newBranch.name}" added successfully!`);
-    setShowModal(false);
-    setName(""); setCity(""); setManager(""); setPhone("");
+    
+    try {
+      await createBranchApi({
+        name: name.trim(),
+        city: city.trim(),
+        manager: manager.trim(),
+        phone: phone.trim() || undefined
+      });
+      
+      toast.success(`Branch "${name}" added successfully!`);
+      setShowModal(false);
+      setName(""); setCity(""); setManager(""); setPhone("");
+      fetchBranches(); // Refresh list
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to create branch");
+    }
   }
 
   return (

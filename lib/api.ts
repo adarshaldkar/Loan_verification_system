@@ -65,6 +65,8 @@ export const assignCaseApi = (caseId: string, agentId: string) =>
   api.put(`/admin/cases/${caseId}/assign`, { agentId });
 export const updateCaseStatusApi = (caseId: string, status: "COMPLETED" | "REJECTED") =>
   api.put(`/admin/cases/${caseId}/status`, { status });
+export const uploadBulkCasesApi = (rows: any[]) =>
+  api.post("/admin/upload/bulk", { rows });
 
 // ─── Branches ─────────────────────────────────────────────────────────────
 export const getBranchesApi = () => api.get("/admin/branches");

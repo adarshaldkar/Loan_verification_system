@@ -26,6 +26,7 @@ import {
   getProfile,
   getSettings,
   updateSettings,
+  bulkUploadCases,
 } from '../controllers/adminController';
 import { registerAgent } from '../controllers/authController';
 
@@ -69,5 +70,8 @@ router.get('/audit-logs', getAuditLogs);
 router.get('/profile', getProfile);
 router.get('/settings', getSettings);
 router.put('/settings', updateSettings);
+
+// ── Bulk Upload ────────────────────────────────────────────────────────────
+router.post('/upload/bulk', bulkUploadCases);
 
 export default router;
