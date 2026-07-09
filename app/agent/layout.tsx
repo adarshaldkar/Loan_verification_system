@@ -5,153 +5,232 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   FiGrid, FiBriefcase, FiCheckSquare, FiBell, FiUser, FiLogOut,
-  FiShield, FiMenu, FiX, FiChevronRight,
+  FiShield, FiMenu, FiX, FiRefreshCw, FiWifi, FiWifiOff,
+  FiMapPin, FiChevronDown, FiUploadCloud,
 } from "react-icons/fi";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
-/* ─── Mock Agent Session ─────────────────────────────────────────────────── */
-const AGENT = {
-  name: "Amit Kumar",
-  id: "AGT-001",
-  branch: "Bangalore HQ",
-  initials: "AK",
-};
+const AGENT = { name: "Arun Kumar", id: "AGT-1024", initials: "AK" };
 
-/* ─── Nav ────────────────────────────────────────────────────────────────── */
-const navItems = [
-  { label: "Dashboard",          href: "/agent",               icon: FiGrid },
-  { label: "Assigned Cases",     href: "/agent/cases",         icon: FiBriefcase },
-  { label: "Verification",       href: "/agent/verify",        icon: FiCheckSquare },
-  { label: "Notifications",      href: "/agent/notifications", icon: FiBell },
-  { label: "Profile",            href: "/agent/profile",       icon: FiUser },
+interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ComponentType<any>;
+  badge?: number;
+  danger?: boolean;
+}
+
+interface NavSection {
+  title: string;
+  items: NavItem[];
+}
+
+const navSections: NavSection[] = [
+  {
+    title: "MAIN",
+    items: [
+      { label: "Dashboard",           href: "/agent",               icon: FiGrid },
+      { label: "Assigned Cases",      href: "/agent/cases",         icon: FiBriefcase },
+      { label: "Verification Process",href: "/agent/verify",        icon: FiCheckSquare },
+    ],
+  },
+  {
+    title: "ACTIVITY",
+    items: [
+      { label: "Notifications",       href: "/agent/notifications", icon: FiBell, badge: 2 },
+    ],
+  },
+  {
+    title: "ACCOUNT",
+    items: [
+      { label: "Profile",             href: "/agent/profile",       icon: FiUser },
+      { label: "Logout",              href: "/agent/login",         icon: FiLogOut, danger: true },
+    ],
+  },
 ];
 
-/* ─── Sidebar ─────────────────────────────────────────────────────────────── */
 function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const router   = useRouter();
 
   return (
-    <div className="flex flex-col h-full bg-[#0F2240]">
+    <div className="flex flex-col h-full bg-white border-r border-gray-100">
       {/* Logo */}
-      <div className="flex items-center justify-between px-5 py-5 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "#1E4DB7" }}>
             <FiShield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="text-[13px] font-bold text-white leading-tight" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-              LVMS Agent
+            <p className="text-[14px] font-bold text-gray-900 leading-tight" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
+              LVMS
             </p>
-            <p className="text-[10px] text-blue-300 leading-tight">Field Portal</p>
+            <p className="text-[10px] text-gray-400">Agent Panel</p>
           </div>
         </div>
         {onClose && (
-          <button onClick={onClose} className="text-blue-300 hover:text-white lg:hidden">
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 lg:hidden">
             <FiX className="w-5 h-5" />
           </button>
         )}
       </div>
 
-      {/* Agent badge */}
-      <div className="mx-4 mt-4 mb-2 p-3 bg-white/8 rounded-xl border border-white/10">
-        <div className="flex items-center gap-2.5">
-          <Avatar className="w-8 h-8 shrink-0">
-            <AvatarFallback className="text-xs font-bold" style={{ background: "#1E3A5F", color: "#fff" }}>
-              {AGENT.initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-semibold text-white truncate">{AGENT.name}</p>
-            <p className="text-[10px] text-blue-300">{AGENT.branch}</p>
+      {/* Nav Sections */}
+      <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
+        {navSections.map((section) => (
+          <div key={section.title}>
+            <p className="text-[10px] font-semibold text-gray-400 px-3 mb-1.5 tracking-widest">{section.title}</p>
+            <div className="space-y-0.5">
+              {section.items.map(({ label, href, icon: Icon, badge, danger }) => {
+                const isActive = href === "/agent" ? pathname === "/agent" : pathname.startsWith(href);
+                if (danger) {
+                  return (
+                    <button
+                      key={href}
+                      onClick={() => { onClose?.(); router.push(href); }}
+                      className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 transition-all"
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      {label}
+                    </button>
+                  );
+                }
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={onClose}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                      isActive
+                        ? "text-white shadow-sm"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    )}
+                    style={isActive ? { background: "#1E4DB7" } : {}}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="flex-1">{label}</span>
+                    {badge !== undefined && (
+                      <span className="w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center"
+                        style={isActive ? { background: "rgba(255,255,255,0.25)", color: "white" } : { background: "#EF4444", color: "white" }}>
+                        {badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-          <span className="text-[9px] font-mono text-blue-400">{AGENT.id}</span>
-        </div>
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ label, href, icon: Icon }) => {
-          const isActive =
-            href === "/agent" ? pathname === "/agent" : pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              onClick={onClose}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-150",
-                isActive
-                  ? "bg-white/15 text-white font-semibold"
-                  : "text-blue-200 hover:bg-white/8 hover:text-white"
-              )}
-            >
-              <Icon className={cn("w-4.5 h-4.5 shrink-0", isActive ? "text-white" : "text-blue-300")} />
-              <span className="flex-1">{label}</span>
-              {isActive && <FiChevronRight className="w-3.5 h-3.5 text-blue-300" />}
-            </Link>
-          );
-        })}
+        ))}
       </nav>
 
-      {/* Logout */}
-      <div className="p-3 border-t border-white/10">
-        <button
-          onClick={() => router.push("/agent/login")}
-          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-rose-300 hover:bg-rose-500/15 hover:text-rose-200 transition-all"
-        >
-          <FiLogOut className="w-4.5 h-4.5 shrink-0" />
-          Logout
-        </button>
+      {/* Bottom status */}
+      <div className="px-4 py-3 border-t border-gray-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-500" />
+            <span className="text-xs text-gray-500">Online</span>
+          </div>
+          <span className="text-[10px] text-gray-400">Last sync: 2 mins ago</span>
+          <button className="text-gray-400 hover:text-gray-600">
+            <FiRefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-/* ─── Agent Layout ───────────────────────────────────────────────────────── */
-export default function AgentLayout({ children }: { children: React.ReactNode }) {
-  const [mobileOpen, setMobileOpen] = useState(false);
+/* ── Topbar ── */
+function Topbar({ onMenu }: { onMenu: () => void }) {
+  const [offline, setOffline] = useState(false);
+  const [gps, setGps]         = useState(true);
 
   return (
-    <div className="min-h-screen bg-[#F1F5F9] flex">
+    <header className="sticky top-0 z-40 bg-white border-b border-gray-100 h-14 flex items-center px-4 gap-3">
+      <button onClick={onMenu} className="text-gray-500 hover:text-gray-800 lg:hidden">
+        <FiMenu className="w-5 h-5" />
+      </button>
+      <button onClick={onMenu} className="hidden lg:block text-gray-500 hover:text-gray-800">
+        <FiMenu className="w-5 h-5" />
+      </button>
+
+      <div className="flex-1" />
+
+      {/* Offline mode toggle */}
+      <button
+        onClick={() => setOffline(!offline)}
+        className={cn(
+          "flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all",
+          offline ? "border-amber-300 bg-amber-50 text-amber-700" : "border-gray-200 bg-gray-50 text-gray-600"
+        )}
+      >
+        {offline ? <FiWifiOff className="w-3.5 h-3.5" /> : <FiUploadCloud className="w-3.5 h-3.5" />}
+        {offline ? "Offline Mode" : "Offline Mode"}
+      </button>
+
+      {/* GPS */}
+      <button
+        onClick={() => setGps(!gps)}
+        className={cn(
+          "flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all",
+          gps ? "border-green-300 bg-green-50 text-green-700" : "border-gray-200 text-gray-500"
+        )}
+      >
+        <span className={cn("w-2 h-2 rounded-full", gps ? "bg-green-500" : "bg-gray-400")} />
+        <FiMapPin className="w-3.5 h-3.5" />
+        GPS {gps ? "Enabled" : "Disabled"}
+      </button>
+
+      {/* Bell */}
+      <Link href="/agent/notifications" className="relative p-2 text-gray-500 hover:text-gray-800">
+        <FiBell className="w-5 h-5" />
+        <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">2</span>
+      </Link>
+
+      {/* Avatar */}
+      <div className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 rounded-xl px-2 py-1.5 transition-all">
+        <Avatar className="w-8 h-8">
+          <AvatarFallback className="text-xs font-bold text-white" style={{ background: "#1E4DB7" }}>
+            {AGENT.initials}
+          </AvatarFallback>
+        </Avatar>
+        <div className="hidden sm:block">
+          <p className="text-[12px] font-semibold text-gray-900 leading-tight">{AGENT.name}</p>
+          <p className="text-[10px] text-gray-400">Agent ID: {AGENT.id}</p>
+        </div>
+        <FiChevronDown className="w-3.5 h-3.5 text-gray-400" />
+      </div>
+    </header>
+  );
+}
+
+/* ── Layout ── */
+export default function AgentLayout({ children }: { children: React.ReactNode }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  return (
+    <div className="min-h-screen bg-[#F4F6FB] flex">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-60 shrink-0 sticky top-0 h-screen">
+      <aside className="hidden lg:flex flex-col w-56 shrink-0 sticky top-0 h-screen shadow-sm">
         <Sidebar />
       </aside>
 
       {/* Mobile drawer */}
-      {mobileOpen && (
+      {sidebarOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <aside className="relative w-64 h-full z-10">
-            <Sidebar onClose={() => setMobileOpen(false)} />
+          <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
+          <aside className="relative w-60 h-full z-10 shadow-xl">
+            <Sidebar onClose={() => setSidebarOpen(false)} />
           </aside>
         </div>
       )}
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Mobile topbar */}
-        <header className="lg:hidden sticky top-0 z-40 bg-[#0F2240] px-4 h-14 flex items-center justify-between border-b border-white/10">
-          <button onClick={() => setMobileOpen(true)} className="text-white p-1">
-            <FiMenu className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-2">
-            <FiShield className="w-4 h-4 text-white" />
-            <span className="text-white text-sm font-bold" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-              LVMS Agent
-            </span>
-          </div>
-          <Avatar className="w-7 h-7">
-            <AvatarFallback className="text-[10px] font-bold" style={{ background: "#1E3A5F", color: "#fff" }}>
-              {AGENT.initials}
-            </AvatarFallback>
-          </Avatar>
-        </header>
-
-        {/* Page content */}
-        <main className="flex-1 p-4 md:p-6 max-w-3xl mx-auto w-full">
+        <Topbar onMenu={() => setSidebarOpen(!sidebarOpen)} />
+        <main className="flex-1 p-4 md:p-6">
           {children}
         </main>
       </div>

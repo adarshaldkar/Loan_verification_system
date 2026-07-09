@@ -3,531 +3,716 @@
 import { useState } from "react";
 import { use } from "react";
 import { useRouter } from "next/navigation";
+import { z } from "zod";
 import {
-  FiChevronLeft, FiUpload, FiCamera, FiCheckCircle, FiSave,
-  FiHome, FiBriefcase, FiMapPin, FiX, FiAlertCircle,
+  FiCheckSquare, FiUser, FiHome, FiBriefcase, FiMapPin, FiCamera, FiPlus,
+  FiCalendar, FiEye, FiCheckCircle, FiInfo, FiTrash2, FiClock, FiChevronLeft
 } from "react-icons/fi";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
-/* ─── Mock Case Type Resolver ────────────────────────────────────────────── */
+/* ─── Zod Schemas ─── */
 
-const CASE_TYPES: Record<string, "RESIDENTIAL" | "BUSINESS"> = {
-  "LV-2026-10821": "BUSINESS",
-  "LV-2026-10819": "RESIDENTIAL",
-  "LV-2026-10817": "RESIDENTIAL",
-  "LV-2026-10814": "BUSINESS",
-  "LV-2026-10813": "RESIDENTIAL",
-  "LV-2026-10811": "BUSINESS",
-  "LV-2026-10809": "RESIDENTIAL",
+const residentialSchema = z.object({
+  applicantName: z.string().min(2, "Applicant name must be at least 2 characters"),
+  mobileNumber: z.string().regex(/^\+?[0-9]{10,12}$/, "Invalid mobile number (10-12 digits)"),
+  dateOfBirth: z.string().min(1, "Date of birth is required"),
+  aadhaarNumber: z.string().regex(/^[0-9]{12}$/, "Aadhaar number must be exactly 12 digits"),
+  houseNo: z.string().min(1, "House/Door number is required"),
+  streetArea: z.string().min(2, "Street/Area is required"),
+  cityTown: z.string().min(2, "City/Town is required"),
+  district: z.string().min(1, "District selection is required"),
+  pincode: z.string().regex(/^[0-9]{6}$/, "Pincode must be exactly 6 digits"),
+  residenceType: z.string().min(1, "Residence type selection is required"),
+  ownershipStatus: z.string().min(1, "Ownership status selection is required"),
+  livingSince: z.string().min(1, "Living since date is required"),
+  familyMembers: z.coerce.number().min(1, "Family members must be at least 1"),
+  monthlyRent: z.coerce.number().optional(),
+  contactNeighbor: z.string().min(2, "Neighbor contact reference name is required"),
+  addressFoundMatch: z.string().min(1, "Address found match selection is required"),
+  neighborConfirm: z.string().min(1, "Neighbor confirmation selection is required"),
+  electricityConnection: z.string().min(1, "Electricity connection selection is required"),
+  waterConnection: z.string().min(1, "Water connection selection is required"),
+  residenceCondition: z.string().min(1, "Residence condition selection is required"),
+  remarks: z.string().max(300, "Remarks cannot exceed 300 characters").optional(),
+});
+
+const businessSchema = z.object({
+  companyName: z.string().min(2, "Business name must be at least 2 characters"),
+  businessType: z.string().min(1, "Business type selection is required"),
+  natureOfBusiness: z.string().min(2, "Nature of business is required"),
+  yearsInBusiness: z.coerce.number().min(0, "Years in business cannot be negative"),
+  noOfEmployees: z.coerce.number().min(0, "Number of employees cannot be negative"),
+  monthlyIncome: z.coerce.number().min(1, "Monthly income is required"),
+  doorNo: z.string().min(1, "Door/Shop number is required"),
+  streetArea: z.string().min(2, "Street/Area is required"),
+  landmark: z.string().optional(),
+  cityTown: z.string().min(2, "City/Town is required"),
+  district: z.string().min(1, "District selection is required"),
+  pincode: z.string().regex(/^[0-9]{6}$/, "Pincode must be exactly 6 digits"),
+  businessFoundAtLocation: z.string().min(1, "Business location verification selection is required"),
+  businessOperational: z.string().min(1, "Business operational state is required"),
+  businessOwnedByApplicant: z.string().min(1, "Ownership verification is required"),
+  businessPremisesType: z.string().min(1, "Premises type is required"),
+  stockInventoryAvailable: z.string().min(1, "Stock level status is required"),
+  gstLicenseAvailable: z.string().min(1, "GST/License check is required"),
+  signboardAvailable: z.string().min(1, "Signboard status is required"),
+  customerPresence: z.string().min(1, "Customer presence status is required"),
+  documentsVerified: z.string().min(1, "Document verification status is required"),
+  remarks: z.string().max(300, "Remarks cannot exceed 300 characters").optional(),
+});
+
+type ResidentialFormType = z.infer<typeof residentialSchema>;
+type BusinessFormType = z.infer<typeof businessSchema>;
+
+/* ─── Mock Cases Database ─── */
+const CASE_DETAILS: Record<string, {
+  id: string;
+  name: string;
+  phone: string;
+  type: "RESIDENTIAL" | "BUSINESS";
+  address: string;
+  houseNo: string;
+  streetArea: string;
+  cityTown: string;
+  district: string;
+  pincode: string;
+}> = {
+  "CASE-2026-0891": { id: "CASE-2026-0891", name: "Ramesh Kumar", phone: "9876543210", type: "RESIDENTIAL", address: "123, 4th Cross Street, Anna Nagar, Trichy - 620018", houseNo: "123", streetArea: "4th Cross Street, Anna Nagar", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620018" },
+  "CASE-2026-0892": { id: "CASE-2026-0892", name: "Lakshmi Devi", phone: "9988776655", type: "BUSINESS", address: "56, Bharathi Nagar, Woraiyur, Trichy - 620003", houseNo: "56", streetArea: "Bharathi Nagar, Woraiyur", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620003" },
+  "CASE-2026-0893": { id: "CASE-2026-0893", name: "Vijay Enterprises", phone: "9876509876", type: "BUSINESS", address: "18, Lawspet Road, Lawspet, Pondicherry - 605008", houseNo: "18", streetArea: "Lawspet Road, Lawspet", cityTown: "Pondicherry", district: "Pondicherry", pincode: "605008" },
+  "CASE-2026-0894": { id: "CASE-2026-0894", name: "Suresh Babu", phone: "8877665544", type: "RESIDENTIAL", address: "9, East Street, Srirangam, Trichy - 620006", houseNo: "9", streetArea: "East Street, Srirangam", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620006" },
+  "CASE-2026-0895": { id: "CASE-2026-0895", name: "Karthik Traders", phone: "7766554433", type: "BUSINESS", address: "77, Main Road, Thanjavur - 613001", houseNo: "77", streetArea: "Main Road", cityTown: "Thanjavur", district: "Tiruchirappalli", pincode: "613001" },
 };
 
-const CASE_CUSTOMERS: Record<string, string> = {
-  "LV-2026-10821": "Priya Sharma",
-  "LV-2026-10819": "Sandeep Yadav",
-  "LV-2026-10817": "Rahul Gupta",
-  "LV-2026-10814": "Arvind Patel",
-  "LV-2026-10813": "Sunita Joshi",
-  "LV-2026-10811": "Manoj Tiwari",
-  "LV-2026-10809": "Deepa Nair",
-};
+const DISTRICT_OPTIONS = ["Tiruchirappalli", "Chennai", "Coimbatore", "Pondicherry", "Madurai", "Salem"];
+const RESIDENCE_TYPES = ["Apartment / Flat", "Independent House", "Row House", "Villa", "Chawl / Slum"];
+const OWNERSHIP_STATUSES = ["Owned", "Rented", "Leased", "Family Owned"];
+const ADDRESS_MATCH_OPTIONS = ["Yes - Matches Exactly", "Partial Match", "No - Different Address"];
+const NEIGHBOR_CONFIRMS = ["Confirmed", "Refused to Confirm", "Neighbor Unavailable"];
+const ELECTRIC_CONNECTIONS = ["Regular Connection", "No Connection", "Disconnected / Inactive"];
+const WATER_CONNECTIONS = ["Corporation Water", "Borewell / Well", "No Water Supply"];
+const RESIDENCE_CONDITIONS = ["Excellent", "Good / Satisfactory", "Dilapidated / Poor"];
 
-/* ─── Shared Types ───────────────────────────────────────────────────────── */
+const BUSINESS_TYPES = ["Proprietorship", "Partnership", "Private Limited", "LLP", "Unregistered"];
+const BUSINESS_FOUND_OPTIONS = ["Yes - Active Shop/Office", "No - Closed/Shut Down", "Wrong Address"];
+const OPERATIONAL_OPTIONS = ["Yes - Fully Operational", "Partially Operational", "Non-Operational"];
+const OWNED_BY_APPLICANT_OPTIONS = ["Yes - Owner", "No - Employee/Staff", "Leased"];
+const PREMISES_TYPES = ["Commercial Shop", "Office Building", "Industrial Shed", "Home Office"];
+const STOCK_OPTIONS = ["High / Abundant Stock", "Moderate / Adequate", "Low / Empty"];
+const GST_LICENSE_OPTIONS = ["Yes - Valid License", "No License Found", "Expired License"];
+const SIGNBOARD_OPTIONS = ["Yes - Board Displayed", "No Signboard", "Wrong Board Name"];
+const CLIENT_PRESENCE_OPTIONS = ["Yes - Met Client", "Met Staff Only", "Client Not Available"];
+const DOCUMENTS_VERIFIED_OPTIONS = ["Yes - All Documents Valid", "Partial Verification", "No Documents Produced"];
 
-type PhotoSlot = { label: string; required: boolean; captured: boolean; src?: string };
+export default function CaseVerificationFormPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
+  const router = useRouter();
+  const caseId = resolvedParams.id;
+  const currentCase = CASE_DETAILS[caseId] || {
+    id: caseId,
+    name: "Vijay Enterprises",
+    phone: "9876543210",
+    type: "BUSINESS",
+    address: "18, Lawspet Road, Lawspet, Pondicherry - 605008",
+    houseNo: "18",
+    streetArea: "Lawspet Road, Lawspet",
+    cityTown: "Pondicherry",
+    district: "Pondicherry",
+    pincode: "605008",
+  };
 
-/* ─── Photo Capture Section ──────────────────────────────────────────────── */
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitted, setSubmitted] = useState(false);
 
-function PhotoSection({
-  slots,
-  onCapture,
-}: {
-  slots: PhotoSlot[];
-  onCapture: (index: number) => void;
-}) {
-  return (
-    <div className="space-y-3">
-      <h3 className="text-[13px] font-semibold text-slate-900 flex items-center gap-2">
-        <FiCamera className="w-4 h-4 text-[#1E3A5F]" /> Photographic Evidence
-      </h3>
-      <div className="grid grid-cols-2 gap-3">
-        {slots.map((slot, i) => (
-          <button
-            key={i}
-            onClick={() => onCapture(i)}
-            className={cn(
-              "relative rounded-xl border-2 border-dashed p-4 flex flex-col items-center gap-2 text-center transition-all active:scale-95",
-              slot.captured
-                ? "border-teal-400 bg-teal-50"
-                : "border-slate-200 bg-slate-50 hover:border-slate-300"
-            )}
-          >
-            {slot.captured ? (
-              <FiCheckCircle className="w-6 h-6 text-teal-600" />
-            ) : (
-              <FiCamera className="w-6 h-6 text-slate-400" />
-            )}
-            <p className="text-[11px] font-medium leading-tight" style={{ color: slot.captured ? "#0D9488" : "#64748B" }}>
-              {slot.label}
-            </p>
-            {slot.required && !slot.captured && (
-              <span className="absolute top-1.5 right-1.5 text-[9px] bg-rose-100 text-rose-600 font-semibold px-1.5 rounded-full">
-                Required
-              </span>
-            )}
-            {slot.captured && (
-              <span className="absolute top-1.5 right-1.5 text-[9px] bg-teal-100 text-teal-700 font-semibold px-1.5 rounded-full">
-                ✓ Done
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-      <p className="text-[10px] text-slate-400 text-center">
-        📍 Photos will be geo-tagged with GPS coordinates and timestamp automatically
-      </p>
-    </div>
-  );
-}
-
-/* ─── Field Component ────────────────────────────────────────────────────── */
-
-function Field({
-  label, required, children,
-}: { label: string; required?: boolean; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="block text-xs font-medium text-slate-600 mb-1.5">
-        {label} {required && <span className="text-rose-500">*</span>}
-      </label>
-      {children}
-    </div>
-  );
-}
-
-const inputClass = "w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] transition-all";
-const selectClass = inputClass + " appearance-none";
-
-/* ─── Residential Verification Form ──────────────────────────────────────── */
-
-function ResidentialForm({
-  onSave, onSubmit,
-}: { onSave: () => void; onSubmit: () => void }) {
-  const [form, setForm] = useState({
-    addressMatch: "", residenceType: "", ownershipStatus: "",
-    neighbourhoodConfirm: "", electricityConn: "", waterConn: "",
-    yearsAtAddress: "", familyMembers: "", applicantPresent: "",
+  // Form states prefilled where possible from case data
+  const [resForm, setResForm] = useState<Partial<ResidentialFormType>>({
+    applicantName: currentCase.name,
+    mobileNumber: currentCase.phone,
+    dateOfBirth: "",
+    aadhaarNumber: "",
+    houseNo: currentCase.houseNo,
+    streetArea: currentCase.streetArea,
+    cityTown: currentCase.cityTown,
+    district: currentCase.district || "Tiruchirappalli",
+    pincode: currentCase.pincode,
+    residenceType: "Apartment / Flat",
+    ownershipStatus: "Owned",
+    livingSince: "",
+    familyMembers: 1,
+    monthlyRent: 0,
+    contactNeighbor: "",
+    addressFoundMatch: "Yes - Matches Exactly",
+    neighborConfirm: "Confirmed",
+    electricityConnection: "Regular Connection",
+    waterConnection: "Corporation Water",
+    residenceCondition: "Excellent",
     remarks: "",
   });
 
-  const [photos, setPhotos] = useState<PhotoSlot[]>([
-    { label: "Front View of House",   required: true,  captured: false },
-    { label: "House Number / Plate",  required: true,  captured: false },
-    { label: "Street View",           required: true,  captured: false },
-    { label: "Applicant Present",     required: false, captured: false },
-    { label: "Electricity Meter",     required: false, captured: false },
-    { label: "Additional Evidence",   required: false, captured: false },
-  ]);
-
-  function capturePhoto(i: number) {
-    // Simulate photo capture with GPS tag
-    const now = new Date().toLocaleTimeString();
-    const gps = "19.018255, 72.847145";
-    toast.success(`Photo captured at ${now} · GPS: ${gps}`);
-    setPhotos((prev) => prev.map((p, idx) => idx === i ? { ...p, captured: true } : p));
-  }
-
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
-
-  return (
-    <div className="space-y-4">
-      <Section title="Address Verification" icon={<FiMapPin className="w-4 h-4" />}>
-        <Field label="Does address match documents?" required>
-          <select className={selectClass} value={form.addressMatch} onChange={set("addressMatch")}>
-            <option value="">Select…</option>
-            <option value="yes">Yes — Matches exactly</option>
-            <option value="partial">Partial match</option>
-            <option value="no">No — Does not match</option>
-          </select>
-        </Field>
-        <Field label="Residence Type" required>
-          <select className={selectClass} value={form.residenceType} onChange={set("residenceType")}>
-            <option value="">Select…</option>
-            <option>Apartment / Flat</option>
-            <option>Independent House</option>
-            <option>Row House</option>
-            <option>Chawl / Slum</option>
-            <option>Other</option>
-          </select>
-        </Field>
-        <Field label="Ownership Status" required>
-          <select className={selectClass} value={form.ownershipStatus} onChange={set("ownershipStatus")}>
-            <option value="">Select…</option>
-            <option>Owned</option>
-            <option>Rented</option>
-            <option>Family Owned</option>
-            <option>Employer Provided</option>
-          </select>
-        </Field>
-        <Field label="Neighbourhood Confirmed" required>
-          <select className={selectClass} value={form.neighbourhoodConfirm} onChange={set("neighbourhoodConfirm")}>
-            <option value="">Select…</option>
-            <option value="yes">Yes — Neighbours confirm applicant lives here</option>
-            <option value="no">No — Could not confirm</option>
-          </select>
-        </Field>
-      </Section>
-
-      <Section title="Utilities & Facilities" icon={<FiHome className="w-4 h-4" />}>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Electricity Connection" required>
-            <select className={selectClass} value={form.electricityConn} onChange={set("electricityConn")}>
-              <option value="">Select…</option>
-              <option>Available</option>
-              <option>Not Available</option>
-            </select>
-          </Field>
-          <Field label="Water Connection" required>
-            <select className={selectClass} value={form.waterConn} onChange={set("waterConn")}>
-              <option value="">Select…</option>
-              <option>Available</option>
-              <option>Not Available</option>
-            </select>
-          </Field>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Years at Address">
-            <input type="number" min={0} max={50} className={inputClass} placeholder="e.g. 5"
-              value={form.yearsAtAddress} onChange={set("yearsAtAddress")} />
-          </Field>
-          <Field label="Family Members">
-            <input type="number" min={1} max={20} className={inputClass} placeholder="e.g. 4"
-              value={form.familyMembers} onChange={set("familyMembers")} />
-          </Field>
-        </div>
-      </Section>
-
-      <Section title="Applicant Information" icon={<FiCheckCircle className="w-4 h-4" />}>
-        <Field label="Applicant Present During Visit?" required>
-          <select className={selectClass} value={form.applicantPresent} onChange={set("applicantPresent")}>
-            <option value="">Select…</option>
-            <option value="yes">Yes — Applicant was present</option>
-            <option value="no">No — Not available</option>
-            <option value="neighbour">Met neighbour/relative instead</option>
-          </select>
-        </Field>
-        <Field label="Remarks & Observations">
-          <textarea
-            className={inputClass + " resize-none"}
-            rows={3}
-            placeholder="Describe your observations…"
-            value={form.remarks}
-            onChange={set("remarks")}
-          />
-        </Field>
-      </Section>
-
-      {/* GPS info */}
-      <div className="flex items-center gap-2.5 bg-teal-50 border border-teal-200 rounded-xl p-3">
-        <FiMapPin className="w-4 h-4 text-teal-600 shrink-0" />
-        <div>
-          <p className="text-xs font-semibold text-teal-700">GPS Coordinates Captured</p>
-          <p className="text-[11px] text-teal-600">Lat: 19.018255 · Lng: 72.847145 · Accuracy: ±5m</p>
-        </div>
-      </div>
-
-      <PhotoSection slots={photos} onCapture={capturePhoto} />
-
-      {/* Action buttons */}
-      <ActionButtons onSave={onSave} onSubmit={onSubmit} />
-    </div>
-  );
-}
-
-/* ─── Business Verification Form ─────────────────────────────────────────── */
-
-function BusinessForm({
-  onSave, onSubmit,
-}: { onSave: () => void; onSubmit: () => void }) {
-  const [form, setForm] = useState({
-    businessName: "", businessType: "", ownershipStatus: "",
-    operationalStatus: "", employeeCount: "", stockAvailability: "",
-    gstAvailable: "", licenseAvailable: "", signboardAvailable: "",
-    customerPresent: "", yearEstablished: "", remarks: "",
+  const [busForm, setBusForm] = useState<Partial<BusinessFormType>>({
+    companyName: currentCase.name,
+    businessType: "Proprietorship",
+    natureOfBusiness: "",
+    yearsInBusiness: 1,
+    noOfEmployees: 1,
+    monthlyIncome: 10000,
+    doorNo: currentCase.houseNo,
+    streetArea: currentCase.streetArea,
+    landmark: "",
+    cityTown: currentCase.cityTown,
+    district: currentCase.district || "Tiruchirappalli",
+    pincode: currentCase.pincode,
+    businessFoundAtLocation: "Yes - Active Shop/Office",
+    businessOperational: "Yes - Fully Operational",
+    businessOwnedByApplicant: "Yes - Owner",
+    businessPremisesType: "Commercial Shop",
+    stockInventoryAvailable: "Moderate / Adequate",
+    gstLicenseAvailable: "Yes - Valid License",
+    signboardAvailable: "Yes - Board Displayed",
+    customerPresence: "Yes - Met Client",
+    documentsVerified: "Yes - All Documents Valid",
+    remarks: "",
   });
 
-  const [photos, setPhotos] = useState<PhotoSlot[]>([
-    { label: "Business Signboard",    required: true,  captured: false },
-    { label: "Front View of Premises", required: true,  captured: false },
-    { label: "Street View",           required: true,  captured: false },
-    { label: "Stock / Inventory",     required: false, captured: false },
-    { label: "GST Certificate",       required: false, captured: false },
-    { label: "Customer / Staff",      required: false, captured: false },
-  ]);
+  // Photo handlers
+  const handleAddPhoto = () => {
+    if (photos.length >= 5) {
+      toast.error("Maximum 5 photos allowed");
+      return;
+    }
+    const mockCoordinates = "12.9716° N, 77.5946° E";
+    const timestamp = new Date().toLocaleString();
+    toast.success(`Photo Captured at ${mockCoordinates} · ${timestamp}`);
+    setPhotos((p) => [...p, `Photo #${p.length + 1} (Geo-tagged)`]);
+  };
 
-  function capturePhoto(i: number) {
-    const now = new Date().toLocaleTimeString();
-    const gps = "19.018255, 72.847145";
-    toast.success(`Photo captured at ${now} · GPS: ${gps}`);
-    setPhotos((prev) => prev.map((p, idx) => idx === i ? { ...p, captured: true } : p));
-  }
+  const handleRemovePhoto = (index: number) => {
+    setPhotos((p) => p.filter((_, i) => i !== index));
+    toast.info("Photo removed");
+  };
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
+  // Submit handlers
+  const handleResSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrors({});
+    
+    const parsed = residentialSchema.safeParse(resForm);
+    if (!parsed.success) {
+      const errMap: Record<string, string> = {};
+      parsed.error.issues.forEach((err: z.ZodIssue) => {
+        if (err.path[0]) errMap[err.path[0].toString()] = err.message;
+      });
+      setErrors(errMap);
+      toast.error("Please fix verification errors");
+      return;
+    }
 
-  return (
-    <div className="space-y-4">
-      <Section title="Business Details" icon={<FiBriefcase className="w-4 h-4" />}>
-        <Field label="Business Name (as seen on-site)" required>
-          <input type="text" className={inputClass} placeholder="Enter business name"
-            value={form.businessName} onChange={set("businessName")} />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Business Type" required>
-            <select className={selectClass} value={form.businessType} onChange={set("businessType")}>
-              <option value="">Select…</option>
-              <option>Retail Shop</option>
-              <option>Manufacturing</option>
-              <option>Service Provider</option>
-              <option>Wholesale</option>
-              <option>Restaurant / Food</option>
-              <option>Other</option>
-            </select>
-          </Field>
-          <Field label="Ownership Status" required>
-            <select className={selectClass} value={form.ownershipStatus} onChange={set("ownershipStatus")}>
-              <option value="">Select…</option>
-              <option>Owned</option>
-              <option>Rented</option>
-              <option>Leased</option>
-            </select>
-          </Field>
-        </div>
-        <Field label="Year Established">
-          <input type="number" min={1950} max={2026} className={inputClass} placeholder="e.g. 2018"
-            value={form.yearEstablished} onChange={set("yearEstablished")} />
-        </Field>
-      </Section>
+    if (photos.length === 0) {
+      toast.error("Capture at least 1 photo as evidence!");
+      return;
+    }
 
-      <Section title="Operational Status" icon={<FiCheckCircle className="w-4 h-4" />}>
-        <Field label="Is Business Operational?" required>
-          <select className={selectClass} value={form.operationalStatus} onChange={set("operationalStatus")}>
-            <option value="">Select…</option>
-            <option value="active">Yes — Actively operational</option>
-            <option value="partial">Partially operational</option>
-            <option value="closed">Temporarily closed</option>
-            <option value="shutdown">Permanently shut down</option>
-          </select>
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Employee Count">
-            <input type="number" min={0} className={inputClass} placeholder="e.g. 10"
-              value={form.employeeCount} onChange={set("employeeCount")} />
-          </Field>
-          <Field label="Stock Available?" required>
-            <select className={selectClass} value={form.stockAvailability} onChange={set("stockAvailability")}>
-              <option value="">Select…</option>
-              <option value="yes">Yes</option>
-              <option value="no">No</option>
-              <option value="na">N/A (Service)</option>
-            </select>
-          </Field>
-        </div>
-      </Section>
+    setSubmitted(true);
+    toast.success("Residential Verification report submitted!");
+  };
 
-      <Section title="Compliance & Documentation" icon={<FiUpload className="w-4 h-4" />}>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="GST Certificate" required>
-            <select className={selectClass} value={form.gstAvailable} onChange={set("gstAvailable")}>
-              <option value="">Select…</option>
-              <option value="yes">Available &amp; Verified</option>
-              <option value="no">Not Available</option>
-              <option value="expired">Expired</option>
-            </select>
-          </Field>
-          <Field label="Trade License" required>
-            <select className={selectClass} value={form.licenseAvailable} onChange={set("licenseAvailable")}>
-              <option value="">Select…</option>
-              <option value="yes">Available &amp; Verified</option>
-              <option value="no">Not Available</option>
-              <option value="expired">Expired</option>
-            </select>
-          </Field>
-        </div>
-        <Field label="Business Signboard Visible?" required>
-          <select className={selectClass} value={form.signboardAvailable} onChange={set("signboardAvailable")}>
-            <option value="">Select…</option>
-            <option value="yes">Yes — Clearly visible</option>
-            <option value="partial">Partially visible</option>
-            <option value="no">No signboard</option>
-          </select>
-        </Field>
-        <Field label="Customer / Staff Present During Visit?" required>
-          <select className={selectClass} value={form.customerPresent} onChange={set("customerPresent")}>
-            <option value="">Select…</option>
-            <option value="yes">Yes</option>
-            <option value="no">No</option>
-          </select>
-        </Field>
-      </Section>
+  const handleBusSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrors({});
 
-      <Section title="Remarks" icon={<FiAlertCircle className="w-4 h-4" />}>
-        <Field label="Observations & Remarks">
-          <textarea
-            className={inputClass + " resize-none"}
-            rows={3}
-            placeholder="Describe your observations, discrepancies, or additional notes…"
-            value={form.remarks}
-            onChange={set("remarks")}
-          />
-        </Field>
-      </Section>
+    const parsed = businessSchema.safeParse(busForm);
+    if (!parsed.success) {
+      const errMap: Record<string, string> = {};
+      parsed.error.issues.forEach((err: z.ZodIssue) => {
+        if (err.path[0]) errMap[err.path[0].toString()] = err.message;
+      });
+      setErrors(errMap);
+      toast.error("Please fix verification errors");
+      return;
+    }
 
-      {/* GPS info */}
-      <div className="flex items-center gap-2.5 bg-teal-50 border border-teal-200 rounded-xl p-3">
-        <FiMapPin className="w-4 h-4 text-teal-600 shrink-0" />
-        <div>
-          <p className="text-xs font-semibold text-teal-700">GPS Coordinates Captured</p>
-          <p className="text-[11px] text-teal-600">Lat: 19.018255 · Lng: 72.847145 · Accuracy: ±5m</p>
-        </div>
-      </div>
+    if (photos.length === 0) {
+      toast.error("Capture at least 1 photo as evidence!");
+      return;
+    }
 
-      <PhotoSection slots={photos} onCapture={capturePhoto} />
-      <ActionButtons onSave={onSave} onSubmit={onSubmit} />
-    </div>
-  );
-}
+    setSubmitted(true);
+    toast.success("Business Verification report submitted!");
+  };
 
-/* ─── Section Wrapper ────────────────────────────────────────────────────── */
+  const getResInputSetter = (key: keyof ResidentialFormType) => (e: any) => {
+    setResForm((prev) => ({ ...prev, [key]: e.target.value }));
+  };
 
-function Section({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-        <span className="text-[#1E3A5F]">{icon}</span>
-        <h3 className="text-[13px] font-semibold text-slate-900">{title}</h3>
-      </div>
-      <div className="p-4 space-y-3">{children}</div>
-    </div>
-  );
-}
-
-/* ─── Action Buttons ─────────────────────────────────────────────────────── */
-
-function ActionButtons({ onSave, onSubmit }: { onSave: () => void; onSubmit: () => void }) {
-  return (
-    <div className="grid grid-cols-2 gap-3 pt-2 pb-4">
-      <button
-        onClick={onSave}
-        className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 border-[#1E3A5F] text-[#1E3A5F] hover:bg-blue-50 transition-colors active:scale-95"
-      >
-        <FiSave className="w-4 h-4" /> Save Draft
-      </button>
-      <button
-        onClick={onSubmit}
-        className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
-        style={{ background: "#1E3A5F" }}
-      >
-        <FiCheckCircle className="w-4 h-4" /> Submit
-      </button>
-    </div>
-  );
-}
-
-/* ─── Verification Page ──────────────────────────────────────────────────── */
-
-export default function VerificationPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id }  = use(params);
-  const router  = useRouter();
-  const verType = CASE_TYPES[id] ?? "RESIDENTIAL";
-  const customer = CASE_CUSTOMERS[id] ?? "Customer";
-
-  const [submitted, setSubmitted] = useState(false);
-  const [saved, setSaved]         = useState(false);
-
-  function handleSave() {
-    setSaved(true);
-    toast.success("Draft saved. You can resume later.");
-  }
-
-  function handleSubmit() {
-    // Simulate validation
-    toast.loading("Validating and submitting…");
-    setTimeout(() => {
-      toast.dismiss();
-      toast.success("Verification submitted successfully! Admin has been notified.");
-      setSubmitted(true);
-    }, 1500);
-  }
+  const getBusInputSetter = (key: keyof BusinessFormType) => (e: any) => {
+    setBusForm((prev) => ({ ...prev, [key]: e.target.value }));
+  };
 
   if (submitted) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
-        <div className="w-20 h-20 rounded-full bg-teal-50 flex items-center justify-center">
-          <FiCheckCircle className="w-10 h-10 text-teal-500" />
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-5 bg-white border border-gray-100 shadow-sm rounded-3xl p-6">
+        <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
+          <FiCheckCircle className="w-10 h-10" />
         </div>
-        <h2 className="text-xl font-bold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-          Verification Submitted!
-        </h2>
-        <p className="text-sm text-slate-500 max-w-xs">
-          Your verification report for <strong>{customer}</strong> has been submitted. The administrator will review it shortly.
+        <h2 className="text-xl font-bold text-gray-900">Verification Report Submitted!</h2>
+        <p className="text-sm text-gray-500 max-w-sm">
+          Report for <strong>{currentCase.name}</strong> ({caseId}) has been successfully compiled and sent for administrative audit.
         </p>
-        <div className="bg-blue-50 rounded-xl p-4 w-full max-w-sm text-left">
-          <p className="text-xs font-semibold text-[#1E3A5F] mb-1">Case ID: {id}</p>
-          <p className="text-xs text-slate-500">Status changed to <strong>Submitted</strong></p>
-          <p className="text-xs text-slate-400 mt-1">Submitted at {new Date().toLocaleTimeString()}</p>
-        </div>
         <button
           onClick={() => router.push("/agent")}
-          className="px-6 py-3 rounded-xl text-sm font-semibold text-white"
-          style={{ background: "#1E3A5F" }}
+          className="text-white px-6 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 shadow-sm"
+          style={{ background: "#1E4DB7" }}
         >
-          Back to Dashboard
+          Return to Dashboard
         </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 pb-8">
-      {/* Header */}
+    <div className="space-y-6 pb-12 text-slate-800" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
+      {/* ── Top Bar / Back button ── */}
       <div>
         <button
-          onClick={() => router.push(`/agent/cases/${id}`)}
-          className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 mb-3"
+          onClick={() => router.push(`/agent/cases/${caseId}`)}
+          className="flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors"
         >
-          <FiChevronLeft className="w-4 h-4" /> Case Details
+          <FiChevronLeft className="w-4 h-4" />
+          <span>Back to Case Details</span>
         </button>
-
-        {/* Form type badge */}
-        <div className={cn(
-          "inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-semibold mb-3",
-          verType === "RESIDENTIAL" ? "bg-blue-50 text-blue-700" : "bg-purple-50 text-purple-700"
-        )}>
-          {verType === "RESIDENTIAL" ? <FiHome className="w-4 h-4" /> : <FiBriefcase className="w-4 h-4" />}
-          {verType === "RESIDENTIAL" ? "Residential Verification Form" : "Business Verification Form"}
-        </div>
-
-        <h1 className="text-xl font-bold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-          {customer}
-        </h1>
-        <p className="text-[11px] font-mono text-slate-400 mt-0.5">{id}</p>
-
-        {saved && (
-          <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mt-3">
-            <FiSave className="w-3.5 h-3.5 text-amber-600" />
-            <p className="text-xs text-amber-700 font-medium">Draft saved — complete and submit when ready</p>
-          </div>
-        )}
       </div>
 
-      {/* Render the right form */}
-      {verType === "RESIDENTIAL" ? (
-        <ResidentialForm onSave={handleSave} onSubmit={handleSubmit} />
-      ) : (
-        <BusinessForm onSave={handleSave} onSubmit={handleSubmit} />
-      )}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        {/* Main form card */}
+        <div className="xl:col-span-8 bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+          {currentCase.type === "RESIDENTIAL" ? (
+            /* Residential Form View */
+            <form onSubmit={handleResSubmit} className="space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
+                  <FiHome className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Residential Verification Form</h2>
+                  <p className="text-xs text-gray-400">Case ID: {caseId} · verify residential context</p>
+                </div>
+              </div>
+
+              {/* 1. Applicant Personal Details */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">1. Applicant Personal Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Applicant Name *</label>
+                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.applicantName} onChange={getResInputSetter("applicantName")} />
+                    {errors.applicantName && <p className="text-xs text-rose-500 mt-1">{errors.applicantName}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Mobile Number *</label>
+                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.mobileNumber} onChange={getResInputSetter("mobileNumber")} />
+                    {errors.mobileNumber && <p className="text-xs text-rose-500 mt-1">{errors.mobileNumber}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Date of Birth *</label>
+                    <input type="date" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.dateOfBirth} onChange={getResInputSetter("dateOfBirth")} />
+                    {errors.dateOfBirth && <p className="text-xs text-rose-500 mt-1">{errors.dateOfBirth}</p>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Aadhaar / ID Number *</label>
+                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.aadhaarNumber} onChange={getResInputSetter("aadhaarNumber")} />
+                    {errors.aadhaarNumber && <p className="text-xs text-rose-500 mt-1">{errors.aadhaarNumber}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Residential Address Details */}
+              <div className="space-y-4 pt-4 border-t border-gray-50">
+                <h3 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">2. Residential Address Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">House / Door No. *</label>
+                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.houseNo} onChange={getResInputSetter("houseNo")} />
+                    {errors.houseNo && <p className="text-xs text-rose-500 mt-1">{errors.houseNo}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Street / Area *</label>
+                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.streetArea} onChange={getResInputSetter("streetArea")} />
+                    {errors.streetArea && <p className="text-xs text-rose-500 mt-1">{errors.streetArea}</p>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">City / Town *</label>
+                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.cityTown} onChange={getResInputSetter("cityTown")} />
+                    {errors.cityTown && <p className="text-xs text-rose-500 mt-1">{errors.cityTown}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">District *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.district} onChange={getResInputSetter("district")}>
+                      {DISTRICT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Pincode *</label>
+                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.pincode} onChange={getResInputSetter("pincode")} />
+                    {errors.pincode && <p className="text-xs text-rose-500 mt-1">{errors.pincode}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Residence Information */}
+              <div className="space-y-4 pt-4 border-t border-gray-50">
+                <h3 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">3. Residence Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Type of Residence *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.residenceType} onChange={getResInputSetter("residenceType")}>
+                      {RESIDENCE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Ownership Status *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.ownershipStatus} onChange={getResInputSetter("ownershipStatus")}>
+                      {OWNERSHIP_STATUSES.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Living Since *</label>
+                    <input type="date" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.livingSince} onChange={getResInputSetter("livingSince")} />
+                    {errors.livingSince && <p className="text-xs text-rose-500 mt-1">{errors.livingSince}</p>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">No. of Family Members *</label>
+                    <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.familyMembers} onChange={getResInputSetter("familyMembers")} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Monthly Rent (if rented)</label>
+                    <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.monthlyRent} onChange={getResInputSetter("monthlyRent")} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Contact Person (Neighbor) *</label>
+                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.contactNeighbor} onChange={getResInputSetter("contactNeighbor")} />
+                    {errors.contactNeighbor && <p className="text-xs text-rose-500 mt-1">{errors.contactNeighbor}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Verification Details */}
+              <div className="space-y-4 pt-4 border-t border-gray-50">
+                <h3 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">4. Verification Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Address Found As Per Record *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.addressFoundMatch} onChange={getResInputSetter("addressFoundMatch")}>
+                      {ADDRESS_MATCH_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Neighbor Confirmation *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.neighborConfirm} onChange={getResInputSetter("neighborConfirm")}>
+                      {NEIGHBOR_CONFIRMS.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Electricity Connection *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.electricityConnection} onChange={getResInputSetter("electricityConnection")}>
+                      {ELECTRIC_CONNECTIONS.map(e => <option key={e} value={e}>{e}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Water Connection *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.waterConnection} onChange={getResInputSetter("waterConnection")}>
+                      {WATER_CONNECTIONS.map(w => <option key={w} value={w}>{w}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Residence Condition *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.residenceCondition} onChange={getResInputSetter("residenceCondition")}>
+                      {RESIDENCE_CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <textarea
+                    placeholder="Enter observations / remarks (optional)"
+                    rows={3}
+                    maxLength={300}
+                    className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm resize-none"
+                    value={resForm.remarks}
+                    onChange={getResInputSetter("remarks")}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full text-white py-3 rounded-2xl text-sm font-bold shadow-sm transition-all hover:opacity-95 flex items-center justify-center gap-2"
+                style={{ background: "#1E4DB7" }}
+              >
+                <FiCheckSquare className="w-5 h-5" />
+                <span>Submit Residential Verification</span>
+              </button>
+
+            </form>
+          ) : (
+            /* Business Form View */
+            <form onSubmit={handleBusSubmit} className="space-y-6">
+              <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <FiBriefcase className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Business Verification Form</h2>
+                  <p className="text-xs text-gray-400">Case ID: {caseId} · verify business premises</p>
+                </div>
+              </div>
+
+              {/* 1. Business Details */}
+              <div className="space-y-4">
+                <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider">1. Business Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Business / Shop Name *</label>
+                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.companyName} onChange={getBusInputSetter("companyName")} />
+                    {errors.companyName && <p className="text-xs text-rose-500 mt-1">{errors.companyName}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Business Type *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.businessType} onChange={getBusInputSetter("businessType")}>
+                      {BUSINESS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Nature of Business *</label>
+                    <input type="text" placeholder="e.g. Retail, Manufacturing" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.natureOfBusiness} onChange={getBusInputSetter("natureOfBusiness")} />
+                    {errors.natureOfBusiness && <p className="text-xs text-rose-500 mt-1">{errors.natureOfBusiness}</p>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Years in Business *</label>
+                    <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.yearsInBusiness} onChange={getBusInputSetter("yearsInBusiness")} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">No. of Employees *</label>
+                    <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.noOfEmployees} onChange={getBusInputSetter("noOfEmployees")} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Monthly Income (Approx.) *</label>
+                    <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.monthlyIncome} onChange={getBusInputSetter("monthlyIncome")} />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Business Address */}
+              <div className="space-y-4 pt-4 border-t border-gray-50">
+                <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider">2. Business Address Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Door / Shop No. *</label>
+                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.doorNo} onChange={getBusInputSetter("doorNo")} />
+                    {errors.doorNo && <p className="text-xs text-rose-500 mt-1">{errors.doorNo}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Street / Area *</label>
+                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.streetArea} onChange={getBusInputSetter("streetArea")} />
+                    {errors.streetArea && <p className="text-xs text-rose-500 mt-1">{errors.streetArea}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Landmark</label>
+                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.landmark} onChange={getBusInputSetter("landmark")} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">City / Town *</label>
+                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.cityTown} onChange={getBusInputSetter("cityTown")} />
+                    {errors.cityTown && <p className="text-xs text-rose-500 mt-1">{errors.cityTown}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">District *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.district} onChange={getBusInputSetter("district")}>
+                      {DISTRICT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Pincode *</label>
+                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.pincode} onChange={getBusInputSetter("pincode")} />
+                    {errors.pincode && <p className="text-xs text-rose-500 mt-1">{errors.pincode}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Business Verification */}
+              <div className="space-y-4 pt-4 border-t border-gray-50">
+                <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider">3. Business Verification Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Business Found At Location *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.businessFoundAtLocation} onChange={getBusInputSetter("businessFoundAtLocation")}>
+                      {BUSINESS_FOUND_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Business Operational *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.businessOperational} onChange={getBusInputSetter("businessOperational")}>
+                      {OPERATIONAL_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Business Owned By Applicant *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.businessOwnedByApplicant} onChange={getBusInputSetter("businessOwnedByApplicant")}>
+                      {OWNED_BY_APPLICANT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Business Premises Type *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.businessPremisesType} onChange={getBusInputSetter("businessPremisesType")}>
+                      {PREMISES_TYPES.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Stock / Inventory Available *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.stockInventoryAvailable} onChange={getBusInputSetter("stockInventoryAvailable")}>
+                      {STOCK_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">GST / License Available *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.gstLicenseAvailable} onChange={getBusInputSetter("gstLicenseAvailable")}>
+                      {GST_LICENSE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Verification Details */}
+              <div className="space-y-4 pt-4 border-t border-gray-50">
+                <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider">4. Verification Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Business Sign / Board Available *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.signboardAvailable} onChange={getBusInputSetter("signboardAvailable")}>
+                      {SIGNBOARD_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Customer / Client Presence *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.customerPresence} onChange={getBusInputSetter("customerPresence")}>
+                      {CLIENT_PRESENCE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Documents Verified *</label>
+                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.documentsVerified} onChange={getBusInputSetter("documentsVerified")}>
+                      {DOCUMENTS_VERIFIED_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <textarea
+                    placeholder="Enter observations / remarks (optional)"
+                    rows={3}
+                    maxLength={300}
+                    className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm resize-none"
+                    value={busForm.remarks}
+                    onChange={getBusInputSetter("remarks")}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full text-white py-3 rounded-2xl text-sm font-bold shadow-sm transition-all hover:opacity-95 flex items-center justify-center gap-2"
+                style={{ background: "#10B981" }}
+              >
+                <FiCheckSquare className="w-5 h-5" />
+                <span>Submit Business Verification</span>
+              </button>
+
+            </form>
+          )}
+        </div>
+
+        {/* Right sidebar evidence details */}
+        <div className="xl:col-span-4 space-y-6">
+          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
+            <h3 className="text-[14px] font-bold text-gray-900 flex items-center gap-2">
+              <FiCamera className="w-4.5 h-4.5 text-[#1E4DB7]" />
+              <span>Evidence Upload</span>
+            </h3>
+
+            <button
+              onClick={handleAddPhoto}
+              className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 hover:border-[#1E4DB7] hover:bg-blue-50/50 py-6 rounded-2xl transition-all active:scale-98"
+            >
+              <div className="w-10 h-10 rounded-full bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
+                <FiPlus className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-gray-800">Add Photos</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Maximum 5 photos (Geo-tagged)</p>
+              </div>
+            </button>
+
+            {photos.length > 0 ? (
+              <div className="space-y-2">
+                {photos.map((p, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2.5 bg-gray-50 border border-gray-100 rounded-xl">
+                    <div className="flex items-center gap-2">
+                      <FiCheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span className="text-xs font-semibold text-gray-700">{p}</span>
+                    </div>
+                    <button onClick={() => handleRemovePhoto(idx)} className="text-gray-400 hover:text-rose-500 p-1">
+                      <FiTrash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-amber-600 bg-amber-50/50 border border-amber-100 p-3 rounded-xl">
+                <FiInfo className="w-4 h-4 shrink-0" />
+                <p className="text-[11px] font-semibold leading-snug">Evidence requirement: Capture at least 1 photo before submitting.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
+            <h3 className="text-[14px] font-bold text-gray-900 flex items-center gap-2">
+              <FiMapPin className="w-4.5 h-4.5 text-[#1E4DB7]" />
+              <span>Location Context</span>
+            </h3>
+
+            <div className="space-y-3 text-xs font-semibold text-gray-600">
+              <div className="flex items-center gap-2.5 py-2.5 px-3 bg-gray-50 border border-gray-100 rounded-xl">
+                <FiMapPin className="w-4 h-4 text-[#1E4DB7] shrink-0" />
+                <div>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Current Coordinates</p>
+                  <p className="text-gray-900 mt-0.5">12.9716° N, 77.5946° E</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 py-2.5 px-3 bg-gray-50 border border-gray-100 rounded-xl">
+                <FiClock className="w-4 h-4 text-[#1E4DB7] shrink-0" />
+                <div>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Current Timestamp</p>
+                  <p className="text-gray-900 mt-0.5">27 May 2026, 10:30 AM</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
