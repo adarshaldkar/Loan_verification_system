@@ -10,6 +10,7 @@ import {
 } from "react-icons/fi";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import LocationPickerMap from "@/components/shared/LocationPickerMap";
 
 /* ─── Zod Schemas ─── */
 
@@ -125,6 +126,8 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
   const [photos, setPhotos] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [lat, setLat] = useState(12.9716);
+  const [lng, setLng] = useState(77.5946);
 
   // Form states prefilled where possible from case data
   const [resForm, setResForm] = useState<Partial<ResidentialFormType>>({
@@ -693,12 +696,17 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
               <span>Location Context</span>
             </h3>
 
+            {/* Interactive map location picker */}
+            <div className="h-56 relative overflow-hidden bg-slate-50 rounded-2xl border border-gray-100">
+              <LocationPickerMap lat={lat} lng={lng} onChange={(newLat, newLng) => { setLat(newLat); setLng(newLng); }} />
+            </div>
+
             <div className="space-y-3 text-xs font-semibold text-gray-600">
               <div className="flex items-center gap-2.5 py-2.5 px-3 bg-gray-50 border border-gray-100 rounded-xl">
                 <FiMapPin className="w-4 h-4 text-[#1E4DB7] shrink-0" />
                 <div>
                   <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Current Coordinates</p>
-                  <p className="text-gray-900 mt-0.5">12.9716° N, 77.5946° E</p>
+                  <p className="text-gray-900 mt-0.5">{lat.toFixed(6)}° N, {lng.toFixed(6)}° E</p>
                 </div>
               </div>
 
