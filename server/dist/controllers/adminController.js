@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.bulkUploadCases = exports.updateSettings = exports.getSettings = exports.getProfile = exports.getAnalytics = exports.getAuditLogs = exports.generateReport = exports.getReports = exports.createBranch = exports.getBranches = exports.updateCaseStatus = exports.assignCase = exports.getCases = exports.toggleAgentStatus = exports.getAgents = exports.createCustomerAndCase = exports.getCustomers = exports.getDashboard = void 0;
 const db_1 = __importDefault(require("../config/db"));
+const cache_1 = require("../config/cache");
 const apiError = (res, message, status = 500, error) => res.status(status).json({ success: false, message, error: error?.message ?? error });
 const toTitleCase = (value) => value
     .toLowerCase()
@@ -44,6 +45,10 @@ async function ensureSettings() {
 // ─── Dashboard ─────────────────────────────────────────────────────────────
 const getDashboard = async (req, res) => {
     try {
+        const cachedData = cache_1.localCache.get('dashboard_data');
+        if (cachedData) {
+            return res.status(200).json({ success: true, data: cachedData });
+        }
         const [customers, cases, agents, reports, logs, branches] = await Promise.all([
             db_1.default.customer.findMany({ include: { verificationCases: true } }),
             db_1.default.verificationCase.findMany({
@@ -158,18 +163,21 @@ const getDashboard = async (req, res) => {
             { name: 'Completed', value: completedCases.length, color: '#0D9488' },
             { name: 'Rejected', value: cases.filter((item) => item.status === 'REJECTED').length, color: '#BE123C' },
         ];
+        const dashboardPayload = {
+            kpis,
+            recentCases,
+            topAgents,
+            recentActivity,
+            branches: branchStats,
+            reports,
+            lineData,
+            pieData,
+        };
+        // Cache the data for 15 seconds (15000 ms) to survive sudden load spikes
+        cache_1.localCache.set('dashboard_data', dashboardPayload, 15000);
         return res.status(200).json({
             success: true,
-            data: {
-                kpis,
-                recentCases,
-                topAgents,
-                recentActivity,
-                branches: branchStats,
-                reports,
-                lineData,
-                pieData,
-            },
+            data: dashboardPayload,
         });
     }
     catch (error) {
@@ -243,6 +251,9 @@ const createCustomerAndCase = async (req, res) => {
                 ip: req.ip || 'system',
             },
         });
+        // Evict cached dashboard and analytics data
+        cache_1.localCache.delete('dashboard_data');
+        cache_1.localCache.delete('analytics_data');
         return res.status(201).json({ success: true, message: 'Customer and pending case created successfully', data: customer });
     }
     catch (error) {
@@ -355,6 +366,9 @@ const assignCase = async (req, res) => {
                 ip: req.ip || 'system',
             },
         });
+        // Evict cached dashboard and analytics data
+        cache_1.localCache.delete('dashboard_data');
+        cache_1.localCache.delete('analytics_data');
         return res.status(200).json({ success: true, message: 'Case assigned successfully', data: updatedCase });
     }
     catch (error) {
@@ -373,6 +387,9 @@ const updateCaseStatus = async (req, res) => {
             where: { id: caseId },
             data: { status, completedAt: status === 'COMPLETED' ? new Date() : null },
         });
+        // Evict cached dashboard and analytics data
+        cache_1.localCache.delete('dashboard_data');
+        cache_1.localCache.delete('analytics_data');
         return res.status(200).json({ success: true, message: `Case marked as ${status}`, data: updatedCase });
     }
     catch (error) {
@@ -424,6 +441,9 @@ const createBranch = async (req, res) => {
                 ip: req.ip || 'system',
             },
         });
+        // Evict cached dashboard and analytics data
+        cache_1.localCache.delete('dashboard_data');
+        cache_1.localCache.delete('analytics_data');
         return res.status(201).json({ success: true, message: 'Branch created successfully', data: created });
     }
     catch (error) {
@@ -466,6 +486,8 @@ const generateReport = async (req, res) => {
                 format,
             },
         });
+        // Evict cached dashboard data (reports count changes)
+        cache_1.localCache.delete('dashboard_data');
         return res.status(201).json({ success: true, message: 'Report generated successfully', data: generatedReport });
     }
     catch (error) {
@@ -487,6 +509,10 @@ exports.getAuditLogs = getAuditLogs;
 // ─── Analytics ─────────────────────────────────────────────────────────────
 const getAnalytics = async (req, res) => {
     try {
+        const cachedAnalytics = cache_1.localCache.get('analytics_data');
+        if (cachedAnalytics) {
+            return res.status(200).json({ success: true, data: cachedAnalytics });
+        }
         const totalAgents = await db_1.default.user.count({ where: { role: 'FIELD_AGENT', isActive: true } });
         const totalCustomers = await db_1.default.customer.count();
         const totalBranches = await db_1.default.branch.count();
@@ -494,14 +520,17 @@ const getAnalytics = async (req, res) => {
             by: ['status'],
             _count: { status: true },
         });
+        const analyticsPayload = {
+            totalAgents,
+            totalCustomers,
+            totalBranches,
+            caseBreakdown: casesByStatus.map((c) => ({ status: c.status, count: c._count.status })),
+        };
+        // Cache the data for 15 seconds (15000 ms)
+        cache_1.localCache.set('analytics_data', analyticsPayload, 15000);
         return res.status(200).json({
             success: true,
-            data: {
-                totalAgents,
-                totalCustomers,
-                totalBranches,
-                caseBreakdown: casesByStatus.map((c) => ({ status: c.status, count: c._count.status })),
-            },
+            data: analyticsPayload,
         });
     }
     catch (error) {
@@ -620,6 +649,8 @@ const bulkUploadCases = async (req, res) => {
                 timestamp: new Date().toISOString()
             }
         });
+        // Evict cached dashboard and analytics data
+        cache_1.localCache.clear();
         return res.status(200).json({
             success: true,
             message: `Successfully imported ${successCount} cases`,

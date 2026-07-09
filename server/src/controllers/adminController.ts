@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../config/db';
+import { localCache } from '../config/cache';
 
 interface AuthRequest extends Request {
   user?: {
@@ -59,6 +60,11 @@ async function ensureSettings() {
 
 export const getDashboard = async (req: AuthRequest, res: Response) => {
   try {
+    const cachedData = localCache.get<any>('dashboard_data');
+    if (cachedData) {
+      return res.status(200).json({ success: true, data: cachedData });
+    }
+
     const [customers, cases, agents, reports, logs, branches] = await Promise.all([
       prisma.customer.findMany({ include: { verificationCases: true } }),
       prisma.verificationCase.findMany({
@@ -182,18 +188,23 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
       { name: 'Rejected', value: cases.filter((item) => item.status === 'REJECTED').length, color: '#BE123C' },
     ];
 
+    const dashboardPayload = {
+      kpis,
+      recentCases,
+      topAgents,
+      recentActivity,
+      branches: branchStats,
+      reports,
+      lineData,
+      pieData,
+    };
+
+    // Cache the data for 15 seconds (15000 ms) to survive sudden load spikes
+    localCache.set('dashboard_data', dashboardPayload, 15000);
+
     return res.status(200).json({
       success: true,
-      data: {
-        kpis,
-        recentCases,
-        topAgents,
-        recentActivity,
-        branches: branchStats,
-        reports,
-        lineData,
-        pieData,
-      },
+      data: dashboardPayload,
     });
   } catch (error: any) {
     return apiError(res, 'Failed to load dashboard data', 500, error);
@@ -270,6 +281,10 @@ export const createCustomerAndCase = async (req: Request, res: Response) => {
         ip: req.ip || 'system',
       },
     });
+
+    // Evict cached dashboard and analytics data
+    localCache.delete('dashboard_data');
+    localCache.delete('analytics_data');
 
     return res.status(201).json({ success: true, message: 'Customer and pending case created successfully', data: customer });
   } catch (error: any) {
@@ -389,6 +404,10 @@ export const assignCase = async (req: Request, res: Response) => {
       },
     });
 
+    // Evict cached dashboard and analytics data
+    localCache.delete('dashboard_data');
+    localCache.delete('analytics_data');
+
     return res.status(200).json({ success: true, message: 'Case assigned successfully', data: updatedCase });
   } catch (error: any) {
     return apiError(res, 'Failed to assign case', 500, error);
@@ -407,6 +426,10 @@ export const updateCaseStatus = async (req: Request, res: Response) => {
       where: { id: caseId },
       data: { status, completedAt: status === 'COMPLETED' ? new Date() : null },
     });
+
+    // Evict cached dashboard and analytics data
+    localCache.delete('dashboard_data');
+    localCache.delete('analytics_data');
 
     return res.status(200).json({ success: true, message: `Case marked as ${status}`, data: updatedCase });
   } catch (error: any) {
@@ -463,6 +486,10 @@ export const createBranch = async (req: Request, res: Response) => {
       },
     });
 
+    // Evict cached dashboard and analytics data
+    localCache.delete('dashboard_data');
+    localCache.delete('analytics_data');
+
     return res.status(201).json({ success: true, message: 'Branch created successfully', data: created });
   } catch (error: any) {
     return apiError(res, 'Failed to create branch', 500, error);
@@ -507,6 +534,9 @@ export const generateReport = async (req: Request, res: Response) => {
       },
     });
 
+    // Evict cached dashboard data (reports count changes)
+    localCache.delete('dashboard_data');
+
     return res.status(201).json({ success: true, message: 'Report generated successfully', data: generatedReport });
   } catch (error: any) {
     return apiError(res, 'Failed to generate report', 500, error);
@@ -528,6 +558,11 @@ export const getAuditLogs = async (req: Request, res: Response) => {
 
 export const getAnalytics = async (req: Request, res: Response) => {
   try {
+    const cachedAnalytics = localCache.get<any>('analytics_data');
+    if (cachedAnalytics) {
+      return res.status(200).json({ success: true, data: cachedAnalytics });
+    }
+
     const totalAgents = await prisma.user.count({ where: { role: 'FIELD_AGENT', isActive: true } });
     const totalCustomers = await prisma.customer.count();
     const totalBranches = await prisma.branch.count();
@@ -536,14 +571,19 @@ export const getAnalytics = async (req: Request, res: Response) => {
       _count: { status: true },
     });
 
+    const analyticsPayload = {
+      totalAgents,
+      totalCustomers,
+      totalBranches,
+      caseBreakdown: casesByStatus.map((c) => ({ status: c.status, count: c._count.status })),
+    };
+
+    // Cache the data for 15 seconds (15000 ms)
+    localCache.set('analytics_data', analyticsPayload, 15000);
+
     return res.status(200).json({
       success: true,
-      data: {
-        totalAgents,
-        totalCustomers,
-        totalBranches,
-        caseBreakdown: casesByStatus.map((c) => ({ status: c.status, count: c._count.status })),
-      },
+      data: analyticsPayload,
     });
   } catch (error: any) {
     return apiError(res, 'Failed to load analytics', 500, error);
@@ -671,6 +711,9 @@ export const bulkUploadCases = async (req: AuthRequest, res: Response) => {
         timestamp: new Date().toISOString()
       }
     });
+
+    // Evict cached dashboard and analytics data
+    localCache.clear();
 
     return res.status(200).json({
       success: true,
