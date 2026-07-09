@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { loginApi } from "@/lib/api";
 
 /* ─── Login Page ─────────────────────────────────────────────────────────── */
 
@@ -19,7 +20,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
 
@@ -29,15 +30,19 @@ export default function LoginPage() {
     }
 
     setLoading(true);
-    // Simulate auth — in production this calls the backend JWT endpoint
-    setTimeout(() => {
-      if (email === "admin@lvms.com" && password === "admin123") {
-        router.push("/app");
-      } else {
-        setError("Invalid email or password. Please try again.");
-        setLoading(false);
-      }
-    }, 1200);
+    try {
+      const res = await loginApi(email, password);
+      const { token, user } = res.data;
+      // Persist token + user info
+      localStorage.setItem("lvms_token", token);
+      localStorage.setItem("lvms_user", JSON.stringify(user));
+      router.push("/app");
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message || "Invalid email or password. Please try again."
+      );
+      setLoading(false);
+    }
   }
 
   return (

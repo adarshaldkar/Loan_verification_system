@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiSearch, FiFilter, FiEye, FiBriefcase, FiPhone, FiMapPin, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -16,32 +16,18 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-
-/* ─── Mock Data ──────────────────────────────────────────────────────────── */
+import { getCustomersApi } from "@/lib/api";
 
 type Customer = {
   id: string;
   name: string;
   phone: string;
   address: string;
-  loanType: "Home Loan" | "Business Loan" | "Personal Loan" | "Vehicle Loan";
+  loanType: string;
   caseStatus: VerificationStatus;
   branch: string;
   uploadDate: string;
 };
-
-const customers: Customer[] = [
-  { id: "CUST-001", name: "Amit Kumar",    phone: "+91 98765 43210", address: "12, MG Road, Bangalore",       loanType: "Home Loan",     caseStatus: "Completed",   branch: "Bangalore HQ", uploadDate: "18 May 2026" },
-  { id: "CUST-002", name: "Priya Sharma",  phone: "+91 87654 32109", address: "45, Park St, Mumbai",          loanType: "Business Loan", caseStatus: "In Progress", branch: "Mumbai West",   uploadDate: "18 May 2026" },
-  { id: "CUST-003", name: "Sandeep Yadav", phone: "+91 76543 21098", address: "78, Civil Lines, Delhi",       loanType: "Home Loan",     caseStatus: "Pending",     branch: "Delhi North",   uploadDate: "17 May 2026" },
-  { id: "CUST-004", name: "Neha Verma",    phone: "+91 65432 10987", address: "90, Ring Rd, Hyderabad",       loanType: "Business Loan", caseStatus: "Rejected",    branch: "Hyderabad",     uploadDate: "17 May 2026" },
-  { id: "CUST-005", name: "Rahul Gupta",   phone: "+91 54321 09876", address: "23, Station Rd, Pune",         loanType: "Personal Loan", caseStatus: "Pending",     branch: "Pune",          uploadDate: "16 May 2026" },
-  { id: "CUST-006", name: "Kavita Singh",  phone: "+91 43210 98765", address: "56, Lake View, Chennai",       loanType: "Vehicle Loan",  caseStatus: "Completed",   branch: "Chennai South", uploadDate: "16 May 2026" },
-  { id: "CUST-007", name: "Arvind Patel",  phone: "+91 32109 87654", address: "89, Gandhi Nagar, Ahmedabad",  loanType: "Home Loan",     caseStatus: "Completed",   branch: "Ahmedabad",     uploadDate: "15 May 2026" },
-  { id: "CUST-008", name: "Sunita Joshi",  phone: "+91 21098 76543", address: "34, Mall Rd, Jaipur",          loanType: "Business Loan", caseStatus: "In Progress", branch: "Jaipur",        uploadDate: "15 May 2026" },
-  { id: "CUST-009", name: "Rakesh Mehra",  phone: "+91 99887 76655", address: "11, SV Road, Mumbai",          loanType: "Personal Loan", caseStatus: "Pending",     branch: "Mumbai West",   uploadDate: "14 May 2026" },
-  { id: "CUST-010", name: "Divya Nair",    phone: "+91 88776 65544", address: "67, Anna Nagar, Chennai",      loanType: "Home Loan",     caseStatus: "Completed",   branch: "Chennai South", uploadDate: "14 May 2026" },
-];
 
 const PAGE_SIZE = 5;
 
@@ -52,6 +38,23 @@ export default function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [selected, setSelected]     = useState<Customer | null>(null);
   const [page, setPage]             = useState(1);
+  const [customers, setCustomers]   = useState<Customer[]>([]);
+  const [loading, setLoading]       = useState(true);
+
+  useEffect(() => {
+    async function loadCustomers() {
+      try {
+        setLoading(true);
+        const res = await getCustomersApi();
+        setCustomers(res.data.data);
+      } catch (err) {
+        toast.error("Failed to load customers");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadCustomers();
+  }, []);
 
   const filtered = customers.filter((c) => {
     const matchSearch =
@@ -115,7 +118,13 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {paginated.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-16 text-center text-slate-400">
+                    Loading customers...
+                  </td>
+                </tr>
+              ) : paginated.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-16 text-center text-slate-400 text-sm">
                     No customers found. Try adjusting your filters.
@@ -133,11 +142,11 @@ export default function CustomersPage() {
                         </Avatar>
                         <div>
                           <p className="font-medium text-slate-900">{c.name}</p>
-                          <p className="text-xs text-slate-400 font-mono">{c.id}</p>
+                          <p className="text-xs text-slate-400 font-mono">{c.id.slice(0, 8)}...</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-slate-600 whitespace-nowrap">{c.phone}</td>
+                    <td className="px-5 py-4 text-slate-600 whitespace-nowrap">{c.phone || "—"}</td>
                     <td className="px-5 py-4 text-slate-500 max-w-[200px] truncate">{c.address}</td>
                     <td className="px-5 py-4 text-slate-600 whitespace-nowrap">{c.loanType}</td>
                     <td className="px-5 py-4"><StatusBadge status={c.caseStatus} /></td>
@@ -220,7 +229,7 @@ export default function CustomersPage() {
               <Separator className="mb-6" />
               <div className="space-y-4 text-sm">
                 {[
-                  { icon: <FiPhone />, label: "Phone",       value: selected.phone },
+                  { icon: <FiPhone />, label: "Phone",       value: selected.phone || "—" },
                   { icon: <FiMapPin />, label: "Address",    value: selected.address },
                   { icon: <FiBriefcase />, label: "Loan Type", value: selected.loanType },
                   { icon: <FiMapPin />, label: "Branch",     value: selected.branch },
@@ -237,7 +246,7 @@ export default function CustomersPage() {
               </div>
               <div className="mt-8">
                 <Button
-                  className="w-full text-white"
+                  className="w-full text-white cursor-pointer"
                   style={{ background: "#1E3A5F" }}
                   onClick={() => { toast.info(`Opening cases for ${selected.name}`); setSelected(null); }}
                 >

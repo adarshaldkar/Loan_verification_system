@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { FiSearch, FiFilter, FiEye, FiUserPlus, FiFile } from "react-icons/fi";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,8 @@ import {
 import { StatusBadge, type VerificationStatus } from "@/components/shared/status-badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
-
-/* ─── Mock Data ──────────────────────────────────────────────────────────── */
+import { toast } from "sonner";
+import { getCasesApi } from "@/lib/api";
 
 type Case = {
   id: string;
@@ -25,31 +25,36 @@ type Case = {
   overdue: boolean;
 };
 
-const cases: Case[] = [
-  { id: "LV-2026-10820", customer: "Amit Kumar",    type: "Residential", status: "Pending",     agent: "Not Assigned",  branch: "Bangalore HQ", slaDue: "20 May 2026", overdue: false },
-  { id: "LV-2026-10819", customer: "Priya Sharma",  type: "Business",    status: "In Progress",  agent: "Ramesh Singh",  branch: "Mumbai West",   slaDue: "19 May 2026", overdue: false },
-  { id: "LV-2026-10818", customer: "Sandeep Yadav", type: "Residential", status: "Completed",    agent: "Amit Kumar",    branch: "Delhi North",   slaDue: "18 May 2026", overdue: false },
-  { id: "LV-2026-10817", customer: "Neha Verma",    type: "Business",    status: "Rejected",     agent: "Vikash Patel",  branch: "Hyderabad",     slaDue: "16 May 2026", overdue: true  },
-  { id: "LV-2026-10816", customer: "Rahul Gupta",   type: "Residential", status: "Pending",     agent: "Not Assigned",  branch: "Pune",          slaDue: "15 May 2026", overdue: true  },
-  { id: "LV-2026-10815", customer: "Kavita Singh",  type: "Business",    status: "Completed",    agent: "Suresh Yadav",  branch: "Chennai South", slaDue: "17 May 2026", overdue: false },
-  { id: "LV-2026-10814", customer: "Arvind Patel",  type: "Residential", status: "In Progress",  agent: "Manoj Tiwari",  branch: "Ahmedabad",     slaDue: "21 May 2026", overdue: false },
-  { id: "LV-2026-10813", customer: "Sunita Joshi",  type: "Business",    status: "Pending",     agent: "Not Assigned",  branch: "Jaipur",        slaDue: "14 May 2026", overdue: true  },
-];
-
 /* ─── Cases Page ─────────────────────────────────────────────────────────── */
 
 export default function CasesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
+  const [casesList, setCasesList] = useState<Case[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = cases.filter((c) => {
+  useEffect(() => {
+    async function fetchCases() {
+      try {
+        setLoading(true);
+        const res = await getCasesApi(statusFilter);
+        setCasesList(res.data.data);
+      } catch (err) {
+        toast.error("Failed to load cases");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchCases();
+  }, [statusFilter]);
+
+  const filtered = casesList.filter((c) => {
     const matchSearch =
       c.id.toLowerCase().includes(search.toLowerCase()) ||
       c.customer.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "All" || c.status === statusFilter;
     const matchType = typeFilter === "All" || c.type === typeFilter;
-    return matchSearch && matchStatus && matchType;
+    return matchSearch && matchType;
   });
 
   return (
@@ -115,7 +120,13 @@ export default function CasesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-16 text-center text-slate-400">
+                    Loading cases...
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-16 text-center text-slate-400 text-sm">
                     No cases found matching your filters.
@@ -133,7 +144,7 @@ export default function CasesPage() {
                     <td className="px-5 py-3.5">
                       <span className="font-mono text-xs text-slate-600 flex items-center gap-1.5">
                         <FiFile className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                        {c.id}
+                        {c.id.slice(0, 8)}...
                       </span>
                     </td>
                     <td className="px-5 py-3.5 font-medium text-slate-900">{c.customer}</td>
@@ -160,7 +171,7 @@ export default function CasesPage() {
         </div>
         <div className="px-5 py-3 border-t border-border flex items-center justify-between text-xs text-slate-500">
           <span>
-            Showing {filtered.length} of {cases.length} cases
+            Showing {filtered.length} of {casesList.length} cases
             {filtered.some((c) => c.overdue) && (
               <span className="ml-3 text-amber-700 font-medium">
                 ⚠ {filtered.filter((c) => c.overdue).length} overdue

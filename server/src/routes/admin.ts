@@ -1,35 +1,73 @@
 import { Router } from 'express';
 import { authenticateToken, requireRole } from '../middlewares/auth';
-import { 
-  getAgents, 
-  createCustomerAndCase, 
-  getCases, 
-  assignCase, 
-  updateCaseStatus, 
-  getAnalytics 
+import {
+  // Dashboard
+  getDashboard,
+  // Analytics
+  getAnalytics,
+  // Agents
+  getAgents,
+  toggleAgentStatus,
+  // Customers & Cases
+  getCustomers,
+  createCustomerAndCase,
+  getCases,
+  assignCase,
+  updateCaseStatus,
+  // Branches
+  getBranches,
+  createBranch,
+  // Reports
+  getReports,
+  generateReport,
+  // Audit
+  getAuditLogs,
+  // Profile & Settings
+  getProfile,
+  getSettings,
+  updateSettings,
 } from '../controllers/adminController';
 import { registerAgent } from '../controllers/authController';
 
 const router = Router();
 
-// Apply auth middleware to all admin routes
+// All admin routes require a valid JWT
 router.use(authenticateToken);
-// Apply RBAC: Only ADMIN and MANAGER can access these routes
+// All admin routes require ADMIN or MANAGER role
 router.use(requireRole(['ADMIN', 'MANAGER']));
 
-// 1. Agent Management
-router.post('/agents/register', registerAgent); // Registers a new field agent
-router.get('/agents', getAgents); // Lists all agents
+// ── Dashboard ──────────────────────────────────────────────────────────────
+router.get('/dashboard', getDashboard);
+router.get('/analytics', getAnalytics);
 
-// 2. Customer & Case Management
-router.post('/cases', createCustomerAndCase); // Create customer + pending case
-router.get('/cases', getCases); // List all cases (can filter by ?status=PENDING)
-router.put('/cases/:caseId/assign', assignCase); // Assign a case to an agent
+// ── Agents ─────────────────────────────────────────────────────────────────
+router.post('/agents/register', registerAgent);
+router.get('/agents', getAgents);
+router.patch('/agents/:agentId/toggle', toggleAgentStatus);
 
-// 3. Verification Review
-router.put('/cases/:caseId/status', updateCaseStatus); // Approve (COMPLETED) or REJECT
+// ── Customers ──────────────────────────────────────────────────────────────
+router.get('/customers', getCustomers);
+router.post('/customers', createCustomerAndCase);
 
-// 4. Dashboard Analytics
-router.get('/analytics', getAnalytics); // Get summary statistics
+// ── Cases ──────────────────────────────────────────────────────────────────
+router.get('/cases', getCases);
+router.put('/cases/:caseId/assign', assignCase);
+router.put('/cases/:caseId/status', updateCaseStatus);
+
+// ── Branches ───────────────────────────────────────────────────────────────
+router.get('/branches', getBranches);
+router.post('/branches', createBranch);
+
+// ── Reports ────────────────────────────────────────────────────────────────
+router.get('/reports', getReports);
+router.post('/reports/generate', generateReport);
+
+// ── Audit Logs ─────────────────────────────────────────────────────────────
+router.get('/audit-logs', getAuditLogs);
+
+// ── Profile & Settings ─────────────────────────────────────────────────────
+router.get('/profile', getProfile);
+router.get('/settings', getSettings);
+router.put('/settings', updateSettings);
 
 export default router;

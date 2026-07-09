@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -21,18 +21,9 @@ import { StatusBadge, type VerificationStatus } from "@/components/shared/status
 import { SectionCard } from "@/components/shared/section-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
+import { getAnalyticsApi, getCasesApi, getAgentsApi } from "@/lib/api";
 
-/* ─── Mock Data ──────────────────────────────────────────────────────────── */
-
-const kpiData = [
-  { label: "Total Customers", value: 12534, icon: <FiUsers />, iconBg: "bg-blue-50",   trend: 15.3 },
-  { label: "Total Cases",     value: 10820, icon: <FiBriefcase />, iconBg: "bg-purple-50", trend: 12.1 },
-  { label: "Pending Cases",   value: 4562,  icon: <FiClock />,     iconBg: "bg-amber-50",  trend: 8.5 },
-  { label: "Completed Cases", value: 5860,  icon: <FiCheckCircle />, iconBg: "bg-teal-50", trend: 18.7 },
-  { label: "Active Agents",   value: 245,   icon: <FiUserCheck />, iconBg: "bg-indigo-50", trend: 9.4 },
-  { label: "Branches",        value: 28,    icon: <FiGitBranch />, iconBg: "bg-slate-100", trend: 0 },
-];
-
+/* ─── Static chart seed data (visual only) ───────────────────────────────── */
 const lineData = [
   { date: "12 May", total: 980,  completed: 620, pending: 280, rejected: 80  },
   { date: "13 May", total: 1120, completed: 700, pending: 310, rejected: 110 },
@@ -43,74 +34,9 @@ const lineData = [
   { date: "18 May", total: 2050, completed: 1300, pending: 540, rejected: 210 },
 ];
 
-const pieData = [
-  { name: "Pending",     value: 4562, color: "#B45309" },
-  { name: "In Progress", value: 2450, color: "#1D4ED8" },
-  { name: "Completed",   value: 5860, color: "#0D9488" },
-  { name: "Rejected",    value: 548,  color: "#BE123C"  },
-];
-
-const recentCases: {
-  id: string;
-  customer: string;
-  type: "Residential" | "Business";
-  status: VerificationStatus;
-  agent: string;
-  updatedOn: string;
-}[] = [
-  { id: "LV-2026-10820", customer: "Amit Kumar",    type: "Residential", status: "Pending",     agent: "Not Assigned",  updatedOn: "18 May, 10:30 AM" },
-  { id: "LV-2026-10819", customer: "Priya Sharma",  type: "Business",    status: "In Progress",  agent: "Ramesh Singh",  updatedOn: "18 May, 09:45 AM" },
-  { id: "LV-2026-10818", customer: "Sandeep Yadav", type: "Residential", status: "Completed",    agent: "Amit Kumar",    updatedOn: "18 May, 09:20 AM" },
-  { id: "LV-2026-10817", customer: "Neha Verma",    type: "Business",    status: "Rejected",     agent: "Vikash Patel",  updatedOn: "17 May, 06:15 PM" },
-  { id: "LV-2026-10816", customer: "Rahul Gupta",   type: "Residential", status: "Pending",     agent: "Not Assigned",  updatedOn: "17 May, 04:40 PM" },
-  { id: "LV-2026-10815", customer: "Kavita Singh",  type: "Business",    status: "Completed",    agent: "Suresh Yadav",  updatedOn: "17 May, 02:10 PM" },
-  { id: "LV-2026-10814", customer: "Arvind Patel",  type: "Residential", status: "In Progress",  agent: "Manoj Tiwari",  updatedOn: "16 May, 11:55 AM" },
-  { id: "LV-2026-10813", customer: "Sunita Joshi",  type: "Business",    status: "Pending",     agent: "Not Assigned",  updatedOn: "16 May, 09:00 AM" },
-];
-
-const topAgents = [
-  { name: "Amit Kumar",    completed: 128, inProgress: 24, rate: 95 },
-  { name: "Ramesh Singh",  completed: 112, inProgress: 18, rate: 93 },
-  { name: "Vikash Patel",  completed: 98,  inProgress: 21, rate: 90 },
-  { name: "Suresh Yadav",  completed: 87,  inProgress: 16, rate: 89 },
-  { name: "Manoj Tiwari",  completed: 76,  inProgress: 14, rate: 88 },
-];
-
-const recentActivity = [
-  {
-    icon: <FiCheckCircle className="w-4 h-4" style={{ color: "#0D9488" }} />,
-    bg: "bg-teal-50",
-    title: "Verification completed",
-    desc: "Case #LV-2026-10820 completed",
-    time: "10 min ago",
-  },
-  {
-    icon: <FiBriefcase className="w-4 h-4" style={{ color: "#1D4ED8" }} />,
-    bg: "bg-blue-50",
-    title: "New case assigned",
-    desc: "Case #LV-2026-10821 assigned to Agent Amit Kumar",
-    time: "25 min ago",
-  },
-  {
-    icon: <FiUploadCloud className="w-4 h-4" style={{ color: "#1E3A5F" }} />,
-    bg: "bg-blue-50",
-    title: "Excel file uploaded",
-    desc: "File customers_may_18.xlsx uploaded successfully",
-    time: "1 hr ago",
-  },
-  {
-    icon: <FiUserPlus className="w-4 h-4 text-amber-700" />,
-    bg: "bg-amber-50",
-    title: "New agent registered",
-    desc: "Agent Suresh Yadav registered successfully",
-    time: "2 hr ago",
-  },
-];
-
 const CHART_PERIOD_OPTIONS = ["This Week", "Last Week", "This Month"];
 
-/* ─── Custom Tooltip for line chart ─────────────────────────────────────── */
-
+/* ─── Custom Tooltip ─────────────────────────────────────────────────────── */
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
@@ -138,13 +64,59 @@ const DATE_RANGES = [
 ];
 
 /* ─── Dashboard Page ─────────────────────────────────────────────────────── */
-
 export default function DashboardPage() {
   const [period, setPeriod] = useState("This Week");
   const [dateRange, setDateRange] = useState(DATE_RANGES[2]);
   const [calOpen, setCalOpen] = useState(false);
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
+
+  // ── Live Data State ──────────────────────────────────────────────────────
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [recentCases, setRecentCases] = useState<any[]>([]);
+  const [topAgents, setTopAgents] = useState<any[]>([]);
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboard() {
+      try {
+        const [analyticsRes, casesRes, agentsRes] = await Promise.all([
+          getAnalyticsApi(),
+          getCasesApi(),
+          getAgentsApi(),
+        ]);
+        setAnalytics(analyticsRes.data.data);
+        setRecentCases(casesRes.data.data.slice(0, 8));
+        setTopAgents(agentsRes.data.data.slice(0, 5));
+      } catch (err) {
+        console.error("Failed to load dashboard data:", err);
+      } finally {
+        setLoadingStats(false);
+      }
+    }
+    loadDashboard();
+  }, []);
+
+  // Compute live KPI values from analytics
+  const totalCases = analytics?.caseBreakdown?.reduce((sum: number, c: any) => sum + c.count, 0) ?? 0;
+  const pendingCount = analytics?.caseBreakdown?.find((c: any) => c.status === "PENDING")?.count ?? 0;
+  const completedCount = analytics?.caseBreakdown?.find((c: any) => c.status === "COMPLETED")?.count ?? 0;
+
+  const kpiData = [
+    { label: "Total Customers", value: analytics?.totalCustomers ?? 0,  icon: <FiUsers />,        iconBg: "bg-blue-50",    trend: 15.3 },
+    { label: "Total Cases",     value: totalCases,                       icon: <FiBriefcase />,    iconBg: "bg-purple-50",  trend: 12.1 },
+    { label: "Pending Cases",   value: pendingCount,                     icon: <FiClock />,        iconBg: "bg-amber-50",   trend: 8.5  },
+    { label: "Completed Cases", value: completedCount,                   icon: <FiCheckCircle />,  iconBg: "bg-teal-50",    trend: 18.7 },
+    { label: "Active Agents",   value: analytics?.totalAgents ?? 0,     icon: <FiUserCheck />,    iconBg: "bg-indigo-50",  trend: 9.4  },
+    { label: "Branches",        value: 0,                                icon: <FiGitBranch />,    iconBg: "bg-slate-100",  trend: 0    },
+  ];
+
+  const pieData = [
+    { name: "Pending",     value: pendingCount, color: "#B45309" },
+    { name: "In Progress", value: analytics?.caseBreakdown?.find((c: any) => c.status === "IN_PROGRESS")?.count ?? 0, color: "#1D4ED8" },
+    { name: "Completed",   value: completedCount, color: "#0D9488" },
+    { name: "Rejected",    value: analytics?.caseBreakdown?.find((c: any) => c.status === "REJECTED")?.count ?? 0, color: "#BE123C" },
+  ];
 
   return (
     <div className="space-y-6">

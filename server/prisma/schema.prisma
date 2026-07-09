@@ -7,33 +7,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  MANAGER
-  FIELD_AGENT
-}
-
-enum VerificationStatus {
-  PENDING
-  ASSIGNED
-  IN_PROGRESS
-  COMPLETED
-  REJECTED
-}
-
-enum VerificationType {
-  RESIDENTIAL
-  BUSINESS
-}
-
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
   password  String
   firstName String
   lastName  String
-  role      Role     @default(FIELD_AGENT)
-  branch    String?  
+  phone     String?
+  role      String   @default("FIELD_AGENT")
+  branch    String?
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -41,55 +24,114 @@ model User {
 }
 
 model Customer {
-  id             String   @id @default(uuid())
-  applicationId  String   @unique
-  firstName      String
-  lastName       String
-  phone          String?
-  email          String?
-  address        String
-  loanAmount     Float
-  businessName   String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(uuid())
+  applicationId String   @unique
+  firstName     String
+  lastName      String
+  phone         String?
+  email         String?
+  address       String
+  loanType      String   @default("Home Loan")
+  loanAmount    Float
+  businessName  String?
+  branch        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   verificationCases VerificationCase[]
 }
 
 model VerificationCase {
-  id           String             @id @default(uuid())
-  status       VerificationStatus @default(PENDING)
-  type         VerificationType
-  
+  id     String  @id @default(uuid())
+  status String  @default("PENDING")
+  type   String
+  branch String?
+
   // Relations
-  customerId   String
-  customer     Customer           @relation(fields: [customerId], references: [id])
-  
-  agentId      String?
-  agent        User?              @relation(fields: [agentId], references: [id])
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  agentId String?
+  agent   User?   @relation(fields: [agentId], references: [id])
 
   // Data filled by agent
   gpsLatitude  Float?
   gpsLongitude Float?
-  remarks      String?            @db.Text
-  
-  // Specific profile data (stored as JSON for flexibility between Residential/Business)
-  profileData  Json?
+  remarks      String?
 
-  createdAt    DateTime           @default(now())
-  completedAt  DateTime?
+  // Profile data (JSON stored as Text for flexibility)
+  profileData String?
 
-  media        Media[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  media Media[]
+}
+
+model Branch {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  city      String
+  manager   String
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Report {
+  id          String   @id @default(uuid())
+  name        String
+  type        String
+  generatedBy String
+  generatedAt String
+  size        String
+  dateRange   String?
+  format      String?
+  createdAt   DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actor     String
+  action    String
+  entity    String
+  timestamp String
+  ip        String
+  createdAt DateTime @default(now())
+}
+
+model SystemSetting {
+  id                 String   @id @default(uuid())
+  orgName            String
+  adminEmail         String
+  slaDays            Int
+  emailOverdue       Boolean  @default(true)
+  emailDigest        Boolean  @default(true)
+  notifyNewUpload    Boolean  @default(false)
+  notifyCaseComplete Boolean  @default(false)
+  updatedAt          DateTime @updatedAt
+}
+
+model UploadBatch {
+  id        String   @id @default(uuid())
+  fileName  String
+  totalRows Int
+  validRows Int
+  errorRows Int
+  status    String
+  createdBy String
+  createdAt DateTime @default(now())
 }
 
 model Media {
   id                 String           @id @default(uuid())
-  url                String           // Cloudinary URL
-  publicId           String           // Cloudinary public ID
-  type               String           // e.g., "PHOTO", "DOCUMENT"
-  
+  url                String
+  publicId           String
+  type               String
+
   verificationCaseId String
   verificationCase   VerificationCase @relation(fields: [verificationCaseId], references: [id])
-  
-  createdAt          DateTime         @default(now())
+
+  createdAt DateTime @default(now())
 }
