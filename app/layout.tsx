@@ -1,19 +1,44 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import { ThemeProvider } from "next-themes";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
+
+/* ─── Font Definitions ───────────────────────────────────────────────────── */
 
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  display: "swap",
 });
 
+const plusJakartaSans = Plus_Jakarta_Sans({
+  variable: "--font-plus-jakarta",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+});
+
+/* ─── Metadata ───────────────────────────────────────────────────────────── */
+
 export const metadata: Metadata = {
-  title: "LoanVerify AI — Smart Loan Verification System",
+  title: {
+    default: "LVMS — Loan Verification Management System",
+    template: "%s | LVMS",
+  },
   description:
-    "LoanVerify AI streamlines loan approvals with intelligent document verification, real-time risk scoring, and automated compliance checks.",
-  keywords: "loan verification, AI lending, credit scoring, document verification, fintech",
+    "Enterprise loan verification platform for field operations and admin management.",
 };
+
+/* ─── Root Layout ────────────────────────────────────────────────────────── */
 
 export default function RootLayout({
   children,
@@ -21,9 +46,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.variable} antialiased`}>
-        {children}
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} h-full`}
+    >
+      <body className="h-full antialiased">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          <TooltipProvider>
+            {children}
+            <Toaster richColors position="top-right" />
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
