@@ -4,9 +4,10 @@ import { authenticateToken, requireRole } from '../middlewares/auth';
 
 // ── Domain-Specific Agent Controllers ─────────────────────────────────────
 import { getAgentDashboard } from '../controllers/agent/dashboardController';
-import { getAgentCases, getAgentCaseById, updateAgentCaseStatus, submitVerification } from '../controllers/agent/caseController';
+import { getAgentCases, getAgentCaseById, updateAgentCaseStatus, submitVerification, uploadEvidence } from '../controllers/agent/caseController';
 import { getAgentProfile } from '../controllers/agent/profileController';
 import { getAgentNotifications } from '../controllers/agent/notificationController';
+import { upload } from '../config/cloudinary';
 
 const router = Router();
 
@@ -32,6 +33,7 @@ router.get('/cases', getAgentCases);
 router.get('/cases/:id', getAgentCaseById);
 router.patch('/cases/:id/status', updateAgentCaseStatus);
 router.post('/cases/:id/submit', submitVerification);
+router.post('/cases/:id/evidence', upload.single('file'), uploadEvidence);
 
 // ── Profile ────────────────────────────────────────────────────────────────
 router.get('/profile', getAgentProfile);

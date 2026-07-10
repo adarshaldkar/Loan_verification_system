@@ -39,7 +39,14 @@ export default function CasesPage() {
     async function fetchCases() {
       try {
         setLoading(true);
-        const res = await getCasesApi(statusFilter);
+        const mapStatus = (s: string) => {
+          if (s === "Pending") return "PENDING";
+          if (s === "In Progress") return "IN_PROGRESS";
+          if (s === "Completed") return "COMPLETED";
+          if (s === "Rejected") return "REJECTED";
+          return "All";
+        };
+        const res = await getCasesApi(mapStatus(statusFilter));
         setCasesList(res.data.data);
       } catch (err) {
         toast.error("Failed to load cases");

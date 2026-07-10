@@ -22,7 +22,13 @@ const statusMap: Record<
 };
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
-  const config = statusMap[status];
+  // Normalize status string (e.g., "IN_PROGRESS" -> "In Progress", "PENDING" -> "Pending")
+  const normalizedStatus = (
+    (status as string) === "IN_PROGRESS" ? "In Progress" :
+    status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
+  ) as VerificationStatus;
+  
+  const config = statusMap[normalizedStatus] || { label: status, className: "badge-pending" };
 
   return (
     <span

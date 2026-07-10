@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import Papa from "papaparse";
+import * as XLSX from "xlsx";
 import { uploadBulkCasesApi } from "@/lib/api";
 
 type UploadState = "idle" | "uploading" | "validating" | "done";
@@ -47,47 +47,49 @@ export default function UploadPage() {
   const [results, setResults] = useState<ParsedRow[]>([]);
   const inputRef              = useRef<HTMLInputElement>(null);
 
-  function processFile(f: File) {
+  async function processFile(f: File) {
     setFile(f);
     setState("uploading");
     setProgress(25);
     
-    Papa.parse(f, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (result: any) => {
-        setProgress(75);
-        setState("validating");
+    try {
+      const data = await f.arrayBuffer();
+      setProgress(50);
+      const workbook = XLSX.read(data);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const json: any[] = XLSX.utils.sheet_to_json(worksheet);
+      
+      setProgress(75);
+      setState("validating");
+      
+      const parsed: ParsedRow[] = json.map((r: any, index: number) => {
+        const name = r['Customer Name'] || r['Name'] || '';
+        const phone = r['Phone'] || r['Phone Number'] || '';
+        const address = r['Address'] || '';
+        const loanAmount = r['Loan Amount'] || '';
+        const loanType = r['Loan Type'] || '';
         
-        const parsed: ParsedRow[] = result.data.map((r: any, index: number) => {
-          const name = r['Customer Name'] || r['Name'] || '';
-          const phone = r['Phone'] || r['Phone Number'] || '';
-          const address = r['Address'] || '';
-          const loanAmount = r['Loan Amount'] || '';
-          const loanType = r['Loan Type'] || '';
-          
-          let status: "valid" | "error" = "valid";
-          let error = null;
+        let status: "valid" | "error" = "valid";
+        let error = null;
 
-          if (!name) { status = "error"; error = "Missing customer name"; }
-          else if (!phone) { status = "error"; error = "Missing phone number"; }
-          else if (!address) { status = "error"; error = "Missing address"; }
-          
-          return { row: index + 2, name, phone, address, loanAmount, loanType, status, error };
-        });
+        if (!name) { status = "error"; error = "Missing customer name"; }
+        else if (!phone) { status = "error"; error = "Missing phone number"; }
+        else if (!address) { status = "error"; error = "Missing address"; }
+        
+        return { row: index + 2, name, phone, address, loanAmount, loanType, status, error };
+      });
 
-        setTimeout(() => {
-          setResults(parsed);
-          setProgress(100);
-          setState("done");
-        }, 800);
-      },
-      error: () => {
-        toast.error("Failed to parse the file. Please ensure it's a valid CSV.");
-        setState("idle");
-        setFile(null);
-      }
-    });
+      setTimeout(() => {
+        setResults(parsed);
+        setProgress(100);
+        setState("done");
+      }, 500);
+    } catch (error) {
+      toast.error("Failed to parse the file. Please ensure it's a valid Excel (.xlsx) file.");
+      setState("idle");
+      setFile(null);
+    }
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -134,14 +136,14 @@ export default function UploadPage() {
             variant="outline"
             className="gap-2 text-sm"
             onClick={() => {
-              const link = document.createElement("a");
-              link.href = "/sample_leads.csv";
-              link.download = "sample_leads.csv";
-              link.click();
+              const ws = XLSX.utils.json_to_sheet([{ "Customer Name": "John Doe", "Phone Number": "1234567890", "Address": "123 Main St", "Loan Amount": 50000, "Loan Type": "Personal" }]);
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+              XLSX.writeFile(wb, "sample_leads.xlsx");
             }}
           >
             <FiDownload className="w-4 h-4" />
-            Download Sample CSV
+            Sample Excel (.xlsx)
           </Button>
         }
       />

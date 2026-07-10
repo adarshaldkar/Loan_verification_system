@@ -8,49 +8,9 @@ import {
 } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-
-// Mock Notifications
+import { getAgentNotificationsApi } from "@/lib/api";
 
 type NotifType = "ASSIGNMENT" | "APPROVED" | "REJECTED" | "REMINDER" | "INFO";
-
-const allNotifications = [
-  {
-    id: 1, type: "ASSIGNMENT" as NotifType,
-    title: "New Case Assigned",
-    message: "Case LV-2026-10821 (Priya Sharma — Business Verification) has been assigned to you.",
-    time: "10 min ago", unread: true, caseId: "LV-2026-10821"
-  },
-  {
-    id: 2, type: "APPROVED" as NotifType,
-    title: "Verification Approved",
-    message: "Your verification for Case LV-2026-10816 (Kavita Singh) has been approved. Case marked as Completed.",
-    time: "2 hrs ago", unread: true, caseId: "LV-2026-10816"
-  },
-  {
-    id: 3, type: "REMINDER" as NotifType,
-    title: "Overdue Case",
-    message: "Case LV-2026-10819 (Sandeep Yadav) is overdue by 1 day. Please complete the verification immediately.",
-    time: "5 hrs ago", unread: false, caseId: "LV-2026-10819"
-  },
-  {
-    id: 4, type: "REJECTED" as NotifType,
-    title: "Re-verification Required",
-    message: "Case LV-2026-10814 (Arvind Patel) was rejected. Reason: Business signboard photo is missing. Please re-visit and resubmit.",
-    time: "Yesterday", unread: false, caseId: "LV-2026-10814"
-  },
-  {
-    id: 5, type: "INFO" as NotifType,
-    title: "System Update",
-    message: "The LVMS app has been updated. GPS accuracy improved for verification forms.",
-    time: "2 days ago", unread: false
-  },
-  {
-    id: 6, type: "APPROVED" as NotifType,
-    title: "Verification Approved",
-    message: "Case LV-2026-10809 (Deepa Nair) has been approved. Excellent verification report!",
-    time: "3 days ago", unread: false, caseId: "LV-2026-10809"
-  },
-];
 
 const TYPE_CONFIG: Record<NotifType, { icon: React.ElementType; color: string; bg: string }> = {
   ASSIGNMENT: { icon: FiBriefcase,    color: "#1E3A5F", bg: "#EEF2FF" },
@@ -60,17 +20,45 @@ const TYPE_CONFIG: Record<NotifType, { icon: React.ElementType; color: string; b
   INFO:       { icon: FiInfo,         color: "#6366F1", bg: "#EEF2FF" },
 };
 
-/* ─── Notifications Page ─────────────────────────────────────────────────── */
+type NotificationItem = {
+  id: string;
+  type: NotifType;
+  title: string;
+  message: string;
+  time: string;
+  unread: boolean;
+  caseId?: string;
+};
 
 export default function NotificationsPage() {
   const router = useRouter();
-  const [notifications, setNotifications] = useState(allNotifications);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [filter, setFilter] = useState<"All" | "Unread">("All");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(t);
+    async function loadNotifications() {
+      try {
+        const res = await getAgentNotificationsApi();
+        const data = res.data?.data || [];
+        // Map backend format to frontend UI format
+        const mapped: NotificationItem[] = data.map((n: any) => ({
+          id: n.id,
+          type: n.type === "new_case" ? "ASSIGNMENT" : "INFO",
+          title: n.title,
+          message: n.body,
+          time: n.time,
+          unread: !n.read,
+          caseId: n.caseId,
+        }));
+        setNotifications(mapped);
+      } catch (error) {
+        toast.error("Failed to load notifications");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadNotifications();
   }, []);
 
   const unreadCount = notifications.filter((n) => n.unread).length;
@@ -104,7 +92,7 @@ export default function NotificationsPage() {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
   }
 
-  function markRead(id: number) {
+  function markRead(id: string) {
     setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, unread: false } : n));
   }
 
@@ -167,7 +155,7 @@ export default function NotificationsPage() {
                 onClick={() => {
                   markRead(n.id);
                   if (n.caseId) {
-                    toast.info(`Opening case: ${n.caseId}`);
+                    toast.info(`Opening case...`);
                     router.push(`/agent/cases/${n.caseId}`);
                   }
                 }}

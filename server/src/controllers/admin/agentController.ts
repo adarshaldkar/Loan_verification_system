@@ -14,7 +14,9 @@ export const getAgents = async (req: Request, res: Response) => {
       const assignedCases = agent.assignedCases;
       const completedCases = assignedCases.filter((item) => item.status === 'COMPLETED').length;
       const activeCases = assignedCases.filter((item) => item.status === 'ASSIGNED' || item.status === 'IN_PROGRESS').length;
-      const successRate = assignedCases.length === 0 ? 0 : Math.round((completedCases / assignedCases.length) * 100);
+      const rejectedCases = assignedCases.filter((item) => item.status === 'REJECTED').length;
+      const totalResolved = completedCases + rejectedCases;
+      const successRate = totalResolved === 0 ? 0 : Math.round((completedCases / totalResolved) * 100);
       const completedDurations = assignedCases
         .filter((item) => item.status === 'COMPLETED' && item.completedAt)
         .map((item) => Math.max(1, Math.round((new Date(item.completedAt as Date).getTime() - new Date(item.createdAt).getTime()) / 86400000)));

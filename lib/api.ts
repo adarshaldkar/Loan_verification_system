@@ -43,6 +43,14 @@ export const registerAgentApi = (data: {
 export const toggleAgentStatusApi = (agentId: string) =>
   api.patch(`/admin/agents/${agentId}/toggle`);
 
+// ─── Admins ───────────────────────────────────────────────────────────────
+export const getAdminsApi = () => api.get("/admin/admins");
+export const registerAdminApi = (data: {
+  email: string; password: string;
+  firstName: string; lastName: string;
+  phone?: string; branch?: string;
+}) => api.post("/admin/admins/register", data);
+
 // ─── Customers ────────────────────────────────────────────────────────────
 export const getCustomersApi = () => api.get("/admin/customers");
 export const createCustomerApi = (data: {
@@ -55,6 +63,8 @@ export const createCustomerApi = (data: {
 // ─── Cases ────────────────────────────────────────────────────────────────
 export const getCasesApi = (status?: string) =>
   api.get("/admin/cases", { params: status && status !== "All" ? { status } : {} });
+export const getCaseByIdAdminApi = (caseId: string) =>
+  api.get(`/admin/cases/${caseId}`);
 export const assignCaseApi = (caseId: string, agentId: string) =>
   api.put(`/admin/cases/${caseId}/assign`, { agentId });
 export const updateCaseStatusApi = (caseId: string, status: "COMPLETED" | "REJECTED") =>
@@ -97,6 +107,11 @@ export const getAgentCasesApi = (status?: string) =>
 
 export const getAgentCaseByIdApi = (id: string) =>
   api.get(`/agent/cases/${id}`);
+
+export const uploadEvidenceApi = (caseId: string, formData: FormData) =>
+  api.post(`/agent/cases/${caseId}/evidence`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
 
 export const updateAgentCaseStatusApi = (id: string, status: string) =>
   api.patch(`/agent/cases/${id}/status`, { status });

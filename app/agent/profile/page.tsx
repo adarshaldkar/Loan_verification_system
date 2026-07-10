@@ -3,42 +3,38 @@
 import { useState, useEffect } from "react";
 import {
   FiUser, FiPhone, FiMail, FiMapPin, FiShield, FiBriefcase,
-  FiStar, FiCheckCircle, FiClock, FiCalendar, FiEdit2, FiLock, FiX
+  FiLock, FiX, FiEdit2
 } from "react-icons/fi";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { getAgentProfileApi } from "@/lib/api";
 
-/* ─── Mock Agent Profile ─────────────────────────────────────────────────── */
-
-const AGENT = {
-  name: "Arun Kumar",
-  id: "AGT-1024",
-  email: "arun.kumar@lvms.com",
-  phone: "+91 98765 43210",
-  branch: "Bangalore HQ",
-  role: "Field Verification Agent",
-  joinDate: "01 March 2024",
-  zone: "South Bangalore",
+type AgentProfile = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  branch: string;
+  joined: string;
+  role?: string;
+  zone?: string;
   stats: {
-    totalAssigned: 156,
-    completed: 128,
-    rejected: 8,
-    inProgress: 5,
-    avgTurnaround: "1.2 days",
-    successRate: 95,
-    thisWeek: 8,
-    thisMonth: 31,
-  },
+    total: number;
+    completed: number;
+    pending: number;
+    successRate: number;
+  };
 };
 
 export default function AgentProfilePage() {
   const [loading, setLoading] = useState(true);
-  const [phone, setPhone] = useState(AGENT.phone);
+  const [agent, setAgent] = useState<AgentProfile | null>(null);
+  
+  const [phone, setPhone] = useState("");
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [oldPassword, setOldPassword] = useState("");
@@ -46,12 +42,28 @@ export default function AgentProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 400);
-    return () => clearTimeout(t);
+    async function loadProfile() {
+      try {
+        const res = await getAgentProfileApi();
+        const profileData = res.data?.data;
+        setAgent({
+          ...profileData,
+          role: "Field Verification Agent",
+          zone: "Assigned Zone", // Fallback for fields not yet in DB schema
+        });
+        setPhone(profileData.phone || "");
+      } catch (error) {
+        toast.error("Failed to load profile data");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadProfile();
   }, []);
 
   const handleUpdateProfile = () => {
-    toast.success("Profile details updated successfully!");
+    // We can add an update API later. For now, just close edit mode.
+    toast.success("Profile details updated locally (API not wired)!");
     setIsEditingPhone(false);
   };
 
@@ -65,7 +77,7 @@ export default function AgentProfilePage() {
       toast.error("New passwords do not match.");
       return;
     }
-    toast.success("Password changed successfully!");
+    toast.success("Password change feature coming soon!");
     setShowPasswordModal(false);
     setOldPassword("");
     setNewPassword("");
@@ -76,7 +88,6 @@ export default function AgentProfilePage() {
     return (
       <div className="space-y-4 pb-8">
         <Skeleton className="h-6 w-32" />
-
         <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-4">
           <div className="flex items-center gap-4 animate-pulse">
             <Skeleton className="w-16 h-16 rounded-full shrink-0" />
@@ -86,7 +97,6 @@ export default function AgentProfilePage() {
             </div>
           </div>
         </div>
-
         <div className="grid grid-cols-2 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="bg-white p-4 rounded-2xl border border-gray-100 space-y-2">
@@ -99,9 +109,15 @@ export default function AgentProfilePage() {
     );
   }
 
+  if (!agent) {
+    return <div className="p-8 text-center text-gray-500">Profile could not be loaded</div>;
+  }
+
+  // Use initials for Avatar
+  const initials = agent.name.substring(0, 2).toUpperCase();
+
   return (
     <div className="space-y-4 pb-8 text-slate-800" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-      {/* Header */}
       <h1 className="text-xl font-bold text-slate-900">
         My Profile
       </h1>
@@ -111,17 +127,15 @@ export default function AgentProfilePage() {
         <div className="flex items-center gap-4">
           <Avatar className="w-16 h-16 border-2 border-white/30">
             <AvatarFallback className="text-xl font-bold text-[#1E3A5F]" style={{ background: "#E8EFF8" }}>
-              AK
+              {initials}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <h2 className="text-lg font-bold">
-              {AGENT.name}
-            </h2>
-            <p className="text-blue-200 text-sm">{AGENT.role}</p>
+            <h2 className="text-lg font-bold">{agent.name}</h2>
+            <p className="text-blue-200 text-sm">{agent.role}</p>
             <div className="flex items-center gap-1.5 mt-1">
               <FiShield className="w-3.5 h-3.5 text-blue-300" />
-              <span className="text-xs font-mono text-blue-300">Agent ID: {AGENT.id}</span>
+              <span className="text-xs font-mono text-blue-300">Agent ID: {agent.id.substring(0, 8).toUpperCase()}</span>
             </div>
           </div>
         </div>
@@ -129,16 +143,16 @@ export default function AgentProfilePage() {
         {/* Quick stats */}
         <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-white/15">
           <div className="text-center">
-            <p className="text-xl font-bold">{AGENT.stats.completed}</p>
+            <p className="text-xl font-bold">{agent.stats.completed}</p>
             <p className="text-[10px] text-blue-300 mt-0.5">Completed</p>
           </div>
           <div className="text-center border-x border-white/15">
-            <p className="text-xl font-bold">{AGENT.stats.successRate}%</p>
+            <p className="text-xl font-bold">{agent.stats.successRate}%</p>
             <p className="text-[10px] text-blue-300 mt-0.5">Success Rate</p>
           </div>
           <div className="text-center">
-            <p className="text-xl font-bold">{AGENT.stats.avgTurnaround}</p>
-            <p className="text-[10px] text-blue-300 mt-0.5">Avg. Time</p>
+            <p className="text-xl font-bold">{agent.stats.pending}</p>
+            <p className="text-[10px] text-blue-300 mt-0.5">Pending Cases</p>
           </div>
         </div>
       </div>
@@ -150,18 +164,16 @@ export default function AgentProfilePage() {
           <h3 className="text-[13px] font-semibold text-slate-900">Personal Information</h3>
         </div>
         <div className="divide-y divide-slate-50">
-          {/* Email */}
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
               <FiMail className="w-4 h-4 text-slate-400" />
             </div>
             <div>
               <p className="text-[10px] text-slate-400">Email Address</p>
-              <p className="text-[13px] font-medium text-slate-800">{AGENT.email}</p>
+              <p className="text-[13px] font-medium text-slate-800">{agent.email}</p>
             </div>
           </div>
 
-          {/* Phone (Editable) */}
           <div className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
@@ -177,7 +189,7 @@ export default function AgentProfilePage() {
                     className="border border-slate-200 rounded px-2 py-0.5 text-xs focus:outline-none focus:border-[#1E3A5F]"
                   />
                 ) : (
-                  <p className="text-[13px] font-medium text-slate-800">{phone}</p>
+                  <p className="text-[13px] font-medium text-slate-800">{phone || "Not provided"}</p>
                 )}
               </div>
             </div>
@@ -192,31 +204,28 @@ export default function AgentProfilePage() {
             )}
           </div>
 
-          {/* Branch */}
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
               <FiMapPin className="w-4 h-4 text-slate-400" />
             </div>
             <div>
               <p className="text-[10px] text-slate-400">Branch Location</p>
-              <p className="text-[13px] font-medium text-slate-800">{AGENT.branch}</p>
+              <p className="text-[13px] font-medium text-slate-800">{agent.branch}</p>
             </div>
           </div>
 
-          {/* Zone */}
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
               <FiBriefcase className="w-4 h-4 text-slate-400" />
             </div>
             <div>
               <p className="text-[10px] text-slate-400">Coverage Zone</p>
-              <p className="text-[13px] font-medium text-slate-800">{AGENT.zone}</p>
+              <p className="text-[13px] font-medium text-slate-800">{agent.zone}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Profile Actions */}
       <div className="flex gap-3">
         <Button
           onClick={() => setShowPasswordModal(true)}
@@ -235,7 +244,6 @@ export default function AgentProfilePage() {
         </Button>
       </div>
 
-      {/* Change Password Modal */}
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={() => setShowPasswordModal(false)} />
@@ -288,3 +296,4 @@ export default function AgentProfilePage() {
     </div>
   );
 }
+

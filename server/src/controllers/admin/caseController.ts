@@ -78,3 +78,39 @@ export const updateCaseStatus = async (req: Request, res: Response) => {
     return apiError(res, 'Failed to update case status', 500, error);
   }
 };
+
+export const getCaseById = async (req: Request, res: Response) => {
+  try {
+    const caseId = req.params.caseId as string;
+    const caseData = await prisma.verificationCase.findUnique({
+      where: { id: caseId },
+      include: {
+        customer: true,
+        agent: { select: { firstName: true, lastName: true, branch: true } },
+        media: true,
+      },
+    });
+
+    if (!caseData) {
+      return res.status(404).json({ success: false, message: 'Case not found' });
+    }
+
+    const data = {
+      id: caseData.id,
+      customer: parseFullName(caseData.customer.firstName, caseData.customer.lastName),
+      type: caseData.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
+      status: resolveCaseStatus(caseData.status),
+      agent: resolveAgentName(caseData.agent ?? null),
+      branch: caseData.branch ?? caseData.agent?.branch ?? caseData.customer.branch ?? 'Unassigned',
+      submittedAt: caseData.completedAt ? formatDateTime(caseData.completedAt) : 'Pending',
+      gps: { lat: `${caseData.gpsLatitude || '0'}° N`, lng: `${caseData.gpsLongitude || '0'}° E` },
+      profileData: caseData.profileData ? JSON.parse(caseData.profileData) : null,
+      remarks: caseData.remarks || 'No remarks provided.',
+      media: caseData.media.map(m => ({ id: m.id, url: m.url, type: m.type })),
+    };
+
+    return res.status(200).json({ success: true, data });
+  } catch (error: any) {
+    return apiError(res, 'Failed to load case details', 500, error);
+  }
+};

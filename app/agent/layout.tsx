@@ -148,6 +148,23 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
 function Topbar({ onMenu }: { onMenu: () => void }) {
   const [offline, setOffline] = useState(false);
   const [gps, setGps]         = useState(true);
+  const [agent, setAgent]     = useState({ name: "Loading...", id: "---", initials: "" });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("lvms_agent");
+      if (stored) {
+        try {
+          const user = JSON.parse(stored);
+          setAgent({
+            name: `${user.firstName} ${user.lastName}`,
+            id: user.id.slice(0, 8).toUpperCase(),
+            initials: `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase()
+          });
+        } catch (e) {}
+      }
+    }
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-100 h-14 flex items-center px-4 gap-3">
@@ -195,12 +212,12 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
       <Link href="/agent/profile" className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 rounded-xl px-2 py-1.5 transition-all">
         <Avatar className="w-8 h-8">
           <AvatarFallback className="text-xs font-bold text-white" style={{ background: "#1E4DB7" }}>
-            {AGENT.initials}
+            {agent.initials}
           </AvatarFallback>
         </Avatar>
         <div className="hidden sm:block">
-          <p className="text-[12px] font-semibold text-gray-900 leading-tight">{AGENT.name}</p>
-          <p className="text-[10px] text-gray-400">Agent ID: {AGENT.id}</p>
+          <p className="text-[12px] font-semibold text-gray-900 leading-tight">{agent.name}</p>
+          <p className="text-[10px] text-gray-400">Agent ID: {agent.id}</p>
         </div>
         <FiChevronDown className="w-3.5 h-3.5 text-gray-400" />
       </Link>

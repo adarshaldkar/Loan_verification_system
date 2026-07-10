@@ -14,39 +14,7 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/* ─── Mock Case Data ─────────────────────────────────────────────────────── */
-
-const caseData = {
-  id: "LV-2026-10818",
-  customer: "Sandeep Yadav",
-  type: "Residential" as const,
-  status: "Completed" as const,
-  agent: "Amit Kumar",
-  branch: "Delhi North",
-  submittedAt: "18 May 2026, 09:20 AM",
-  gps: { lat: "28.6139° N", lng: "77.2090° E" },
-  residential: {
-    met: "Yes",
-    applicantAvailable: "Yes",
-    residenceConfirmed: "Yes",
-    houseArea: "950 sq. ft.",
-    ownership: "Own House",
-    rentAmount: "N/A",
-    yearsOfStay: "8 years",
-    familyMembers: 4,
-    applicantDetails: "Sandeep Yadav — Age 38",
-    wifeDetails: "Rekha Yadav — Age 34",
-    sonDetails: "Rohan Yadav — Age 10",
-  },
-  remarks: "Residence confirmed. Applicant and family present. House is well-maintained in a residential society. All details match with loan application.",
-  auditTrail: [
-    { actor: "System",      action: "Case created and assigned",        time: "15 May 2026, 10:00 AM" },
-    { actor: "Amit Kumar",  action: "Case accepted and visit started",  time: "18 May 2026, 08:45 AM" },
-    { actor: "Amit Kumar",  action: "Verification form submitted",      time: "18 May 2026, 09:15 AM" },
-    { actor: "Amit Kumar",  action: "Geo-tagged photos uploaded",       time: "18 May 2026, 09:18 AM" },
-    { actor: "Rohit Admin", action: "Verification approved & closed",   time: "18 May 2026, 09:20 AM" },
-  ],
-};
+/* ─── Mock Case Data (Removed) ───────────────────────────────────────────── */
 
 /* ─── Field Row ──────────────────────────────────────────────────────────── */
 
@@ -59,29 +27,25 @@ function FieldRow({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-/* ─── Mock Photo Card ────────────────────────────────────────────────────── */
+/* ─── Geo Photo Card ─────────────────────────────────────────────────────── */
 
-function GeoPhotoCard({ index }: { index: number }) {
-  const colors = ["#e2e8f0", "#dbeafe", "#dcfce7"];
+function GeoPhotoCard({ url, lat, lng }: { url: string, lat?: string, lng?: string }) {
   return (
     <div className="rounded-xl overflow-hidden border border-border relative group">
-      {/* Placeholder image */}
-      <div
-        className="w-full h-40 flex items-center justify-center text-slate-300"
-        style={{ background: colors[index % 3] }}
-      >
-        <FiCamera className="w-8 h-8" />
-      </div>
-      {/* GPS overlay */}
-      <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm px-3 py-2 text-[10px] text-white font-mono flex justify-between items-center">
-        <span>28.6139°N, 77.2090°E</span>
-        <span>18 May 2026, 09:15 AM</span>
-      </div>
+      <img src={url} alt="Evidence" className="w-full h-40 object-cover" />
+      {(lat || lng) && (
+        <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm px-3 py-2 text-[10px] text-white font-mono flex justify-between items-center">
+          <span>{lat && lng ? `${lat}, ${lng}` : 'GPS Unavailable'}</span>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ─── Case Detail Page ───────────────────────────────────────────────────── */
+
+import { getCaseByIdAdminApi, updateCaseStatusApi } from "@/lib/api";
+import { toast } from "sonner";
 
 export default function CaseDetailPage({
   params,
@@ -89,78 +53,37 @@ export default function CaseDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const c = caseData; // In real app: fetch by id
-
+  const [c, setC] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
+    getCaseByIdAdminApi(id)
+      .then((res) => setC(res.data.data))
+      .catch((err) => toast.error("Failed to load case"))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  const handleStatusChange = async (newStatus: "COMPLETED" | "REJECTED") => {
+    try {
+      await updateCaseStatusApi(id, newStatus);
+      setC((prev: any) => ({ ...prev, status: newStatus === "COMPLETED" ? "Completed" : "Rejected" }));
+      toast.success(`Case ${newStatus === "COMPLETED" ? "Approved" : "Rejected"}`);
+    } catch (e: any) {
+      toast.error(`Failed to update status`);
+    }
+  };
 
   if (loading) {
     return (
       <div className="space-y-6">
-        {/* Header Skeleton */}
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-9 w-9 rounded-full" />
-          <div className="space-y-2 flex-1">
-            <Skeleton className="h-6 w-32" />
-            <div className="flex gap-2">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-4 w-16" />
-            </div>
-          </div>
-        </div>
-
-        {/* Details Grid Skeleton */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Main Details Panel */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="card-flat p-6 space-y-4">
-              <Skeleton className="h-6 w-48" />
-              <div className="grid grid-cols-2 gap-4">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="space-y-2">
-                    <Skeleton className="h-3 w-16" />
-                    <Skeleton className="h-4 w-32" />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="card-flat p-6 space-y-4">
-              <Skeleton className="h-6 w-40" />
-              <div className="space-y-3">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="flex justify-between py-1">
-                    <Skeleton className="h-3 w-32" />
-                    <Skeleton className="h-4 w-48" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar Panel */}
-          <div className="space-y-6">
-            <div className="card-flat p-6 space-y-4">
-              <Skeleton className="h-6 w-32" />
-              <div className="space-y-3">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex gap-3">
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                    <div className="space-y-2 flex-1">
-                      <Skeleton className="h-4 w-24" />
-                      <Skeleton className="h-3 w-full" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <Skeleton className="h-9 w-9 rounded-full" />
+        <Skeleton className="h-6 w-32" />
       </div>
     );
+  }
+
+  if (!c) {
+    return <div className="p-5 text-center text-gray-500">Case not found.</div>;
   }
 
   return (
@@ -190,15 +113,11 @@ export default function CaseDetailPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-            <FiDownload className="w-3.5 h-3.5" />
-            Export PDF
-          </Button>
-          <Button size="sm" className="gap-1.5 text-xs bg-rose-700 hover:bg-rose-800 text-white">
+          <Button size="sm" className="gap-1.5 text-xs bg-rose-700 hover:bg-rose-800 text-white" onClick={() => handleStatusChange("REJECTED")}>
             <FiAlertTriangle className="w-3.5 h-3.5" />
-            Flag
+            Reject
           </Button>
-          <Button size="sm" className="gap-1.5 text-xs bg-[--color-status-completed] hover:opacity-90 text-white">
+          <Button size="sm" className="gap-1.5 text-xs bg-[--color-status-completed] hover:opacity-90 text-white" onClick={() => handleStatusChange("COMPLETED")}>
             <FiCheckCircle className="w-3.5 h-3.5" />
             Approve
           </Button>
@@ -210,7 +129,6 @@ export default function CaseDetailPage({
         <TabsList className="bg-slate-100">
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="photos">Photos & GPS</TabsTrigger>
-          <TabsTrigger value="audit">Audit Trail</TabsTrigger>
         </TabsList>
 
         {/* ── Details Tab ── */}
@@ -221,16 +139,20 @@ export default function CaseDetailPage({
               <div className="flex items-center gap-2 mb-4">
                 <FiHome className="w-4 h-4 text-[--color-brand-900]" />
                 <h3 className="text-[14px] font-semibold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-                  Residential Verification
+                  {c.type} Verification
                 </h3>
               </div>
-              {Object.entries(c.residential).map(([key, val]) => (
-                <FieldRow
-                  key={key}
-                  label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
-                  value={val}
-                />
-              ))}
+              {c.profileData ? (
+                Object.entries(c.profileData).filter(([k]) => k !== 'remarks').map(([key, val]) => (
+                  <FieldRow
+                    key={key}
+                    label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
+                    value={String(val)}
+                  />
+                ))
+              ) : (
+                <p className="text-sm text-gray-500">No profile data submitted yet.</p>
+              )}
             </div>
 
             {/* GPS + Remarks */}
@@ -245,15 +167,12 @@ export default function CaseDetailPage({
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="bg-slate-50 rounded-lg p-3">
                     <p className="text-[10px] text-slate-400 mb-1">LATITUDE</p>
-                    <p className="font-mono font-semibold text-slate-900 text-xs">{c.gps.lat}</p>
+                    <p className="font-mono font-semibold text-slate-900 text-xs">{c.gps?.lat || "N/A"}</p>
                   </div>
                   <div className="bg-slate-50 rounded-lg p-3">
                     <p className="text-[10px] text-slate-400 mb-1">LONGITUDE</p>
-                    <p className="font-mono font-semibold text-slate-900 text-xs">{c.gps.lng}</p>
+                    <p className="font-mono font-semibold text-slate-900 text-xs">{c.gps?.lng || "N/A"}</p>
                   </div>
-                </div>
-                <div className="mt-3 bg-slate-100 rounded-xl h-36 flex items-center justify-center text-slate-300 text-sm">
-                  Map view (mapcn)
                 </div>
               </div>
 
@@ -278,46 +197,17 @@ export default function CaseDetailPage({
         <TabsContent value="photos" className="mt-5">
           <div className="card-flat p-5">
             <h3 className="text-[14px] font-semibold text-slate-900 mb-4" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-              Geo-tagged Photos
+              Geo-tagged Evidence
             </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[0, 1, 2].map((i) => <GeoPhotoCard key={i} index={i} />)}
-            </div>
-            <p className="text-xs text-slate-400 mt-4">
-              All photos are embedded with GPS coordinates and timestamps as proof of physical presence.
-            </p>
-          </div>
-        </TabsContent>
-
-        {/* ── Audit Tab ── */}
-        <TabsContent value="audit" className="mt-5">
-          <div className="card-flat p-5">
-            <h3 className="text-[14px] font-semibold text-slate-900 mb-5" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-              Audit Trail
-            </h3>
-            <div className="relative">
-              {/* Vertical line */}
-              <div className="absolute left-4 top-2 bottom-2 w-px bg-border" />
-              <div className="space-y-5">
-                {c.auditTrail.map((entry, i) => (
-                  <div key={i} className="flex items-start gap-5 relative">
-                    <div className="w-8 h-8 rounded-full bg-[--color-brand-50] border-2 border-[--color-brand-100] flex items-center justify-center shrink-0 z-10">
-                      <span className="text-[10px] font-bold text-[--color-brand-900]">{i + 1}</span>
-                    </div>
-                    <div className="flex-1 pb-1">
-                      <p className="text-sm font-medium text-slate-900">{entry.action}</p>
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
-                        <FiUser className="w-3 h-3" />
-                        {entry.actor}
-                        <span>·</span>
-                        <FiClock className="w-3 h-3" />
-                        <span className="font-mono">{entry.time}</span>
-                      </div>
-                    </div>
-                  </div>
+            {c.media && c.media.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {c.media.map((m: any, i: number) => (
+                  <GeoPhotoCard key={m.id} url={m.url} lat={c.gps?.lat} lng={c.gps?.lng} />
                 ))}
               </div>
-            </div>
+            ) : (
+              <p className="text-sm text-slate-500">No photos uploaded.</p>
+            )}
           </div>
         </TabsContent>
       </Tabs>

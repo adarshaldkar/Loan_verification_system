@@ -159,3 +159,46 @@ export const submitVerification = async (req: AuthRequest, res: Response) => {
     return apiError(res, 'Failed to submit verification', 500, error);
   }
 };
+
+export const uploadEvidence = async (req: AuthRequest, res: Response) => {
+  try {
+    const agentId = req.user?.id as string;
+    const id = req.params.id as string;
+    
+    // Cloudinary URL injected by multer-storage-cloudinary
+    const fileUrl = req.file?.path;
+    const { type, gpsLat, gpsLng } = req.body;
+
+    if (!fileUrl) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    const existing = await prisma.verificationCase.findFirst({ where: { id, agentId } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Case not found or not assigned to you' });
+    }
+
+    if (gpsLat || gpsLng) {
+      await prisma.verificationCase.update({
+        where: { id },
+        data: {
+          gpsLatitude: gpsLat ? Number(gpsLat) : undefined,
+          gpsLongitude: gpsLng ? Number(gpsLng) : undefined,
+        }
+      });
+    }
+
+    const media = await prisma.media.create({
+      data: {
+        verificationCaseId: id,
+        url: fileUrl,
+        publicId: (req.file as any)?.filename || 'unknown',
+        type: type || 'PHOTO',
+      },
+    });
+
+    return res.status(201).json({ success: true, message: 'Evidence uploaded successfully', data: media });
+  } catch (error: any) {
+    return apiError(res, 'Failed to upload evidence', 500, error);
+  }
+};

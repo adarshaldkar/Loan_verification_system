@@ -1,255 +1,327 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import {
-  FiCheckSquare, FiUser, FiHome, FiBriefcase, FiMapPin, FiCamera, FiPlus,
-  FiCalendar, FiEye, FiCheckCircle, FiInfo, FiTrash2, FiClock, FiChevronLeft, FiFileText, FiEdit2
+  FiBriefcase,
+  FiCamera,
+  FiCheckCircle,
+  FiChevronLeft,
+  FiClock,
+  FiInfo,
+  FiMapPin,
+  FiPlus,
+  FiTrash2,
+  FiUser,
 } from "react-icons/fi";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import LocationPickerMap from "@/components/shared/LocationPickerMap";
 import { Skeleton } from "@/components/ui/skeleton";
-import { submitVerificationApi, getAgentCaseByIdApi } from "@/lib/api";
-
-// Zod Schemas
+import LocationPickerMap from "@/components/shared/LocationPickerMap";
+import {
+  getAgentCaseByIdApi,
+  submitVerificationApi,
+  uploadEvidenceApi,
+} from "@/lib/api";
 
 const residentialSchema = z.object({
-  applicantName: z.string().min(2, "Applicant name must be at least 2 characters"),
-  mobileNumber: z.string().regex(/^\+?[0-9]{10,12}$/, "Invalid mobile number (10-12 digits)"),
-  dateOfBirth: z.string().min(1, "Date of birth is required"),
-  aadhaarNumber: z.string().regex(/^[0-9]{12}$/, "Aadhaar number must be exactly 12 digits"),
-  houseNo: z.string().min(1, "House/Door number is required"),
-  streetArea: z.string().min(2, "Street/Area is required"),
-  cityTown: z.string().min(2, "City/Town is required"),
-  district: z.string().min(1, "District selection is required"),
-  pincode: z.string().regex(/^[0-9]{6}$/, "Pincode must be exactly 6 digits"),
-  residenceType: z.string().min(1, "Residence type selection is required"),
-  ownershipStatus: z.string().min(1, "Ownership status selection is required"),
-  livingSince: z.string().min(1, "Living since date is required"),
-  familyMembers: z.coerce.number().min(1, "Family members must be at least 1"),
-  monthlyRent: z.coerce.number().optional(),
-  contactNeighbor: z.string().min(2, "Neighbor contact reference name is required"),
-  addressFoundMatch: z.string().min(1, "Address found match selection is required"),
-  neighborConfirm: z.string().min(1, "Neighbor confirmation selection is required"),
-  electricityConnection: z.string().min(1, "Electricity connection selection is required"),
-  waterConnection: z.string().min(1, "Water connection selection is required"),
-  residenceCondition: z.string().min(1, "Residence condition selection is required"),
-  remarks: z.string().max(300, "Remarks cannot exceed 300 characters").optional(),
+  applicantName: z.string().min(2),
+  mobileNumber: z.string().min(10),
+  houseNo: z.string().min(1),
+  streetArea: z.string().min(2),
+  cityTown: z.string().min(2),
+  district: z.string().min(1),
+  pincode: z.string().regex(/^[0-9]{6}$/),
+  remarks: z.string().max(300).optional(),
 });
 
 const businessSchema = z.object({
-  companyName: z.string().min(2, "Business name must be at least 2 characters"),
-  businessType: z.string().min(1, "Business type selection is required"),
-  natureOfBusiness: z.string().min(2, "Nature of business is required"),
-  yearsInBusiness: z.coerce.number().min(0, "Years in business cannot be negative"),
-  noOfEmployees: z.coerce.number().min(0, "Number of employees cannot be negative"),
-  monthlyIncome: z.coerce.number().min(1, "Monthly income is required"),
-  doorNo: z.string().min(1, "Door/Shop number is required"),
-  streetArea: z.string().min(2, "Street/Area is required"),
-  landmark: z.string().optional(),
-  cityTown: z.string().min(2, "City/Town is required"),
-  district: z.string().min(1, "District selection is required"),
-  pincode: z.string().regex(/^[0-9]{6}$/, "Pincode must be exactly 6 digits"),
-  businessFoundAtLocation: z.string().min(1, "Business location verification selection is required"),
-  businessOperational: z.string().min(1, "Business operational state is required"),
-  businessOwnedByApplicant: z.string().min(1, "Ownership verification is required"),
-  businessPremisesType: z.string().min(1, "Premises type is required"),
-  stockInventoryAvailable: z.string().min(1, "Stock level status is required"),
-  gstLicenseAvailable: z.string().min(1, "GST/License check is required"),
-  signboardAvailable: z.string().min(1, "Signboard status is required"),
-  customerPresence: z.string().min(1, "Customer presence status is required"),
-  documentsVerified: z.string().min(1, "Document verification status is required"),
-  remarks: z.string().max(300, "Remarks cannot exceed 300 characters").optional(),
+  companyName: z.string().min(2),
+  natureOfBusiness: z.string().min(2),
+  doorNo: z.string().min(1),
+  streetArea: z.string().min(2),
+  cityTown: z.string().min(2),
+  district: z.string().min(1),
+  pincode: z.string().regex(/^[0-9]{6}$/),
+  remarks: z.string().max(300).optional(),
 });
 
 type ResidentialFormType = z.infer<typeof residentialSchema>;
 type BusinessFormType = z.infer<typeof businessSchema>;
+type CaseType = "RESIDENTIAL" | "BUSINESS";
 
-// Mock Cases Database
-const CASE_DETAILS: Record<string, {
+type CurrentCase = {
   id: string;
   name: string;
   phone: string;
-  type: "RESIDENTIAL" | "BUSINESS";
+  type: CaseType;
   address: string;
-  houseNo: string;
-  streetArea: string;
-  cityTown: string;
-  district: string;
-  pincode: string;
-}> = {
-  "CASE-2026-0891": { id: "CASE-2026-0891", name: "Ramesh Kumar", phone: "+91 98765 43210", type: "RESIDENTIAL", address: "123, 4th Cross Street, Anna Nagar, Trichy - 620018", houseNo: "123", streetArea: "4th Cross Street, Anna Nagar", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620018" },
-  "CASE-2026-0892": { id: "CASE-2026-0892", name: "Lakshmi Devi", phone: "+91 99887 76655", type: "BUSINESS", address: "56, Bharathi Nagar, Woraiyur, Trichy - 620003", houseNo: "56", streetArea: "Bharathi Nagar, Woraiyur", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620003" },
-  "CASE-2026-0893": { id: "CASE-2026-0893", name: "Vijay Enterprises", phone: "+91 98765 09876", type: "BUSINESS", address: "18, Lawspet Road, Lawspet, Pondicherry - 605008", houseNo: "18", streetArea: "Lawspet Road, Lawspet", cityTown: "Pondicherry", district: "Pondicherry", pincode: "605008" },
-  "CASE-2026-0894": { id: "CASE-2026-0894", name: "Suresh Babu", phone: "+91 88776 65544", type: "RESIDENTIAL", address: "9, East Street, Srirangam, Trichy - 620006", houseNo: "9", streetArea: "East Street, Srirangam", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620006" },
-  "CASE-2026-0895": { id: "CASE-2026-0895", name: "Karthik Traders", phone: "+91 77665 54433", type: "BUSINESS", address: "77, Main Road, Thanjavur - 613001", houseNo: "77", streetArea: "Main Road", cityTown: "Thanjavur", district: "Tiruchirappalli", pincode: "613001" },
+  branch: string;
 };
 
-const DISTRICT_OPTIONS = ["Tiruchirappalli", "Chennai", "Coimbatore", "Pondicherry", "Madurai", "Salem"];
-const RESIDENCE_TYPES = ["Apartment / Flat", "Independent House", "Row House", "Villa", "Chawl / Slum"];
-const OWNERSHIP_STATUSES = ["Owned", "Rented", "Leased", "Family Owned"];
-const ADDRESS_MATCH_OPTIONS = ["Yes - Matches Exactly", "Partial Match", "No - Different Address"];
-const NEIGHBOR_CONFIRMS = ["Confirmed", "Refused to Confirm", "Neighbor Unavailable"];
-const ELECTRIC_CONNECTIONS = ["Regular Connection", "No Connection", "Disconnected / Inactive"];
-const WATER_CONNECTIONS = ["Corporation Water", "Borewell / Well", "No Water Supply"];
-const RESIDENCE_CONDITIONS = ["Excellent", "Good / Satisfactory", "Dilapidated / Poor"];
+type EvidencePhoto = {
+  id?: string;
+  url: string;
+  name: string;
+};
 
-const BUSINESS_TYPES = ["Proprietorship", "Partnership", "Private Limited", "LLP", "Unregistered"];
-const BUSINESS_FOUND_OPTIONS = ["Yes - Active Shop/Office", "No - Closed/Shut Down", "Wrong Address"];
-const OPERATIONAL_OPTIONS = ["Yes - Fully Operational", "Partially Operational", "Non-Operational"];
-const OWNED_BY_APPLICANT_OPTIONS = ["Yes - Owner", "No - Employee/Staff", "Leased"];
-const PREMISES_TYPES = ["Commercial Shop", "Office Building", "Industrial Shed", "Home Office"];
-const STOCK_OPTIONS = ["High / Abundant Stock", "Moderate / Adequate", "Low / Empty"];
-const GST_LICENSE_OPTIONS = ["Yes - Valid License", "No License Found", "Expired License"];
-const SIGNBOARD_OPTIONS = ["Yes - Board Displayed", "No Signboard", "Wrong Board Name"];
-const CLIENT_PRESENCE_OPTIONS = ["Yes - Met Client", "Met Staff Only", "Client Not Available"];
-const DOCUMENTS_VERIFIED_OPTIONS = ["Yes - All Documents Valid", "Partial Verification", "No Documents Produced"];
+const DISTRICT_OPTIONS = [
+  "Tiruchirappalli",
+  "Chennai",
+  "Coimbatore",
+  "Pondicherry",
+  "Madurai",
+  "Salem",
+];
 
-export default function CaseVerificationFormPage({ params }: { params: Promise<{ id: string }> }) {
+export default function CaseVerificationFormPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const resolvedParams = use(params);
-  const router = useRouter();
   const caseId = resolvedParams.id;
+  const router = useRouter();
 
-  const [currentCase, setCurrentCase] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [photos, setPhotos] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitted, setSubmitted] = useState(false);
+  const [currentCase, setCurrentCase] = useState<CurrentCase | null>(null);
+  const [photos, setPhotos] = useState<EvidencePhoto[]>([]);
+
   const [lat, setLat] = useState(12.9716);
   const [lng, setLng] = useState(77.5946);
+  const [gpsLocked, setGpsLocked] = useState(false);
+  const [gpsTime, setGpsTime] = useState("");
   const [currentStep, setCurrentStep] = useState(1);
+
   const [metCustomer, setMetCustomer] = useState("Yes");
   const [applicantAvailable, setApplicantAvailable] = useState("Yes");
   const [houseExists, setHouseExists] = useState("Yes");
-  const [gpsLocked, setGpsLocked] = useState(false);
-  const [gpsTime, setGpsTime] = useState("");
 
-  // Form states prefilled where possible from case data
-  const [resForm, setResForm] = useState<Partial<ResidentialFormType>>({
+  const [resForm, setResForm] = useState<ResidentialFormType>({
     applicantName: "",
     mobileNumber: "",
-    dateOfBirth: "",
-    aadhaarNumber: "",
     houseNo: "",
     streetArea: "",
     cityTown: "",
     district: "Tiruchirappalli",
     pincode: "",
-    residenceType: "Apartment / Flat",
-    ownershipStatus: "Owned",
-    livingSince: "",
-    familyMembers: 1,
-    monthlyRent: 0,
-    contactNeighbor: "",
-    addressFoundMatch: "Yes - Matches Exactly",
-    neighborConfirm: "Confirmed",
-    electricityConnection: "Regular Connection",
-    waterConnection: "Corporation Water",
-    residenceCondition: "Excellent",
     remarks: "",
   });
 
-  const [busForm, setBusForm] = useState<Partial<BusinessFormType>>({
+  const [busForm, setBusForm] = useState<BusinessFormType>({
     companyName: "",
-    businessType: "Proprietorship",
     natureOfBusiness: "",
-    yearsInBusiness: 1,
-    noOfEmployees: 1,
-    monthlyIncome: 10000,
     doorNo: "",
     streetArea: "",
-    landmark: "",
     cityTown: "",
     district: "Tiruchirappalli",
     pincode: "",
-    businessFoundAtLocation: "Yes - Active Shop/Office",
-    businessOperational: "Yes - Fully Operational",
-    businessOwnedByApplicant: "Yes - Owner",
-    businessPremisesType: "Commercial Shop",
-    stockInventoryAvailable: "Moderate / Adequate",
-    gstLicenseAvailable: "Yes - Valid License",
-    signboardAvailable: "Yes - Board Displayed",
-    customerPresence: "Yes - Met Client",
-    documentsVerified: "Yes - All Documents Valid",
     remarks: "",
   });
 
   useEffect(() => {
-    async function load() {
+    async function loadCase() {
       try {
         const res = await getAgentCaseByIdApi(caseId);
-        const fetched = res.data.data;
-        const mappedCase = {
+        const fetched = res.data?.data;
+        const customer = fetched?.customer ?? {};
+        const profile =
+          typeof fetched?.profileData === "string"
+            ? JSON.parse(fetched.profileData)
+            : fetched?.profileData;
+
+        const mappedCase: CurrentCase = {
           id: fetched.id,
-          name: fetched.customer,
-          phone: fetched.phone,
-          type: fetched.type,
-          address: fetched.address,
-          houseNo: fetched.houseNo || "",
-          streetArea: fetched.streetArea || "",
-          cityTown: fetched.cityTown || "",
-          district: fetched.branch || fetched.customer.branch || "",
-          pincode: fetched.pincode || "",
+          name: customer.name ?? "Unknown",
+          phone: customer.phone ?? "",
+          type: fetched.type === "BUSINESS" ? "BUSINESS" : "RESIDENTIAL",
+          address: customer.address ?? "",
+          branch: fetched.branch ?? "Unassigned",
         };
         setCurrentCase(mappedCase);
 
+        if (typeof fetched?.gpsLatitude === "number") setLat(fetched.gpsLatitude);
+        if (typeof fetched?.gpsLongitude === "number") setLng(fetched.gpsLongitude);
+        if (fetched?.gpsLatitude && fetched?.gpsLongitude) {
+          setGpsLocked(true);
+        }
+
+        if (Array.isArray(fetched?.media)) {
+          const mappedMedia: EvidencePhoto[] = fetched.media.map((m: any, i: number) => ({
+            id: m.id,
+            url: m.url,
+            name: `Evidence #${i + 1}`,
+          }));
+          setPhotos(mappedMedia);
+        }
+
         setResForm((prev) => ({
           ...prev,
-          applicantName: fetched.customer,
-          mobileNumber: fetched.phone,
-          houseNo: fetched.houseNo || "",
-          streetArea: fetched.streetArea || "",
-          cityTown: fetched.cityTown || "",
-          pincode: fetched.pincode || "",
+          applicantName: customer.name ?? "",
+          mobileNumber: customer.phone ?? "",
+          houseNo: profile?.residential?.houseNo ?? "",
+          streetArea: profile?.residential?.streetArea ?? "",
+          cityTown: profile?.residential?.cityTown ?? "",
+          district: profile?.residential?.district ?? prev.district,
+          pincode: profile?.residential?.pincode ?? "",
+          remarks: profile?.residential?.remarks ?? "",
         }));
 
         setBusForm((prev) => ({
           ...prev,
-          companyName: fetched.customer,
-          doorNo: fetched.houseNo || "",
-          streetArea: fetched.streetArea || "",
-          cityTown: fetched.cityTown || "",
-          pincode: fetched.pincode || "",
+          companyName: customer.businessName || customer.name || "",
+          natureOfBusiness: profile?.business?.natureOfBusiness ?? "",
+          doorNo: profile?.business?.doorNo ?? "",
+          streetArea: profile?.business?.streetArea ?? "",
+          cityTown: profile?.business?.cityTown ?? "",
+          district: profile?.business?.district ?? prev.district,
+          pincode: profile?.business?.pincode ?? "",
+          remarks: profile?.business?.remarks ?? "",
         }));
-
-      } catch (err: any) {
-        console.error("Failed to load live case verification context:", err);
-        const mock = CASE_DETAILS[caseId];
-        if (mock) {
-          setCurrentCase(mock);
-          setResForm((prev) => ({
-            ...prev,
-            applicantName: mock.type === "RESIDENTIAL" ? mock.name : "",
-            mobileNumber: mock.phone,
-            houseNo: mock.houseNo,
-            streetArea: mock.streetArea,
-            cityTown: mock.cityTown,
-            pincode: mock.pincode,
-          }));
-          setBusForm((prev) => ({
-            ...prev,
-            companyName: mock.type === "BUSINESS" ? mock.name : "",
-            doorNo: mock.houseNo,
-            streetArea: mock.streetArea,
-            cityTown: mock.cityTown,
-            pincode: mock.pincode,
-          }));
-        } else {
-          toast.error("Failed to load verification case data from database");
-        }
+      } catch (error: any) {
+        toast.error(
+          error?.response?.data?.message || "Failed to load case details from server",
+        );
+        setCurrentCase(null);
       } finally {
         setLoading(false);
       }
     }
-    load();
+
+    loadCase();
   }, [caseId]);
+
+  const getResSetter =
+    (key: keyof ResidentialFormType) =>
+      (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+        setResForm((prev) => ({ ...prev, [key]: e.target.value }));
+
+  const getBusSetter =
+    (key: keyof BusinessFormType) =>
+      (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+        setBusForm((prev) => ({ ...prev, [key]: e.target.value }));
+
+  const totalSteps = 6;
+  const stepLabels = useMemo(
+    () => [
+      "Verify Customer",
+      "Capture GPS",
+      "Capture Photo",
+      "Form Details",
+      "Remarks",
+      "Submit",
+    ],
+    [],
+  );
+
+  const handleAddPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (photos.length >= 5) {
+      toast.error("Maximum 5 photos allowed");
+      e.target.value = "";
+      return;
+    }
+
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      toast.info("Uploading evidence...");
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("type", "PHOTO");
+      formData.append("gpsLat", lat.toString());
+      formData.append("gpsLng", lng.toString());
+      const res = await uploadEvidenceApi(caseId, formData);
+      const media = res.data?.data;
+      setPhotos((prev) => [
+        ...prev,
+        { id: media?.id, url: media?.url, name: `Photo #${prev.length + 1}` },
+      ]);
+      toast.success("Photo uploaded");
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Evidence upload failed");
+    } finally {
+      e.target.value = "";
+    }
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const validateActiveForm = () => {
+    const validation =
+      currentCase?.type === "BUSINESS"
+        ? businessSchema.safeParse(busForm)
+        : residentialSchema.safeParse(resForm);
+
+    if (validation.success) {
+      setErrors({});
+      return true;
+    }
+
+    const nextErrors: Record<string, string> = {};
+    validation.error.issues.forEach((issue) => {
+      if (issue.path[0]) nextErrors[String(issue.path[0])] = issue.message;
+    });
+    setErrors(nextErrors);
+    return false;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentCase) return;
+
+    if (!validateActiveForm()) {
+      setCurrentStep(4);
+      toast.error("Please fix form errors");
+      return;
+    }
+    if (!gpsLocked) {
+      toast.error("Please lock GPS before submitting");
+      setCurrentStep(2);
+      return;
+    }
+    if (photos.length === 0) {
+      toast.error("Please upload at least one evidence photo");
+      setCurrentStep(3);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await submitVerificationApi(caseId, {
+        remarks:
+          (currentCase.type === "BUSINESS" ? busForm.remarks : resForm.remarks) ||
+          "Verification completed",
+        gpsLatitude: lat,
+        gpsLongitude: lng,
+        profileData: {
+          caseType: currentCase.type,
+          metCustomer,
+          applicantAvailable,
+          houseExists,
+          residential: resForm,
+          business: busForm,
+          photos,
+          gpsTime,
+        },
+      });
+      toast.success("Verification submitted successfully");
+      router.push(`/agent/cases/${caseId}`);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || "Failed to submit verification");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
       <div className="space-y-6 max-w-4xl mx-auto">
-        {/* Header Skeleton */}
         <div className="flex items-center gap-3">
           <Skeleton className="h-9 w-9 rounded-full" />
           <div className="space-y-2 flex-1">
@@ -257,18 +329,11 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
             <Skeleton className="h-4 w-32" />
           </div>
         </div>
-
-        {/* Form sections skeleton */}
         <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-4">
           <Skeleton className="h-6 w-36" />
-          <div className="space-y-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="h-10 w-full rounded-xl" />
-              </div>
-            ))}
-          </div>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-10 w-full rounded-xl" />
+          ))}
         </div>
       </div>
     );
@@ -276,731 +341,292 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
 
   if (!currentCase) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center text-slate-800" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
+      <div className="flex flex-col items-center justify-center py-20 text-center text-slate-800">
         <FiBriefcase className="w-12 h-12 text-slate-300 mb-3" />
-        <p className="text-slate-500 text-sm">Case not found in database</p>
-        <button onClick={() => router.push("/agent/cases")} className="mt-4 text-sm font-semibold text-[#1E4DB7] hover:underline">
-          ← Return to Assigned Cases
-        </button>
-      </div>
-    );
-  }
-
-  // Photo handlers
-  const handleAddPhoto = () => {
-    if (photos.length >= 5) {
-      toast.error("Maximum 5 photos allowed");
-      return;
-    }
-    const mockCoordinates = "12.9716° N, 77.5946° E";
-    const timestamp = new Date().toLocaleString();
-    toast.success(`Photo Captured at ${mockCoordinates} · ${timestamp}`);
-    setPhotos((p) => [...p, `Photo #${p.length + 1} (Geo-tagged)`]);
-  };
-
-  const handleRemovePhoto = (index: number) => {
-    setPhotos((p) => p.filter((_, i) => i !== index));
-    toast.info("Photo removed");
-  };
-
-  // Submit handlers
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-    
-    // Validate Residential form
-    const parsedRes = residentialSchema.safeParse(resForm);
-    // Validate Business form
-    const parsedBus = businessSchema.safeParse(busForm);
-
-    if (!parsedRes.success || !parsedBus.success) {
-      const errMap: Record<string, string> = {};
-      if (!parsedRes.success) {
-        parsedRes.error.issues.forEach((err: z.ZodIssue) => {
-          if (err.path[0]) errMap[err.path[0].toString()] = err.message;
-        });
-      }
-      if (!parsedBus.success) {
-        parsedBus.error.issues.forEach((err: z.ZodIssue) => {
-          if (err.path[0]) errMap[err.path[0].toString()] = err.message;
-        });
-      }
-      setErrors(errMap);
-      toast.error("Please fix evaluation errors in Residential or Business sections");
-      
-      // Navigate to the step that has the first error
-      if (!parsedRes.success) {
-        setCurrentStep(4);
-      } else {
-        setCurrentStep(5);
-      }
-      return;
-    }
-
-    if (photos.length === 0) {
-      toast.error("Capture at least 1 photo as evidence!");
-      setCurrentStep(3);
-      return;
-    }
-
-    try {
-      await submitVerificationApi(caseId, {
-        remarks: resForm.remarks || busForm.remarks || "Verification completed.",
-        gpsLatitude: lat,
-        gpsLongitude: lng,
-        profileData: {
-          residential: resForm,
-          business: busForm,
-          metCustomer,
-          applicantAvailable,
-          houseExists,
-          photos
-        }
-      });
-      setSubmitted(true);
-      toast.success("Verification report submitted successfully!");
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err?.response?.data?.message || "Failed to submit verification to backend server.");
-    }
-  };
-
-  const getResInputSetter = (key: keyof ResidentialFormType) => (e: any) => {
-    setResForm((prev) => ({ ...prev, [key]: e.target.value }));
-  };
-
-  const getBusInputSetter = (key: keyof BusinessFormType) => (e: any) => {
-    setBusForm((prev) => ({ ...prev, [key]: e.target.value }));
-  };
-
-  if (submitted) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center space-y-5 bg-white border border-gray-100 shadow-sm rounded-3xl p-6 max-w-2xl mx-auto">
-        <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
-          <FiCheckCircle className="w-10 h-10" />
-        </div>
-        <h2 className="text-xl font-bold text-gray-900">Verification Report Submitted!</h2>
-        <p className="text-sm text-gray-500 max-w-sm">
-          Reports for both Residential and Business components of <strong>{currentCase.name}</strong> ({caseId}) have been successfully uploaded and finalized.
-        </p>
+        <p className="text-slate-500 text-sm">Case not found</p>
         <button
-          onClick={() => router.push("/agent")}
-          className="text-white px-6 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 shadow-sm"
-          style={{ background: "#1E4DB7" }}
+          onClick={() => router.push("/agent/cases")}
+          className="mt-4 text-sm font-semibold text-[#1E4DB7] hover:underline"
         >
-          Return to Dashboard
+          Return to Assigned Cases
         </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 pb-12 text-slate-800" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-      {/* Top Bar / Back button */}
-      <div>
-        <button
-          onClick={() => router.push(`/agent/cases/${caseId}`)}
-          className="flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-900 transition-colors"
-        >
-          <FiChevronLeft className="w-4 h-4" />
-          <span>Back to Case Details</span>
-        </button>
-      </div>
+    <div className="space-y-6 pb-12 text-slate-800">
+      <button
+        onClick={() => router.push(`/agent/cases/${caseId}`)}
+        className="flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-900"
+      >
+        <FiChevronLeft className="w-4 h-4" />
+        <span>Back to Case Details</span>
+      </button>
 
-      {/* Step Indicators Bar */}
       <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center justify-between overflow-x-auto gap-4">
-        {[
-          { step: 1, label: "Verify Customer" },
-          { step: 2, label: "Capture GPS" },
-          { step: 3, label: "Capture Photo" },
-          { step: 4, label: "Residential Details" },
-          { step: 5, label: "Business Details" },
-          { step: 6, label: "Add Remarks" },
-          { step: 7, label: "Submit" }
-        ].map((s) => (
-          <div key={s.step} className="flex items-center gap-2 whitespace-nowrap">
-            <span className={cn(
-              "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all",
-              currentStep === s.step ? "text-white bg-[#1E4DB7] ring-4 ring-blue-100" :
-              currentStep > s.step ? "text-white bg-emerald-500" : "text-gray-400 bg-gray-100"
-            )}>
-              {s.step}
-            </span>
-            <span className={cn(
-              "text-xs font-semibold",
-              currentStep === s.step ? "text-gray-900 font-bold" : "text-gray-400"
-            )}>
-              {s.label}
-            </span>
-            {s.step < 7 && <span className="text-gray-300">→</span>}
-          </div>
-        ))}
+        {stepLabels.map((label, idx) => {
+          const step = idx + 1;
+          return (
+            <div key={label} className="flex items-center gap-2 whitespace-nowrap">
+              <span
+                className={cn(
+                  "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold",
+                  currentStep === step
+                    ? "text-white bg-[#1E4DB7]"
+                    : currentStep > step
+                      ? "text-white bg-emerald-500"
+                      : "text-gray-400 bg-gray-100",
+                )}
+              >
+                {step}
+              </span>
+              <span className={cn("text-xs", currentStep === step ? "text-gray-900" : "text-gray-400")}>
+                {label}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        {/* Main form card */}
-        <div className="xl:col-span-8 bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between min-h-[480px]">
-          <form onSubmit={handleSubmit} className="space-y-6 flex-1 flex flex-col justify-between">
-            <div className="space-y-6">
-              
-              {/* Step 1: Verify Customer */}
-              {currentStep === 1 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
-                      <FiUser className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-gray-900">Step 1: Verify Customer</h2>
-                      <p className="text-xs text-gray-400">Establish primary contact presence</p>
-                    </div>
+        <div className="xl:col-span-8 bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {currentStep === 1 && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
+                    <FiUser className="w-5 h-5" />
                   </div>
-
-                  <div className="space-y-4 max-w-md">
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-bold text-gray-600">Met Customer / Client? *</label>
-                      <select value={metCustomer} onChange={(e) => setMetCustomer(e.target.value)} className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white">
-                        <option value="Yes">Yes - Met Applicant</option>
-                        <option value="No">No - Met family member / representative</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-bold text-gray-600">Applicant Available? *</label>
-                      <select value={applicantAvailable} onChange={(e) => setApplicantAvailable(e.target.value)} className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white">
-                        <option value="Yes">Yes - Present at location</option>
-                        <option value="No">No - Not available</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="block text-xs font-bold text-gray-600">House / Premises Exists? *</label>
-                      <select value={houseExists} onChange={(e) => setHouseExists(e.target.value)} className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white">
-                        <option value="Yes">Yes - Premises exists and matches</option>
-                        <option value="No">No - Address untraceable / does not exist</option>
-                      </select>
-                    </div>
+                  <div>
+                    <h2 className="text-lg font-bold">Verify Customer Presence</h2>
+                    <p className="text-xs text-gray-400">Initial verification checks</p>
                   </div>
                 </div>
-              )}
-
-              {/* Step 2: Capture GPS */}
-              {currentStep === 2 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
-                      <FiMapPin className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-gray-900">Step 2: Capture GPS</h2>
-                      <p className="text-xs text-gray-400">Lock verified geo-coordinates</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 max-w-md">
-                    <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-3">
-                      <div className="flex justify-between items-center text-xs font-semibold">
-                        <span className="text-gray-500">Latitude</span>
-                        <span className="text-gray-900 font-mono">{lat.toFixed(6)}° N</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs font-semibold">
-                        <span className="text-gray-500">Longitude</span>
-                        <span className="text-gray-900 font-mono">{lng.toFixed(6)}° E</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs font-semibold">
-                        <span className="text-gray-500">Capture Timestamp</span>
-                        <span className="text-gray-900 font-mono">{gpsTime || "Not captured"}</span>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setGpsLocked(true);
-                        setGpsTime(new Date().toLocaleString());
-                        toast.success("GPS Location successfully captured and locked!");
-                      }}
-                      className="w-full py-2.5 rounded-xl text-white font-bold text-xs shadow-sm hover:opacity-90 flex items-center justify-center gap-2"
-                      style={{ background: "#1E4DB7" }}
-                    >
-                      <FiMapPin className="w-4 h-4" />
-                      {gpsLocked ? "Re-Capture GPS Coordinates" : "Capture GPS Coordinates"}
-                    </button>
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <select className="border rounded-xl px-3 py-2 text-sm" value={metCustomer} onChange={(e) => setMetCustomer(e.target.value)}>
+                    <option value="Yes">Met Customer</option>
+                    <option value="No">Did not meet customer</option>
+                  </select>
+                  <select className="border rounded-xl px-3 py-2 text-sm" value={applicantAvailable} onChange={(e) => setApplicantAvailable(e.target.value)}>
+                    <option value="Yes">Applicant available</option>
+                    <option value="No">Applicant unavailable</option>
+                  </select>
+                  <select className="border rounded-xl px-3 py-2 text-sm" value={houseExists} onChange={(e) => setHouseExists(e.target.value)}>
+                    <option value="Yes">Premises found</option>
+                    <option value="No">Premises not found</option>
+                  </select>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* Step 3: Capture Photo */}
-              {currentStep === 3 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
-                      <FiCamera className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-gray-900">Step 3: Capture Photo</h2>
-                      <p className="text-xs text-gray-400">Add geo-tagged visual evidence</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 max-w-md">
-                    <button
-                      type="button"
-                      onClick={handleAddPhoto}
-                      className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 hover:border-[#1E4DB7] hover:bg-blue-50/50 py-6 rounded-2xl transition-all"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
-                        <FiPlus className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-gray-800">Add Photos</p>
-                        <p className="text-[10px] text-gray-400 mt-0.5">Maximum 5 photos (Geo-tagged)</p>
-                      </div>
-                    </button>
-
-                    {photos.length > 0 ? (
-                      <div className="space-y-2">
-                        {photos.map((p, idx) => (
-                          <div key={idx} className="flex items-center justify-between p-2.5 bg-gray-50 border border-gray-100 rounded-xl">
-                            <div className="flex items-center gap-2">
-                              <FiCheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-                              <span className="text-xs font-semibold text-gray-700">{p}</span>
-                            </div>
-                            <button type="button" onClick={() => handleRemovePhoto(idx)} className="text-gray-400 hover:text-rose-500 p-1">
-                              <FiTrash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-amber-600 bg-amber-50/50 border border-amber-100 p-3 rounded-xl">
-                        <FiInfo className="w-4 h-4 shrink-0" />
-                        <p className="text-[11px] font-semibold leading-snug">Capture at least 1 photo before proceeding.</p>
-                      </div>
-                    )}
-                  </div>
+            {currentStep === 2 && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-bold">Capture GPS</h2>
+                <div className="h-64 rounded-2xl border border-gray-100 overflow-hidden">
+                  <LocationPickerMap
+                    lat={lat}
+                    lng={lng}
+                    onChange={(nextLat, nextLng) => {
+                      setLat(nextLat);
+                      setLng(nextLng);
+                    }}
+                  />
                 </div>
-              )}
-
-              {/* Step 4: Residential Details */}
-              {currentStep === 4 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
-                      <FiHome className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-gray-900">Step 4: Residential Details</h2>
-                      <p className="text-xs text-gray-400">Complete residential evaluation checklist</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6 max-h-[50vh] overflow-y-auto pr-2">
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">Personal Information</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Applicant Name *</label>
-                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.applicantName} onChange={getResInputSetter("applicantName")} />
-                          {errors.applicantName && <p className="text-xs text-rose-500 mt-1">{errors.applicantName}</p>}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Mobile Number *</label>
-                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.mobileNumber} onChange={getResInputSetter("mobileNumber")} />
-                          {errors.mobileNumber && <p className="text-xs text-rose-500 mt-1">{errors.mobileNumber}</p>}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Date of Birth *</label>
-                          <input type="date" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.dateOfBirth} onChange={getResInputSetter("dateOfBirth")} />
-                          {errors.dateOfBirth && <p className="text-xs text-rose-500 mt-1">{errors.dateOfBirth}</p>}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Aadhaar Number *</label>
-                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.aadhaarNumber} onChange={getResInputSetter("aadhaarNumber")} />
-                          {errors.aadhaarNumber && <p className="text-xs text-rose-500 mt-1">{errors.aadhaarNumber}</p>}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 pt-4 border-t border-gray-100">
-                      <h4 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">Address Details</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">House / Door No *</label>
-                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.houseNo} onChange={getResInputSetter("houseNo")} />
-                          {errors.houseNo && <p className="text-xs text-rose-500 mt-1">{errors.houseNo}</p>}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Street / Area *</label>
-                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.streetArea} onChange={getResInputSetter("streetArea")} />
-                          {errors.streetArea && <p className="text-xs text-rose-500 mt-1">{errors.streetArea}</p>}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Type of Residence *</label>
-                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.residenceType} onChange={getResInputSetter("residenceType")}>
-                            {RESIDENCE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Ownership Status *</label>
-                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.ownershipStatus} onChange={getResInputSetter("ownershipStatus")}>
-                            {OWNERSHIP_STATUSES.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Living Since *</label>
-                          <input type="date" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.livingSince} onChange={getResInputSetter("livingSince")} />
-                          {errors.livingSince && <p className="text-xs text-rose-500 mt-1">{errors.livingSince}</p>}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">No. of Family Members *</label>
-                          <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.familyMembers} onChange={getResInputSetter("familyMembers")} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Monthly Rent (if rented)</label>
-                          <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.monthlyRent} onChange={getResInputSetter("monthlyRent")} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Contact Neighbor *</label>
-                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.contactNeighbor} onChange={getResInputSetter("contactNeighbor")} />
-                          {errors.contactNeighbor && <p className="text-xs text-rose-500 mt-1">{errors.contactNeighbor}</p>}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                <div className="text-xs text-gray-500">
+                  {lat.toFixed(6)}, {lng.toFixed(6)}
                 </div>
-              )}
-
-              {/* Step 5: Business Details */}
-              {currentStep === 5 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
-                      <FiBriefcase className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-gray-900">Step 5: Business Details</h2>
-                      <p className="text-xs text-gray-400">Complete business audit checklist</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-6 max-h-[50vh] overflow-y-auto pr-2">
-                    {/* Business General Info */}
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">Business Information</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Company / Shop Name *</label>
-                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.companyName} onChange={getBusInputSetter("companyName")} />
-                          {errors.companyName && <p className="text-xs text-rose-500 mt-1">{errors.companyName}</p>}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Nature of Business *</label>
-                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.natureOfBusiness} onChange={getBusInputSetter("natureOfBusiness")} />
-                          {errors.natureOfBusiness && <p className="text-xs text-rose-500 mt-1">{errors.natureOfBusiness}</p>}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Business Type *</label>
-                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.businessType} onChange={getBusInputSetter("businessType")}>
-                            {BUSINESS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Years in Business *</label>
-                          <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.yearsInBusiness} onChange={getBusInputSetter("yearsInBusiness")} />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Monthly Income (₹) *</label>
-                          <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.monthlyIncome} onChange={getBusInputSetter("monthlyIncome")} />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Business Address Info */}
-                    <div className="space-y-4 pt-4 border-t border-gray-100">
-                      <h4 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">Address Details</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Door / Shop No *</label>
-                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.doorNo} onChange={getBusInputSetter("doorNo")} />
-                          {errors.doorNo && <p className="text-xs text-rose-500 mt-1">{errors.doorNo}</p>}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Street / Area *</label>
-                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.streetArea} onChange={getBusInputSetter("streetArea")} />
-                          {errors.streetArea && <p className="text-xs text-rose-500 mt-1">{errors.streetArea}</p>}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        <div className="md:col-span-2">
-                          <label className="block text-xs font-bold text-gray-600 mb-1">City / Town *</label>
-                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.cityTown} onChange={getBusInputSetter("cityTown")} />
-                          {errors.cityTown && <p className="text-xs text-rose-500 mt-1">{errors.cityTown}</p>}
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">District *</label>
-                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.district} onChange={getBusInputSetter("district")}>
-                            {DISTRICT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Pincode *</label>
-                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.pincode} onChange={getBusInputSetter("pincode")} />
-                          {errors.pincode && <p className="text-xs text-rose-500 mt-1">{errors.pincode}</p>}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Business Verification Specifics */}
-                    <div className="space-y-4 pt-4 border-t border-gray-100">
-                      <h4 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">Operational Audit Checklist</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">GST / License Available *</label>
-                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.gstLicenseAvailable} onChange={getBusInputSetter("gstLicenseAvailable")}>
-                            {GST_LICENSE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Signboard Available *</label>
-                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.signboardAvailable} onChange={getBusInputSetter("signboardAvailable")}>
-                            {SIGNBOARD_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">No. of Employees *</label>
-                          <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.noOfEmployees} onChange={getBusInputSetter("noOfEmployees")} />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Location Verification *</label>
-                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.businessFoundAtLocation} onChange={getBusInputSetter("businessFoundAtLocation")}>
-                            {BUSINESS_FOUND_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Business Operational State *</label>
-                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.businessOperational} onChange={getBusInputSetter("businessOperational")}>
-                            {OPERATIONAL_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Ownership Verification *</label>
-                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.businessOwnedByApplicant} onChange={getBusInputSetter("businessOwnedByApplicant")}>
-                            {OWNED_BY_APPLICANT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Premises Type *</label>
-                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.businessPremisesType} onChange={getBusInputSetter("businessPremisesType")}>
-                            {PREMISES_TYPES.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Stock Level Status *</label>
-                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.stockInventoryAvailable} onChange={getBusInputSetter("stockInventoryAvailable")}>
-                            {STOCK_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Customer Presence *</label>
-                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.customerPresence} onChange={getBusInputSetter("customerPresence")}>
-                            {CLIENT_PRESENCE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-xs font-bold text-gray-600 mb-1">Documents Verified *</label>
-                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.documentsVerified} onChange={getBusInputSetter("documentsVerified")}>
-                            {DOCUMENTS_VERIFIED_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Step 6: Add Remarks */}
-              {currentStep === 6 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
-                      <FiEdit2 className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-gray-900">Step 6: Add Remarks</h2>
-                      <p className="text-xs text-gray-400">Add observations and remarks</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4 max-w-lg">
-                    <label className="block text-xs font-bold text-gray-600">Verification Agent Remarks *</label>
-                    <textarea
-                      placeholder="e.g. Applicant available. House verified. Address matched."
-                      rows={5}
-                      className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm resize-none"
-                      value={resForm.remarks}
-                      onChange={getResInputSetter("remarks")}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Step 7: Submit Verification */}
-              {currentStep === 7 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
-                      <FiCheckCircle className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-gray-900">Step 7: Submit Verification</h2>
-                      <p className="text-xs text-gray-400">Review and submit verification report</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 text-xs font-semibold text-gray-600 max-w-md">
-                    <div className="flex justify-between items-center py-2.5 px-3 bg-gray-50 border border-gray-100 rounded-xl">
-                      <span className="text-gray-500">Applicant / Customer</span>
-                      <span className="text-gray-900 font-bold">{currentCase.name}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2.5 px-3 bg-gray-50 border border-gray-100 rounded-xl">
-                      <span className="text-gray-500">GPS Coordinates</span>
-                      <span className="text-gray-900 font-mono">{gpsLocked ? "✓ Locked" : "✗ Not Locked"}</span>
-                    </div>
-                    <div className="flex justify-between items-center py-2.5 px-3 bg-gray-50 border border-gray-100 rounded-xl">
-                      <span className="text-gray-500">Evidence Photos</span>
-                      <span className="text-gray-900">{photos.length} Captured</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            </div>
-
-            {/* Wizard Navigation Footer */}
-            <div className="flex justify-between items-center pt-4 border-t border-gray-100 mt-6">
-              {currentStep > 1 ? (
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(currentStep - 1)}
-                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold hover:bg-gray-50 transition-colors"
+                  onClick={() => {
+                    setGpsLocked(true);
+                    setGpsTime(new Date().toLocaleString());
+                    toast.success("GPS locked");
+                  }}
+                  className="px-4 py-2 rounded-xl bg-[#1E4DB7] text-white text-sm"
                 >
+                  {gpsLocked ? "Re-lock GPS" : "Lock GPS"}
+                </button>
+              </div>
+            )}
+
+            {currentStep === 3 && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-bold">Capture Evidence Photos</h2>
+                <label className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 py-6 rounded-2xl cursor-pointer">
+                  <div className="w-10 h-10 rounded-full bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
+                    <FiPlus className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs text-gray-600">Upload up to 5 photos</p>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handleAddPhoto}
+                  />
+                </label>
+                {photos.length === 0 ? (
+                  <div className="flex items-center gap-2 text-amber-700 text-xs bg-amber-50 border border-amber-200 rounded-xl p-3">
+                    <FiInfo className="w-4 h-4" />
+                    <span>No evidence uploaded yet.</span>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {photos.map((photo, idx) => (
+                      <div key={`${photo.url}-${idx}`} className="flex items-center justify-between p-2.5 bg-gray-50 border rounded-xl">
+                        <a href={photo.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                          {photo.name}
+                        </a>
+                        <button type="button" onClick={() => handleRemovePhoto(idx)} className="text-gray-400 hover:text-rose-500">
+                          <FiTrash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {currentStep === 4 && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-bold">
+                  {currentCase.type === "BUSINESS" ? "Business Form" : "Residential Form"}
+                </h2>
+                {currentCase.type === "BUSINESS" ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Company Name" value={busForm.companyName} onChange={getBusSetter("companyName")} />
+                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Nature of Business" value={busForm.natureOfBusiness} onChange={getBusSetter("natureOfBusiness")} />
+                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Door No" value={busForm.doorNo} onChange={getBusSetter("doorNo")} />
+                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Street / Area" value={busForm.streetArea} onChange={getBusSetter("streetArea")} />
+                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="City / Town" value={busForm.cityTown} onChange={getBusSetter("cityTown")} />
+                    <select className="border rounded-xl px-3 py-2 text-sm" value={busForm.district} onChange={getBusSetter("district")}>
+                      {DISTRICT_OPTIONS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Pincode" value={busForm.pincode} onChange={getBusSetter("pincode")} />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Applicant Name" value={resForm.applicantName} onChange={getResSetter("applicantName")} />
+                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Mobile Number" value={resForm.mobileNumber} onChange={getResSetter("mobileNumber")} />
+                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="House No" value={resForm.houseNo} onChange={getResSetter("houseNo")} />
+                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Street / Area" value={resForm.streetArea} onChange={getResSetter("streetArea")} />
+                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="City / Town" value={resForm.cityTown} onChange={getResSetter("cityTown")} />
+                    <select className="border rounded-xl px-3 py-2 text-sm" value={resForm.district} onChange={getResSetter("district")}>
+                      {DISTRICT_OPTIONS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Pincode" value={resForm.pincode} onChange={getResSetter("pincode")} />
+                  </div>
+                )}
+                {Object.keys(errors).length > 0 && (
+                  <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3">
+                    {Object.entries(errors).map(([k, v]) => (
+                      <p key={k}>{k}: {v}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {currentStep === 5 && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-bold">Remarks</h2>
+                {currentCase.type === "BUSINESS" ? (
+                  <textarea className="w-full border rounded-xl px-3 py-2 text-sm" rows={5} value={busForm.remarks} onChange={getBusSetter("remarks")} placeholder="Add verification remarks" />
+                ) : (
+                  <textarea className="w-full border rounded-xl px-3 py-2 text-sm" rows={5} value={resForm.remarks} onChange={getResSetter("remarks")} placeholder="Add verification remarks" />
+                )}
+              </div>
+            )}
+
+            {currentStep === 6 && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-bold">Submit Verification</h2>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between p-2 bg-gray-50 rounded-lg"><span>Case</span><span>{currentCase.id}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-50 rounded-lg"><span>Type</span><span>{currentCase.type}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-50 rounded-lg"><span>GPS</span><span>{gpsLocked ? "Locked" : "Not locked"}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-50 rounded-lg"><span>Photos</span><span>{photos.length}</span></div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-between pt-4 border-t">
+              {currentStep > 1 ? (
+                <button type="button" className="px-4 py-2 border rounded-xl text-sm" onClick={() => setCurrentStep((s) => s - 1)}>
                   Back
                 </button>
               ) : (
                 <div />
               )}
-
-              {currentStep < 7 ? (
+              {currentStep < totalSteps ? (
                 <button
                   type="button"
                   onClick={() => {
-                    if (currentStep === 2 && !gpsLocked) {
-                      toast.error("Please lock GPS coordinates before continuing.");
-                      return;
-                    }
-                    if (currentStep === 3 && photos.length === 0) {
-                      toast.error("Please capture at least 1 photo before continuing.");
-                      return;
-                    }
-                    setCurrentStep(currentStep + 1);
+                    if (currentStep === 2 && !gpsLocked) return toast.error("Lock GPS first");
+                    if (currentStep === 3 && photos.length === 0) return toast.error("Upload at least one photo");
+                    if (currentStep === 4 && !validateActiveForm()) return toast.error("Fix form errors");
+                    setCurrentStep((s) => s + 1);
                   }}
-                  className="px-6 py-2.5 rounded-xl text-white text-xs font-bold transition-opacity hover:opacity-90"
-                  style={{ background: "#1E4DB7" }}
+                  className="px-5 py-2 rounded-xl bg-[#1E4DB7] text-white text-sm"
                 >
-                  Next Step
+                  Next
                 </button>
               ) : (
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 rounded-xl text-white text-xs font-bold transition-opacity hover:opacity-90 flex items-center gap-1.5"
-                  style={{ background: "#10B981" }}
-                >
-                  <FiCheckCircle className="w-4.5 h-4.5" />
-                  Submit Report
+                <button type="submit" disabled={submitting} className="px-5 py-2 rounded-xl bg-emerald-600 text-white text-sm disabled:opacity-60">
+                  {submitting ? "Submitting..." : "Submit Report"}
                 </button>
               )}
             </div>
-
           </form>
         </div>
 
-        {/* Right sidebar evidence & map context */}
         <div className="xl:col-span-4 space-y-6">
-          {/* Case Context Details Card */}
           <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-3">
-            <h3 className="text-[14px] font-bold text-gray-900 flex items-center gap-2">
-              <FiBriefcase className="w-4.5 h-4.5 text-[#1E4DB7]" />
-              <span>Case Details Context</span>
+            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+              <FiBriefcase className="w-4 h-4 text-[#1E4DB7]" />
+              Case Context
             </h3>
-            <div className="space-y-2 text-xs font-semibold text-gray-600">
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <span className="text-gray-500">Applicant</span>
-                <span className="text-gray-900 font-bold">{currentCase.name}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <span className="text-gray-500">Phone</span>
-                <span className="text-gray-900 font-mono">{currentCase.phone}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <span className="text-gray-500">Verify Type</span>
-                <span className="text-gray-900 font-bold">{currentCase.type}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-gray-50">
-                <span className="text-gray-500">Address</span>
-                <span className="text-gray-900 text-right max-w-[160px] truncate" title={currentCase.address}>{currentCase.address}</span>
-              </div>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between"><span className="text-gray-500">Applicant</span><span className="font-semibold">{currentCase.name}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Phone</span><span>{currentCase.phone || "-"}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Branch</span><span>{currentCase.branch}</span></div>
+              <p className="text-gray-500 pt-2">Address: {currentCase.address || "-"}</p>
             </div>
           </div>
 
           <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
-            <h3 className="text-[14px] font-bold text-gray-900 flex items-center gap-2">
-              <FiMapPin className="w-4.5 h-4.5 text-[#1E4DB7]" />
-              <span>Location Context</span>
+            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+              <FiMapPin className="w-4 h-4 text-[#1E4DB7]" />
+              Location
             </h3>
-
-            <div className="h-56 relative overflow-hidden bg-slate-50 rounded-2xl border border-gray-100">
-              <LocationPickerMap lat={lat} lng={lng} onChange={(newLat, newLng) => { setLat(newLat); setLng(newLng); }} />
+            <div className="text-xs text-gray-600">
+              <p>{lat.toFixed(6)}, {lng.toFixed(6)}</p>
+              <p className="mt-1 flex items-center gap-1">
+                <FiClock className="w-3 h-3" />
+                {gpsTime || "GPS not locked"}
+              </p>
             </div>
-
-            <div className="space-y-3 text-xs font-semibold text-gray-600">
-              <div className="flex items-center gap-2.5 py-2.5 px-3 bg-gray-50 border border-gray-100 rounded-xl">
-                <FiMapPin className="w-4.5 h-4.5 text-[#1E4DB7] shrink-0" />
-                <div>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Coordinates</p>
-                  <p className="text-gray-900 mt-0.5">{lat.toFixed(6)}° N, {lng.toFixed(6)}° E</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2.5 py-2.5 px-3 bg-gray-50 border border-gray-100 rounded-xl">
-                <FiClock className="w-4.5 h-4.5 text-[#1E4DB7] shrink-0" />
-                <div>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Lock Timestamp</p>
-                  <p className="text-gray-900 mt-0.5">{gpsTime || "Pending GPS Lock"}</p>
-                </div>
-              </div>
+            <div className="text-xs text-gray-600 flex items-center gap-1">
+              <FiCamera className="w-3 h-3" />
+              {photos.length} evidence file(s)
             </div>
+            {gpsLocked && (
+              <div className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-xl p-2 flex items-center gap-2">
+                <FiCheckCircle className="w-3 h-3" />
+                GPS locked and ready for submit
+              </div>
+            )}
           </div>
         </div>
-
       </div>
     </div>
   );

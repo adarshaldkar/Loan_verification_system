@@ -29,6 +29,7 @@ const navItems = [
   { label: "Dashboard",    href: "/app",             icon: FiGrid },
   { label: "Customers",    href: "/app/customers",   icon: FiUsers },
   { label: "Agents",       href: "/app/agents",      icon: FiUserCheck },
+  { label: "Admins",       href: "/app/admins",      icon: FiShield },
   { label: "Cases",        href: "/app/cases",       icon: FiBriefcase },
   { label: "Excel Upload", href: "/app/upload",      icon: FiUploadCloud },
   { label: "Reports",      href: "/app/reports",     icon: FiBarChart2 },
@@ -36,32 +37,6 @@ const navItems = [
   { label: "Audit Logs",   href: "/app/audit-logs",  icon: FiFileText },
   { label: "Settings",     href: "/app/settings",    icon: FiSettings },
   { label: "Profile",      href: "/app/profile",     icon: FiUser },
-];
-
-/* ─── Mock Notifications ─────────────────────────────────────────────────── */
-
-const notifications = [
-  {
-    icon: <FiCheckCircle className="w-4 h-4 text-teal-600" />,
-    bg: "bg-teal-50",
-    title: "Case #LV-2026-10818 Completed",
-    time: "10 min ago",
-    unread: true,
-  },
-  {
-    icon: <FiBriefcase className="w-4 h-4 text-blue-600" />,
-    bg: "bg-blue-50",
-    title: "New case LV-2026-10821 assigned",
-    time: "25 min ago",
-    unread: true,
-  },
-  {
-    icon: <FiAlertCircle className="w-4 h-4 text-amber-600" />,
-    bg: "bg-amber-50",
-    title: "Case LV-2026-10816 is overdue",
-    time: "1 hr ago",
-    unread: true,
-  },
 ];
 
 /* ─── Sidebar Content ────────────────────────────────────────────────────── */
@@ -155,6 +130,9 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
+
+  // Admin notifications are not yet fully wired to the backend
+  const notifications: any[] = [];
 
   const quickLinks = [
     { label: "Dashboard",    href: "/app",             icon: FiGrid,        hint: "Overview" },
@@ -261,38 +239,49 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
           <DropdownMenuContent align="end" className="w-80 p-0">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <p className="text-sm font-semibold text-slate-900">Notifications</p>
-              <button
-                className="text-xs text-[#1E3A5F] hover:underline font-medium"
-                onClick={() => setNotifOpen(false)}
-              >
-                Mark all read
-              </button>
+              {notifications.length > 0 && (
+                <button
+                  className="text-xs text-[#1E3A5F] hover:underline font-medium"
+                  onClick={() => setNotifOpen(false)}
+                >
+                  Mark all read
+                </button>
+              )}
             </div>
-            {notifications.map((n, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "flex items-start gap-3 px-4 py-3 border-b border-border hover:bg-slate-50 cursor-pointer",
-                  n.unread && "bg-blue-50/30"
-                )}
-              >
-                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5", n.bg)}>
-                  {n.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-900 font-medium leading-snug">{n.title}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{n.time}</p>
-                </div>
-                {n.unread && <span className="w-2 h-2 rounded-full bg-[#1E3A5F] mt-1.5 shrink-0" />}
+            
+            {notifications.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-sm">
+                <FiBell className="w-6 h-6 mx-auto mb-2 text-slate-300" />
+                No new notifications
               </div>
-            ))}
-            <div className="px-4 py-3 text-center">
+            ) : (
+              notifications.map((n, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "flex items-start gap-3 px-4 py-3 border-b border-border hover:bg-slate-50 cursor-pointer",
+                    n.unread && "bg-blue-50/30"
+                  )}
+                >
+                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5", n.bg)}>
+                    {n.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-slate-900 font-medium leading-snug">{n.title}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{n.time}</p>
+                  </div>
+                  {n.unread && <span className="w-2 h-2 rounded-full bg-[#1E3A5F] mt-1.5 shrink-0" />}
+                </div>
+              ))
+            )}
+            
+            <div className="px-4 py-3 text-center border-t border-border">
               <Link
                 href="/app/audit-logs"
                 className="text-xs font-medium text-[#1E3A5F] hover:underline"
                 onClick={() => setNotifOpen(false)}
               >
-                View all notifications →
+                View all activity →
               </Link>
             </div>
           </DropdownMenuContent>
@@ -314,7 +303,6 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
             <FiChevronRight className="w-4 h-4 text-slate-400 hidden md:block" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
-            {/* FIX: DropdownMenuLabel must be inside DropdownMenuGroup */}
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-xs text-slate-500 font-normal pb-1">
                 Signed in as

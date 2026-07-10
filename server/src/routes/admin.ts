@@ -5,7 +5,7 @@ import { authenticateToken, requireRole } from '../middlewares/auth';
 import { getDashboard, getAnalytics } from '../controllers/admin/dashboardController';
 import { getCustomers, createCustomerAndCase } from '../controllers/admin/customerController';
 import { getAgents, toggleAgentStatus } from '../controllers/admin/agentController';
-import { getCases, assignCase, updateCaseStatus } from '../controllers/admin/caseController';
+import { getCases, assignCase, updateCaseStatus, getCaseById } from '../controllers/admin/caseController';
 import { getBranches, createBranch } from '../controllers/admin/branchController';
 import { getReports, generateReport } from '../controllers/admin/reportController';
 import { getAuditLogs } from '../controllers/admin/auditLogController';
@@ -13,6 +13,7 @@ import { getSettings, updateSettings } from '../controllers/admin/settingsContro
 import { getProfile } from '../controllers/admin/profileController';
 import { bulkUploadCases } from '../controllers/admin/uploadController';
 import { registerAgent } from '../controllers/authController';
+import { registerAdmin, getAdmins } from '../controllers/admin/manageAdminsController';
 
 const router = Router();
 
@@ -35,6 +36,7 @@ router.post('/customers', createCustomerAndCase);
 
 // ── Cases ──────────────────────────────────────────────────────────────────
 router.get('/cases', getCases);
+router.get('/cases/:caseId', getCaseById);
 router.put('/cases/:caseId/assign', assignCase);
 router.put('/cases/:caseId/status', updateCaseStatus);
 
@@ -56,6 +58,10 @@ router.put('/settings', updateSettings);
 
 // ── Bulk Upload ────────────────────────────────────────────────────────────
 router.post('/upload/bulk', bulkUploadCases);
+
+// ── Admins ──────────────────────────────────────────────────────────────────
+router.get('/admins', getAdmins);
+router.post('/admins/register', registerAdmin);
 
 export default router;
 

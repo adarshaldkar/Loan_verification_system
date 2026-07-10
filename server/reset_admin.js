@@ -3,11 +3,11 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
-  const hashedPassword = await bcrypt.hash('password123', 10);
+  const hashedPassword = await bcrypt.hash('admin123', 10);
   await prisma.user.updateMany({
-    where: { email: 'Aksh12@gmail.com' },
+    where: { role: 'ADMIN' },
     data: { password: hashedPassword }
   });
-  console.log('Password for Aksh12@gmail.com updated to password123');
+  console.log('Admin password reset');
 }
 main().finally(() => prisma.$disconnect());
