@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import LocationPickerMap from "@/components/shared/LocationPickerMap";
 import { Skeleton } from "@/components/ui/skeleton";
+import { submitVerificationApi } from "@/lib/api";
 
 // Zod Schemas
 
@@ -238,7 +239,7 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
   };
 
   // Submit handlers
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
     
@@ -277,8 +278,26 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
       return;
     }
 
-    setSubmitted(true);
-    toast.success("Verification report submitted successfully!");
+    try {
+      await submitVerificationApi(caseId, {
+        remarks: resForm.remarks || busForm.remarks || "Verification completed.",
+        gpsLatitude: lat,
+        gpsLongitude: lng,
+        profileData: {
+          residential: resForm,
+          business: busForm,
+          metCustomer,
+          applicantAvailable,
+          houseExists,
+          photos
+        }
+      });
+      setSubmitted(true);
+      toast.success("Verification report submitted successfully!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to submit verification to backend server.");
+    }
   };
 
   const getResInputSetter = (key: keyof ResidentialFormType) => (e: any) => {
