@@ -106,32 +106,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Notifications */}
-      <div className="card-flat p-6 space-y-4">
-        <div className="flex items-center gap-2 mb-2">
-          <FiBell className="w-4 h-4 text-[#1E3A5F]" />
-          <h2 className="text-[14px] font-semibold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-            Notifications
-          </h2>
-        </div>
-        {(Object.keys(toggles) as Array<keyof typeof toggles>).map((label) => (
-          <div key={label} className="flex items-center justify-between py-1">
-            <span className="text-sm text-slate-700">{label}</span>
-            <button
-              onClick={() => flipToggle(label)}
-              className="w-10 h-5 rounded-full relative flex-shrink-0 transition-colors duration-200"
-              style={{ background: toggles[label] ? "#1E3A5F" : "#CBD5E1" }}
-              aria-label={toggles[label] ? "Disable" : "Enable"}
-            >
-              <span
-                className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-200"
-                style={{ left: toggles[label] ? "calc(100% - 18px)" : "2px" }}
-              />
-            </button>
-          </div>
-        ))}
-      </div>
-
       <Button
         onClick={() => {
           if (!orgName.trim() || !email.trim()) {

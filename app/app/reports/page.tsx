@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FiDownload, FiFileText, FiCalendar, FiChevronDown } from "react-icons/fi";
+import { FiDownload, FiFileText, FiCalendar, FiChevronDown, FiPrinter, FiCheckCircle, FiClock, FiXCircle, FiTrendingUp } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { getReportsApi, generateReportApi } from "@/lib/api";
+import { getReportsApi, generateReportApi, getReportMetricsApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /* ─── Data ───────────────────────────────────────────────────────────────── */
@@ -26,9 +26,10 @@ const DATE_RANGES = [
 ];
 
 const REPORT_TYPES = [
-  { value: "weekly",  label: "Weekly Verification Summary" },
+  { value: "daily",   label: "Daily Report (Completed, Progress, Rejected, Approved)" },
+  { value: "weekly",  label: "Weekly Report (Completed, Progress, Rejected, Approved)" },
+  { value: "monthly", label: "Monthly Report (Completed, Progress, Rejected, Approved)" },
   { value: "agent",   label: "Agent Performance Report" },
-  { value: "branch",  label: "Branch Coverage Report" },
   { value: "audit",   label: "Cases Audit Export" },
 ];
 
@@ -57,8 +58,14 @@ export default function ReportsPage() {
   const [reports, setReports]       = useState<any[]>([]);
   const [loading, setLoading]       = useState(true);
 
+  // Metrics State
+  const [metricsTimeframe, setMetricsTimeframe] = useState("daily");
+  const [metrics, setMetrics] = useState({ total: 0, completed: 0, inProgress: 0, rejected: 0, approved: 0 });
+  const [loadingMetrics, setLoadingMetrics] = useState(true);
+
   useEffect(() => {
     fetchReports();
+    fetchMetrics(metricsTimeframe);
   }, []);
 
   const fetchReports = async () => {
@@ -71,6 +78,23 @@ export default function ReportsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchMetrics = async (timeframe: string) => {
+    try {
+      setLoadingMetrics(true);
+      const res = await getReportMetricsApi(timeframe);
+      setMetrics(res.data.data);
+    } catch (err) {
+      toast.error("Failed to fetch metrics");
+    } finally {
+      setLoadingMetrics(false);
+    }
+  };
+
+  const handleTimeframeChange = (val: string) => {
+    setMetricsTimeframe(val);
+    fetchMetrics(val);
   };
 
   function handleGenerate() {
@@ -110,17 +134,99 @@ export default function ReportsPage() {
     toast.success(`Downloading ${r.name}`);
   }
 
+  function printMetricsPDF() {
+    window.print();
+  }
+
   return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Reports"
-        description="Generate and export verification and performance reports."
-      />
+    <div className="space-y-6 max-w-7xl mx-auto pb-10 print-container">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <PageHeader
+          title="Reports"
+          description="Generate and export verification and performance reports."
+        />
+        <Button onClick={printMetricsPDF} variant="outline" className="gap-2 shrink-0">
+          <FiPrinter className="w-4 h-4" />
+          Print PDF
+        </Button>
+      </div>
+
+      {/* ── Metrics Overview ── */}
+      <div className="card-flat p-6 border border-slate-200 shadow-sm rounded-xl bg-white">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+            <FiTrendingUp className="w-5 h-5 text-blue-600" />
+            Verification Metrics
+          </h3>
+          <Select value={metricsTimeframe} onValueChange={handleTimeframeChange}>
+            <SelectTrigger className="w-40 bg-slate-50">
+              <SelectValue placeholder="Timeframe" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="daily">Daily</SelectItem>
+              <SelectItem value="weekly">Weekly</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 flex flex-col justify-center items-center text-center">
+            <div className="bg-blue-100 p-2 rounded-full mb-3">
+              <FiCheckCircle className="w-5 h-5 text-blue-700" />
+            </div>
+            <p className="text-sm font-medium text-slate-600 mb-1">Completed Data</p>
+            <h4 className="text-2xl font-bold text-blue-900">{loadingMetrics ? "-" : metrics.completed}</h4>
+          </div>
+
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-100 flex flex-col justify-center items-center text-center">
+            <div className="bg-amber-100 p-2 rounded-full mb-3">
+              <FiClock className="w-5 h-5 text-amber-700" />
+            </div>
+            <p className="text-sm font-medium text-slate-600 mb-1">In Progress</p>
+            <h4 className="text-2xl font-bold text-amber-900">{loadingMetrics ? "-" : metrics.inProgress}</h4>
+          </div>
+
+          <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 flex flex-col justify-center items-center text-center">
+            <div className="bg-rose-100 p-2 rounded-full mb-3">
+              <FiXCircle className="w-5 h-5 text-rose-700" />
+            </div>
+            <p className="text-sm font-medium text-slate-600 mb-1">Rejected</p>
+            <h4 className="text-2xl font-bold text-rose-900">{loadingMetrics ? "-" : metrics.rejected}</h4>
+          </div>
+
+          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex flex-col justify-center items-center text-center">
+            <div className="bg-emerald-100 p-2 rounded-full mb-3">
+              <FiCheckCircle className="w-5 h-5 text-emerald-700" />
+            </div>
+            <p className="text-sm font-medium text-slate-600 mb-1">Approved</p>
+            <h4 className="text-2xl font-bold text-emerald-900">{loadingMetrics ? "-" : metrics.approved}</h4>
+          </div>
+        </div>
+      </div>
+
+      <style jsx global>{`
+        @media print {
+          body {
+            print-color-adjust: exact;
+            -webkit-print-color-adjust: exact;
+          }
+          .sidebar-container, .topbar, .no-print {
+            display: none !important;
+          }
+          main {
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+        }
+      `}</style>
 
       {/* ── Generate New Report ── */}
-      <div className="card-flat p-6">
+      <div className="card-flat p-6 no-print">
         <h3 className="text-[14px] font-semibold text-slate-900 mb-5" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-          Generate New Report
+          Generate Legacy Report
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
           {/* Report Type */}
@@ -199,10 +305,10 @@ export default function ReportsPage() {
       </div>
 
       {/* ── Generated Reports Table ── */}
-      <div className="card-flat overflow-hidden">
+      <div className="card-flat overflow-hidden no-print">
         <div className="px-5 py-4 border-b border-border">
           <h3 className="text-[14px] font-semibold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-            Generated Reports
+            Generated Reports Archive
           </h3>
         </div>
         <div className="overflow-x-auto">

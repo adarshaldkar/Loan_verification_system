@@ -132,3 +132,38 @@ export const getCaseById = async (req: AuthRequest, res: Response) => {
     return apiError(res, 'Failed to load case details', 500, error);
   }
 };
+
+export const assignBulkCases = async (req: AuthRequest, res: Response) => {
+  try {
+    const adminId = req.user?.id;
+    const { caseIds, agentId } = req.body;
+
+    if (!caseIds || !Array.isArray(caseIds) || caseIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'No cases provided' });
+    }
+
+    if (!agentId) {
+      return res.status(400).json({ success: false, message: 'Agent ID is required' });
+    }
+
+    const agent = await (prisma.user as any).findFirst({ where: { id: agentId, role: 'FIELD_AGENT', adminId } });
+    if (!agent) return res.status(404).json({ success: false, message: 'Field Agent not found under your account' });
+
+    const updated = await prisma.verificationCase.updateMany({
+      where: { id: { in: caseIds }, adminId },
+      data: { agentId, status: 'ASSIGNED' }
+    });
+
+    await createAuditLog({
+      actor: `Admin (${adminId})`,
+      action: 'Bulk assigned cases to agent',
+      entity: `${updated.count} cases → ${parseFullName(agent.firstName, agent.lastName)}`,
+      ip: req.ip || 'system',
+      adminId,
+    });
+
+    return res.status(200).json({ success: true, message: `Successfully assigned ${updated.count} cases to ${parseFullName(agent.firstName, agent.lastName)}` });
+  } catch (error: any) {
+    return apiError(res, 'Failed to assign cases', 500, error);
+  }
+};

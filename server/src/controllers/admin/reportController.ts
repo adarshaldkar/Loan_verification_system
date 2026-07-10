@@ -11,6 +11,42 @@ export const getReports = async (req: Request, res: Response) => {
   }
 };
 
+export const getReportMetrics = async (req: Request, res: Response) => {
+  try {
+    const { timeframe } = req.query; // 'daily', 'weekly', 'monthly'
+    let startDate = new Date();
+
+    if (timeframe === 'weekly') {
+      startDate.setDate(startDate.getDate() - 7);
+    } else if (timeframe === 'monthly') {
+      startDate.setMonth(startDate.getMonth() - 1);
+    } else {
+      // default to daily (last 24 hours)
+      startDate.setDate(startDate.getDate() - 1);
+    }
+
+    const cases = await prisma.verificationCase.findMany({
+      where: {
+        updatedAt: {
+          gte: startDate
+        }
+      }
+    });
+
+    const metrics = {
+      completed: cases.filter(c => c.status === 'COMPLETED').length,
+      inProgress: cases.filter(c => c.status === 'PENDING' || c.status === 'IN_PROGRESS').length,
+      rejected: cases.filter(c => c.status === 'REJECTED').length,
+      approved: cases.filter(c => c.status === 'APPROVED').length,
+      total: cases.length,
+    };
+
+    return res.status(200).json({ success: true, data: metrics });
+  } catch (error: any) {
+    return apiError(res, 'Failed to fetch report metrics', 500, error);
+  }
+};
+
 export const generateReport = async (req: Request, res: Response) => {
   try {
     const { reportType, format, dateRange } = req.body;

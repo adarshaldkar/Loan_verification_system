@@ -7,8 +7,9 @@ import {
   FiGrid, FiUsers, FiUserCheck, FiBriefcase, FiUploadCloud,
   FiBarChart2, FiGitBranch, FiFileText, FiSettings, FiUser,
   FiLogOut, FiShield, FiChevronLeft, FiChevronRight,
-  FiBell, FiSearch, FiMenu, FiCheckCircle, FiAlertCircle, FiInfo, FiMapPin,
+  FiBell, FiSearch, FiMenu, FiCheckCircle, FiAlertCircle, FiInfo, FiMapPin, FiStar, FiSun, FiMoon
 } from "react-icons/fi";
+
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -32,12 +33,14 @@ const navItems = [
   { label: "Live Tracking",href: "/app/tracking",    icon: FiMapPin },
   { label: "Admins",       href: "/app/admins",      icon: FiShield },
   { label: "Cases",        href: "/app/cases",       icon: FiBriefcase },
+  { label: "Verification", href: "/app/verification", icon: FiStar },
   { label: "Excel Upload", href: "/app/upload",      icon: FiUploadCloud },
   { label: "Reports",      href: "/app/reports",     icon: FiBarChart2 },
   { label: "Branches",     href: "/app/branches",    icon: FiGitBranch },
   { label: "Audit Logs",   href: "/app/audit-logs",  icon: FiFileText },
   { label: "Settings",     href: "/app/settings",    icon: FiSettings },
   { label: "Profile",      href: "/app/profile",     icon: FiUser },
+  { label: "Approved",     href: "/app/approved",    icon: FiCheckCircle },
 ];
 
 /* ─── Sidebar Content ────────────────────────────────────────────────────── */
@@ -131,9 +134,18 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [adminProfile, setAdminProfile] = useState<{ name: string; email: string; initials: string } | null>(null);
+  const [theme, setTheme] = useState("light");
   const router = useRouter();
 
   useEffect(() => {
+    // Theme setup
+    const saved = localStorage.getItem("theme");
+    if (saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+      setTheme("dark");
+      document.documentElement.classList.add("dark");
+    }
+
+    // Profile setup
     fetch('http://localhost:5000/api/v1/admin/profile', { credentials: 'include' })
       .then(r => r.json())
       .then(res => {
@@ -147,6 +159,17 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
       })
       .catch(() => {});
   }, []);
+
+  const toggleTheme = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
 
   // Admin notifications are not yet fully wired to the backend
   const notifications: any[] = [];
@@ -163,6 +186,7 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
     { label: "Audit Logs",   href: "/app/audit-logs",  icon: FiFileText,    hint: "Activity trail" },
     { label: "Settings",     href: "/app/settings",    icon: FiSettings,    hint: "System settings" },
     { label: "Profile",      href: "/app/profile",     icon: FiUser,        hint: "My account" },
+    { label: "Approved",     href: "/app/approved",    icon: FiCheckCircle, hint: "Approved documents" },
   ];
 
   const filtered = quickLinks.filter(
@@ -243,6 +267,13 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
         </button>
 
       <div className="ml-auto flex items-center gap-2">
+        <button
+          onClick={toggleTheme}
+          className="relative inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors outline-none"
+          aria-label="Toggle dark mode"
+        >
+          {theme === "dark" ? <FiSun className="w-5 h-5" /> : <FiMoon className="w-5 h-5" />}
+        </button>
         {/* Notifications dropdown */}
         <DropdownMenu open={notifOpen} onOpenChange={setNotifOpen}>
           <DropdownMenuTrigger

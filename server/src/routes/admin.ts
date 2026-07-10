@@ -5,13 +5,14 @@ import { authenticateToken, requireRole } from '../middlewares/auth';
 import { getDashboard, getAnalytics } from '../controllers/admin/dashboardController';
 import { getCustomers, createCustomerAndCase } from '../controllers/admin/customerController';
 import { getAgents, toggleAgentStatus, updateAgent } from '../controllers/admin/agentController';
-import { getCases, assignCase, updateCaseStatus, getCaseById } from '../controllers/admin/caseController';
+import { getCases, assignCase, assignBulkCases, updateCaseStatus, getCaseById } from '../controllers/admin/caseController';
+import { getCompletedCases, getVerificationDetail, reviewCase } from '../controllers/admin/verificationController';
 import { getBranches, createBranch } from '../controllers/admin/branchController';
-import { getReports, generateReport } from '../controllers/admin/reportController';
+import { getReports, generateReport, getReportMetrics } from '../controllers/admin/reportController';
 import { getAuditLogs } from '../controllers/admin/auditLogController';
 import { getSettings, updateSettings } from '../controllers/admin/settingsController';
 import { getProfile } from '../controllers/admin/profileController';
-import { bulkUploadCases } from '../controllers/admin/uploadController';
+import { bulkUploadCases, getBatchStatus } from '../controllers/admin/uploadController';
 import { registerAgent } from '../controllers/authController';
 import { registerAdmin, getAdmins } from '../controllers/admin/manageAdminsController';
 
@@ -38,8 +39,14 @@ router.post('/customers', createCustomerAndCase);
 // ── Cases ──────────────────────────────────────────────────────────────────
 router.get('/cases', getCases);
 router.get('/cases/:caseId', getCaseById);
+router.put('/cases/bulk-assign', assignBulkCases);
 router.put('/cases/:caseId/assign', assignCase);
 router.put('/cases/:caseId/status', updateCaseStatus);
+
+// ── Verification Review ────────────────────────────────────────────────────
+router.get('/verification', getCompletedCases);
+router.get('/verification/:caseId', getVerificationDetail);
+router.post('/verification/:caseId/review', reviewCase);
 
 // ── Branches ───────────────────────────────────────────────────────────────
 router.get('/branches', getBranches);
@@ -47,6 +54,7 @@ router.post('/branches', createBranch);
 
 // ── Reports ────────────────────────────────────────────────────────────────
 router.get('/reports', getReports);
+router.get('/reports/metrics', getReportMetrics);
 router.post('/reports/generate', generateReport);
 
 // ── Audit Logs ─────────────────────────────────────────────────────────────
@@ -59,6 +67,7 @@ router.put('/settings', updateSettings);
 
 // ── Bulk Upload ────────────────────────────────────────────────────────────
 router.post('/upload/bulk', bulkUploadCases);
+router.get('/upload/batch/:batchId', getBatchStatus);
 
 // ── Admins ──────────────────────────────────────────────────────────────────
 router.get('/admins', getAdmins);

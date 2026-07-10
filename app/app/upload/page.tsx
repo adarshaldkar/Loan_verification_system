@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
-  FiUploadCloud, FiDownload, FiFile, FiX, FiCheckCircle, FiAlertCircle, FiFileText,
+  FiUploadCloud, FiDownload, FiFile, FiX, FiCheckCircle, FiAlertCircle, FiFileText, FiRefreshCw, FiUserPlus, FiUsers
 } from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -10,9 +11,10 @@ import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { uploadBulkCasesApi } from "@/lib/api";
+import { uploadBulkCasesApi, getBatchStatusApi, getAgentsApi, assignBulkCasesApi } from "@/lib/api";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-type UploadState = "idle" | "uploading" | "validating" | "done";
+type UploadState = "idle" | "uploading" | "validating" | "processing" | "done" | "assigning";
 
 type ParsedRow = {
   row: number;
@@ -21,6 +23,7 @@ type ParsedRow = {
   address: string;
   loanAmount: string;
   loanType: string;
+  type: string;
   status: "valid" | "error";
   error: string | null;
 };
@@ -40,35 +43,73 @@ function downloadBlob(content: string, filename: string, mime = "text/plain") {
 /* ─── Upload Page ────────────────────────────────────────────────────────── */
 
 export default function UploadPage() {
+  const router = useRouter();
   const [state, setState]     = useState<UploadState>("idle");
   const [progress, setProgress] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [file, setFile]       = useState<File | null>(null);
   const [results, setResults] = useState<ParsedRow[]>([]);
-  const inputRef              = useRef<HTMLInputElement>(null);
+  const [batchId, setBatchId] = useState<string | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{
+    processedRows: number;
+    totalRows: number;
+    validRows: number;
+    errorRows: number;
+    status: string;
+    message: string;
+    caseIds?: string[];
+  } | null>(null);
+
+  const [agents, setAgents] = useState<any[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState<string>("");
+  const [assigning, setAssigning] = useState(false);
+
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Fetch agents in case they decide to assign
+    getAgentsApi().then((res) => {
+      const activeAgents = res.data.data.filter((a: any) => a.status === 'Active');
+      setAgents(activeAgents);
+    }).catch(() => {});
+  }, []);
 
   async function processFile(f: File) {
     setFile(f);
     setState("uploading");
-    setProgress(25);
+    setProgress(20);
     
     try {
       const data = await f.arrayBuffer();
-      setProgress(50);
+      setProgress(40);
       const workbook = XLSX.read(data);
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const json: any[] = XLSX.utils.sheet_to_json(worksheet);
       
-      setProgress(75);
+      const sheetRows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      const headers = sheetRows[0] || [];
+
+      const requiredHeaders = ['Customer Name', 'Phone Number', 'Address', 'Loan Amount', 'Loan Type', 'Case Type'];
+      const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+
+      if (missingHeaders.length > 0) {
+        toast.error(`Not in the required format! Missing columns: ${missingHeaders.join(", ")}`);
+        setState("idle");
+        setFile(null);
+        return;
+      }
+
+      setProgress(60);
       setState("validating");
       
+      const json: any[] = XLSX.utils.sheet_to_json(worksheet);
       const parsed: ParsedRow[] = json.map((r: any, index: number) => {
-        const name = r['Customer Name'] || r['Name'] || '';
-        const phone = r['Phone'] || r['Phone Number'] || '';
+        const name = r['Customer Name'] || '';
+        const phone = r['Phone Number'] || '';
         const address = r['Address'] || '';
         const loanAmount = r['Loan Amount'] || '';
         const loanType = r['Loan Type'] || '';
+        const type = r['Case Type'] || 'RESIDENTIAL';
         
         let status: "valid" | "error" = "valid";
         let error = null;
@@ -77,14 +118,16 @@ export default function UploadPage() {
         else if (!phone) { status = "error"; error = "Missing phone number"; }
         else if (!address) { status = "error"; error = "Missing address"; }
         
-        return { row: index + 2, name, phone, address, loanAmount, loanType, status, error };
+        return { row: index + 2, name, phone, address, loanAmount, loanType, type, status, error };
       });
 
       setTimeout(() => {
         setResults(parsed);
         setProgress(100);
         setState("done");
+        toast.success("Excel format matches successfully! Ready to import.");
       }, 500);
+
     } catch (error) {
       toast.error("Failed to parse the file. Please ensure it's a valid Excel (.xlsx) file.");
       setState("idle");
@@ -95,7 +138,7 @@ export default function UploadPage() {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (f) processFile(f);
-    e.target.value = ""; // reset so same file can be re-selected
+    e.target.value = ""; 
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -112,16 +155,70 @@ export default function UploadPage() {
       return;
     }
 
+    setState("processing");
+    setProgress(0);
+
     try {
-      const res = await uploadBulkCasesApi(validRows);
-      toast.success(res.data.message || `${validRows.length} valid rows imported successfully!`);
-      setState("idle");
-      setFile(null);
-      setResults([]);
+      const res = await uploadBulkCasesApi(file!.name, validRows);
+      const bId = res.data.batchId;
+      setBatchId(bId);
+      
+      toast.success("Successfully uploaded! Beginning background processing...");
+
+      const interval = setInterval(async () => {
+        try {
+          const statusRes = await getBatchStatusApi(bId);
+          const data = statusRes.data.data;
+          setBatchProgress(data);
+
+          const pct = data.totalRows > 0 ? (data.processedRows / data.totalRows) * 100 : 100;
+          setProgress(pct);
+
+          if (data.status === "COMPLETED" || data.status === "FAILED") {
+            clearInterval(interval);
+            toast.success(data.message || "Background Import Complete!");
+            if (data.status === "COMPLETED" && data.caseIds?.length > 0) {
+               setState("assigning");
+            } else {
+               setState("idle");
+               setFile(null);
+               setResults([]);
+            }
+          }
+        } catch (err) {
+          clearInterval(interval);
+          toast.error("Failed to fetch background progress updates.");
+          setState("idle");
+        }
+      }, 700);
+
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to import data.");
+      toast.error(error.response?.data?.message || "Failed to start bulk import.");
+      setState("done");
     }
   }
+
+  const handleBulkAssign = async () => {
+    if (!selectedAgentId) {
+      toast.error("Please select an agent first.");
+      return;
+    }
+    if (!batchProgress?.caseIds || batchProgress.caseIds.length === 0) {
+      toast.error("No valid cases to assign.");
+      return;
+    }
+
+    setAssigning(true);
+    try {
+      await assignBulkCasesApi(batchProgress.caseIds, selectedAgentId);
+      toast.success("Successfully assigned all cases to agent!");
+      router.push("/app/cases");
+    } catch (err: any) {
+      toast.error("Failed to bulk assign cases.");
+    } finally {
+      setAssigning(false);
+    }
+  };
 
   const validCount = results.filter((r) => r.status === "valid").length;
   const errorCount = results.filter((r) => r.status === "error").length;
@@ -136,19 +233,25 @@ export default function UploadPage() {
             variant="outline"
             className="gap-2 text-sm"
             onClick={() => {
-              const ws = XLSX.utils.json_to_sheet([{ "Customer Name": "John Doe", "Phone Number": "1234567890", "Address": "123 Main St", "Loan Amount": 50000, "Loan Type": "Personal" }]);
+              const ws = XLSX.utils.json_to_sheet([{
+                "Customer Name": "John Doe",
+                "Phone Number": "9876543210",
+                "Address": "123 Main St, Bangalore",
+                "Loan Amount": 50000,
+                "Loan Type": "Personal",
+                "Case Type": "RESIDENTIAL"
+              }]);
               const wb = XLSX.utils.book_new();
               XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
               XLSX.writeFile(wb, "sample_leads.xlsx");
             }}
           >
             <FiDownload className="w-4 h-4" />
-            Sample Excel (.xlsx)
+            Sample Excel Template (.xlsx)
           </Button>
         }
       />
 
-      {/* Drop Zone — shown when idle */}
       {state === "idle" && (
         <div
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
@@ -170,24 +273,23 @@ export default function UploadPage() {
               Drag and drop your Excel/CSV file here
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              or click to browse · .xlsx, .xls, .csv accepted · Max 10 MB
+              or click to browse · .xlsx format required
             </p>
           </div>
           <Button className="text-white gap-2" style={{ background: "#1E3A5F" }}>
-            <FiUploadCloud className="w-4 h-4" />
-            Choose File
+            <FiFile className="w-4 h-4" />
+            Select Excel File
           </Button>
           <input
             ref={inputRef}
             type="file"
-            accept=".xlsx,.xls,.csv"
+            accept=".xlsx"
             className="hidden"
             onChange={handleFileChange}
           />
         </div>
       )}
 
-      {/* Progress */}
       {(state === "uploading" || state === "validating") && (
         <div className="card-flat p-8 flex flex-col items-center gap-5">
           <div className="flex items-center gap-3 w-full max-w-sm bg-slate-50 border border-border rounded-xl px-4 py-3">
@@ -201,7 +303,7 @@ export default function UploadPage() {
           </div>
           <div className="w-full max-w-sm text-center">
             <p className="text-xs text-slate-400 mb-3">
-              {state === "uploading" ? "Uploading…" : "Validating rows…"}
+              {state === "uploading" ? "System Uploading File..." : "Validating columns & structure..."}
             </p>
             <Progress value={progress} className="h-2" />
             <p className="text-xs text-slate-400 mt-2">{Math.round(progress)}%</p>
@@ -209,7 +311,38 @@ export default function UploadPage() {
         </div>
       )}
 
-      {/* Results */}
+      {state === "processing" && (
+        <div className="card-flat p-8 flex flex-col items-center gap-5 bg-blue-50/20 border-blue-200 border">
+          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center animate-spin">
+            <FiRefreshCw className="w-6 h-6 text-[#1E3A5F]" />
+          </div>
+          <div className="w-full max-w-md text-center space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-800">Background Data Import Active</h3>
+              <p className="text-xs text-slate-400 mt-1">
+                {batchProgress?.message || "Validating and importing customer profiles..."}
+              </p>
+            </div>
+            
+            <Progress value={progress} className="h-2" />
+            
+            <div className="flex justify-between text-xs text-slate-400 px-1">
+              <span>Processed: {batchProgress?.processedRows || 0} / {batchProgress?.totalRows || 0}</span>
+              <span>{Math.round(progress)}% Complete</span>
+            </div>
+
+            <div className="flex gap-4 justify-center pt-2">
+              <span className="text-xs text-teal-600 font-semibold bg-teal-50 px-3 py-1 rounded-full">
+                Valid: {batchProgress?.validRows || 0}
+              </span>
+              <span className="text-xs text-rose-600 font-semibold bg-rose-50 px-3 py-1 rounded-full">
+                Errors: {batchProgress?.errorRows || 0}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {state === "done" && (
         <div className="space-y-5">
           <div className="flex items-center gap-3 card-flat px-5 py-4">
@@ -218,7 +351,7 @@ export default function UploadPage() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-slate-900 truncate">{file?.name}</p>
-              <p className="text-xs text-slate-400">{file ? (file.size / 1024).toFixed(1) + " KB · Uploaded just now" : ""}</p>
+              <p className="text-xs text-slate-400">{file ? (file.size / 1024).toFixed(1) + " KB · Uploaded successfully" : ""}</p>
             </div>
             <Button
               variant="ghost" size="sm"
@@ -288,7 +421,7 @@ export default function UploadPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-slate-50">
-                    {["Row", "Name", "Phone", "Address", "Status"].map((h) => (
+                    {["Row", "Name", "Phone", "Address", "Loan Amount", "Case Type", "Status"].map((h) => (
                       <th key={h} className="px-5 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                         {h}
                       </th>
@@ -301,14 +434,16 @@ export default function UploadPage() {
                       <td className="px-5 py-3 text-slate-400 text-xs font-mono">{r.row}</td>
                       <td className="px-5 py-3 text-slate-900">{r.name || <span className="text-rose-500 italic">Missing</span>}</td>
                       <td className="px-5 py-3 text-slate-600">{r.phone || <span className="text-rose-500 italic">Missing</span>}</td>
-                      <td className="px-5 py-3 text-slate-600">{r.address || <span className="text-rose-500 italic">Missing</span>}</td>
+                      <td className="px-5 py-3 text-slate-600 truncate max-w-[200px]" title={r.address}>{r.address || <span className="text-rose-500 italic">Missing</span>}</td>
+                      <td className="px-5 py-3 text-slate-600">{r.loanAmount || "—"}</td>
+                      <td className="px-5 py-3 text-slate-600 font-mono text-xs">{r.type}</td>
                       <td className="px-5 py-3">
                         {r.status === "valid" ? (
-                          <span className="flex items-center gap-1.5 text-xs font-medium badge-completed px-2.5 py-0.5 rounded-full w-fit">
+                          <span className="flex items-center gap-1.5 text-xs font-medium bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full w-fit">
                             <FiCheckCircle className="w-3 h-3" /> Valid
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1.5 text-xs font-medium badge-rejected px-2.5 py-0.5 rounded-full w-fit">
+                          <span className="flex items-center gap-1.5 text-xs font-medium bg-rose-50 text-rose-700 px-2.5 py-0.5 rounded-full w-fit">
                             <FiAlertCircle className="w-3 h-3" /> {r.error}
                           </span>
                         )}
@@ -321,6 +456,55 @@ export default function UploadPage() {
           </div>
         </div>
       )}
+
+      {/* Assignment State */}
+      {state === "assigning" && (
+        <div className="card-flat p-8 flex flex-col items-center gap-6 bg-white border border-green-100">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
+            <FiCheckCircle className="w-8 h-8 text-emerald-600" />
+          </div>
+          <div className="text-center">
+            <h3 className="text-xl font-bold text-slate-900">Cases Created Successfully!</h3>
+            <p className="text-sm text-slate-500 mt-2">
+              {batchProgress?.validRows} new verification cases have been imported. What would you like to do next?
+            </p>
+          </div>
+
+          <div className="w-full max-w-lg mt-4 space-y-5">
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col gap-4">
+              <div className="flex items-center gap-2 text-slate-800 font-semibold">
+                <FiUsers className="w-5 h-5 text-blue-600" />
+                Assign all {batchProgress?.validRows} cases to one agent
+              </div>
+              <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
+                <SelectTrigger className="w-full bg-white">
+                  <SelectValue placeholder="Select an agent..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {agents.map(a => (
+                    <SelectItem key={a.id} value={a.id}>{a.name} ({a.branch || 'No branch'})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button onClick={handleBulkAssign} disabled={assigning || !selectedAgentId} className="w-full bg-[#1E3A5F] text-white">
+                {assigning ? "Assigning..." : "Assign Bulk to Agent"}
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-4 py-2">
+              <div className="h-px bg-slate-200 flex-1"></div>
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-widest">or</span>
+              <div className="h-px bg-slate-200 flex-1"></div>
+            </div>
+
+            <Button variant="outline" className="w-full gap-2 border-slate-300 text-slate-700 font-semibold hover:bg-slate-50" onClick={() => router.push("/app/cases")}>
+              <FiUserPlus className="w-4 h-4" />
+              View Cases & Assign Individually
+            </Button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

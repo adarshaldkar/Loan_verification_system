@@ -8,11 +8,11 @@ const api = axios.create({
   withCredentials: true, // Crucial for sending/receiving HttpOnly cookies
 });
 
-// Auto-logout on 401 — redirect to correct login page based on current path
+// Auto-logout on 401/403 — redirect to correct login page based on current path
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== "undefined") {
+    if ((error.response?.status === 401 || error.response?.status === 403) && typeof window !== "undefined") {
       localStorage.removeItem("lvms_user");
       localStorage.removeItem("lvms_agent");
       const isAgentPath = window.location.pathname.startsWith("/agent");
@@ -66,16 +66,16 @@ export const createCustomerApi = (data: {
 }) => api.post("/admin/customers", data);
 
 // ─── Cases ────────────────────────────────────────────────────────────────
-export const getCasesApi = (status?: string) =>
-  api.get("/admin/cases", { params: status && status !== "All" ? { status } : {} });
-export const getCaseByIdAdminApi = (caseId: string) =>
-  api.get(`/admin/cases/${caseId}`);
-export const assignCaseApi = (caseId: string, agentId: string) =>
-  api.put(`/admin/cases/${caseId}/assign`, { agentId });
-export const updateCaseStatusApi = (caseId: string, status: "COMPLETED" | "REJECTED") =>
-  api.put(`/admin/cases/${caseId}/status`, { status });
-export const uploadBulkCasesApi = (rows: any[]) =>
-  api.post("/admin/upload/bulk", { rows });
+export const getCasesApi = (status?: string) => api.get(`/admin/cases${status && status !== "All" ? `?status=${status}` : ""}`);
+export const getCaseByIdAdminApi = (caseId: string) => api.get(`/admin/cases/${caseId}`);
+export const assignCaseApi = (caseId: string, agentId: string) => api.put(`/admin/cases/${caseId}/assign`, { agentId });
+export const assignBulkCasesApi = (caseIds: string[], agentId: string) => api.put(`/admin/cases/bulk-assign`, { caseIds, agentId });
+export const updateCaseStatusApi = (caseId: string, status: string) => api.put(`/admin/cases/${caseId}/status`, { status });
+export const uploadBulkCasesApi = (fileName: string, rows: any[]) =>
+  api.post("/admin/upload/bulk", { fileName, rows });
+
+export const getBatchStatusApi = (batchId: string) =>
+  api.get(`/admin/upload/batch/${batchId}`);
 
 // ─── Branches ─────────────────────────────────────────────────────────────
 export const getBranchesApi = () => api.get("/admin/branches");
@@ -85,6 +85,7 @@ export const createBranchApi = (data: {
 
 // ─── Reports ──────────────────────────────────────────────────────────────
 export const getReportsApi = () => api.get("/admin/reports");
+export const getReportMetricsApi = (timeframe: string) => api.get(`/admin/reports/metrics?timeframe=${timeframe}`);
 export const generateReportApi = (data: {
   reportType: string; format: string; dateRange?: string;
 }) => api.post("/admin/reports/generate", data);
@@ -147,3 +148,15 @@ export const getActiveRidesApi = () =>
   api.get("/admin/tracking/active");
 export const getRideHistoryApi = (rideId: string) =>
   api.get(`/admin/tracking/history/${rideId}`);
+
+// ─── Admin Verification APIs ───────────────────────────────────────────────
+export const getCompletedCasesApi = () =>
+  api.get("/admin/verification");
+
+export const getVerificationDetailApi = (caseId: string) =>
+  api.get(`/admin/verification/${caseId}`);
+
+export const reviewCaseApi = (caseId: string, data: {
+  decision: "APPROVED" | "REJECTED" | "NEEDS_REVISION";
+  adminRemarks?: string;
+}) => api.post(`/admin/verification/${caseId}/review`, data);

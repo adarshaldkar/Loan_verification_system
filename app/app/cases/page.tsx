@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { FiSearch, FiFilter, FiEye, FiUserPlus, FiFile } from "react-icons/fi";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { StatusBadge, type VerificationStatus } from "@/components/shared/status
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { getCasesApi } from "@/lib/api";
+import { getCasesApi, getAgentsApi, assignCaseApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type Case = {
@@ -26,36 +26,51 @@ type Case = {
   overdue: boolean;
 };
 
-/* ─── Cases Page ─────────────────────────────────────────────────────────── */
-
 export default function CasesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
   const [casesList, setCasesList] = useState<Case[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchCases() {
-      try {
-        setLoading(true);
-        const mapStatus = (s: string) => {
-          if (s === "Pending") return "PENDING";
-          if (s === "In Progress") return "IN_PROGRESS";
-          if (s === "Completed") return "COMPLETED";
-          if (s === "Rejected") return "REJECTED";
-          return "All";
-        };
-        const res = await getCasesApi(mapStatus(statusFilter));
-        setCasesList(res.data.data);
-      } catch (err) {
-        toast.error("Failed to load cases");
-      } finally {
-        setLoading(false);
-      }
+  const fetchCases = useCallback(async () => {
+    try {
+      setLoading(true);
+      const mapStatus = (s: string) => {
+        if (s === "Pending") return "PENDING";
+        if (s === "In Progress") return "IN_PROGRESS";
+        if (s === "Completed") return "COMPLETED";
+        if (s === "Rejected") return "REJECTED";
+        return "All";
+      };
+      const res = await getCasesApi(mapStatus(statusFilter));
+      setCasesList(res.data.data);
+    } catch (err) {
+      toast.error("Failed to load cases");
+    } finally {
+      setLoading(false);
     }
-    fetchCases();
   }, [statusFilter]);
+
+  useEffect(() => {
+    fetchCases();
+    getAgentsApi().then((res) => {
+      const activeAgents = res.data.data.filter((a: any) => a.status === 'Active');
+      setAgents(activeAgents);
+    }).catch(() => {});
+  }, [fetchCases]);
+
+  const handleAssignAgent = async (caseId: string, agentId: string) => {
+    if (!agentId) return;
+    try {
+      await assignCaseApi(caseId, agentId);
+      toast.success("Agent assigned successfully");
+      fetchCases();
+    } catch (err) {
+      toast.error("Failed to assign agent");
+    }
+  };
 
   const filtered = casesList.filter((c) => {
     const matchSearch =
@@ -78,7 +93,6 @@ export default function CasesPage() {
         }
       />
 
-      {/* ── Filters ── */}
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -114,7 +128,6 @@ export default function CasesPage() {
         </Select>
       </div>
 
-      {/* ── Table ── */}
       <div className="card-flat overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -152,7 +165,7 @@ export default function CasesPage() {
                   <tr
                     key={c.id}
                     className={cn(
-                      "hover:bg-slate-50 cursor-pointer transition-colors",
+                      "hover:bg-slate-50 transition-colors",
                       c.overdue && "bg-amber-50 hover:bg-amber-100"
                     )}
                   >
@@ -165,13 +178,44 @@ export default function CasesPage() {
                     <td className="px-5 py-3.5 font-medium text-slate-900">{c.customer}</td>
                     <td className="px-5 py-3.5 text-slate-500">{c.type}</td>
                     <td className="px-5 py-3.5"><StatusBadge status={c.status} /></td>
-                    <td className="px-5 py-3.5 text-slate-500">{c.agent}</td>
+                    <td className="px-5 py-3.5">
+                      {c.agent === "Not Assigned" || c.agent === "Unassigned" ? (
+                        <Select onValueChange={(val) => handleAssignAgent(c.id, val)}>
+                          <SelectTrigger className="h-8 text-xs w-[160px] bg-white border-dashed border-slate-300">
+                            <SelectValue placeholder="Assign Agent..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {agents.map((a) => (
+                              <SelectItem key={a.id} value={a.id} className="text-xs">
+                                {a.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-700 font-medium truncate max-w-[100px]" title={c.agent}>{c.agent}</span>
+                          <Select onValueChange={(val) => handleAssignAgent(c.id, val)}>
+                            <SelectTrigger className="h-6 w-6 p-0 border border-slate-200 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-md">
+                              <span className="sr-only">Reassign</span>
+                            </SelectTrigger>
+                            <SelectContent>
+                              {agents.map((a) => (
+                                <SelectItem key={a.id} value={a.id} className="text-xs">
+                                  {a.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </td>
                     <td className="px-5 py-3.5 text-slate-500">{c.branch}</td>
                     <td className={cn("px-5 py-3.5 text-xs whitespace-nowrap", c.overdue ? "text-amber-700 font-semibold" : "text-slate-400")}>
                       {c.overdue && "⚠ "}
                       {c.slaDue}
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className="px-5 py-3.5 text-right">
                       <Link href={`/app/cases/${c.id}`}>
                         <Button variant="ghost" size="icon" className="h-8 w-8">
                           <FiEye className="w-4 h-4 text-slate-400" />
