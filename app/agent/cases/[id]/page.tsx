@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { use } from "react";
 import {
   FiMapPin, FiPhone, FiNavigation, FiCheckCircle, FiPlayCircle,
   FiUser, FiBriefcase, FiChevronLeft, FiAlertTriangle, FiMail,
@@ -11,9 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect } from "react";
-
-/* ─── Mock Case Data ─────────────────────────────────────────────────────── */
+import { getAgentCaseByIdApi, updateAgentCaseStatusApi } from "@/lib/api";
 
 type CaseStatus = "ASSIGNED" | "TRAVELLING" | "AT_LOCATION" | "IN_PROGRESS" | "SUBMITTED" | "COMPLETED" | "RE_VERIFICATION";
 
@@ -76,8 +73,6 @@ const CASES: Record<string, {
   },
 };
 
-/* ─── Status Config ──────────────────────────────────────────────────────── */
-
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
   ASSIGNED:        { label: "Assigned",    color: "#1E3A5F", bg: "#EEF2FF" },
   TRAVELLING:      { label: "Travelling",  color: "#7C3AED", bg: "#EDE9FE" },
@@ -88,21 +83,54 @@ const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }>
   RE_VERIFICATION: { label: "Re-verify",   color: "#DC2626", bg: "#FEE2E2" },
 };
 
-/* ─── Case Details Page ──────────────────────────────────────────────────── */
-
 export default function CaseDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id }  = use(params);
   const router  = useRouter();
-  const caseData = CASES[id];
-
-  const [status, setStatus]     = useState<CaseStatus>(caseData?.status ?? "ASSIGNED");
+  
+  const [caseData, setCaseData] = useState<any>(null);
+  const [status, setStatus]     = useState<CaseStatus>("ASSIGNED");
   const [showMap, setShowMap]   = useState(false);
   const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
+    async function load() {
+      try {
+        const res = await getAgentCaseByIdApi(id);
+        const fetched = res.data.data;
+        // Map database fields to front-end schema
+        setCaseData({
+          id: fetched.id,
+          customer: fetched.customer,
+          phone: fetched.phone,
+          email: fetched.email || "N/A",
+          address: fetched.address,
+          lat: fetched.gpsLatitude || 12.9716,
+          lng: fetched.gpsLongitude || 77.5946,
+          loanType: fetched.loanType || "Verification Loan",
+          loanAmount: fetched.loanAmount ? `₹${fetched.loanAmount.toLocaleString()}` : "N/A",
+          verType: fetched.type,
+          branch: fetched.branch || "Unassigned",
+          priority: "Medium",
+          assignedOn: fetched.assignedOn,
+          status: fetched.status,
+          agentNote: fetched.remarks
+        });
+        setStatus(fetched.status);
+      } catch (err: any) {
+        console.error("Error loading case details via API:", err);
+        const mock = CASES[id];
+        if (mock) {
+          setCaseData(mock);
+          setStatus(mock.status);
+        } else {
+          toast.error("Failed to load case data");
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [id]);
 
   if (loading) {
     return (
@@ -153,32 +181,48 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const s = STATUS_STYLE[status];
+  const s = STATUS_STYLE[status] || { label: status, color: "#1E3A5F", bg: "#EEF2FF" };
 
   // ── Action handlers ──
   function handleCallCustomer() {
     window.open(`tel:${caseData.phone}`);
   }
 
-  function handleStartNavigation() {
+  async function handleStartNavigation() {
     if (status === "ASSIGNED") {
-      setStatus("TRAVELLING");
+      try {
+        await updateAgentCaseStatusApi(id, "TRAVELLING");
+        setStatus("TRAVELLING");
+      } catch (err) {
+        console.error("Failed to update status on API:", err);
+      }
       setShowMap(true);
-      toast.success("Navigation started. Case status: Travelling. Opening Google Maps...");
+      toast.success("Navigation started. Case status: Travelling.");
     } else {
       setShowMap(true);
     }
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${caseData.lat},${caseData.lng}`, "_blank");
   }
 
-  function handleArrived() {
-    setStatus("AT_LOCATION");
-    setShowMap(false);
-    toast.success("Arrival confirmed! You can now start verification.");
+  async function handleArrived() {
+    try {
+      await updateAgentCaseStatusApi(id, "AT_LOCATION");
+      setStatus("AT_LOCATION");
+      setShowMap(false);
+      toast.success("Arrival confirmed! You can now start verification.");
+    } catch (err) {
+      console.error("Failed to update status on API:", err);
+      toast.error("Failed to update status");
+    }
   }
 
-  function handleStartVerification() {
-    setStatus("IN_PROGRESS");
+  async function handleStartVerification() {
+    try {
+      await updateAgentCaseStatusApi(id, "IN_PROGRESS");
+      setStatus("IN_PROGRESS");
+    } catch (err) {
+      console.error("Failed to update status on API:", err);
+    }
     router.push(`/agent/verify/${id}`);
   }
 
@@ -188,7 +232,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
   const isReadOnly     = status === "SUBMITTED" || status === "COMPLETED";
 
   return (
-    <div className="space-y-4 pb-24">
+    <div className="space-y-4 pb-24 text-slate-800" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
       {/* Back + Title */}
       <div>
         <button
@@ -197,10 +241,14 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
         >
           <FiChevronLeft className="w-4 h-4" /> Assigned Cases
         </button>
+      </div>
+
+      {/* Main card */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-[11px] font-mono text-slate-400">{caseData.id}</p>
-            <h1 className="text-xl font-bold text-slate-900 mt-0.5" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
+            <h1 className="text-xl font-bold text-slate-900 mt-0.5">
               {caseData.customer}
             </h1>
           </div>
@@ -258,25 +306,23 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
           {[
             { label: "Loan Type",         value: caseData.loanType },
             { label: "Loan Amount",       value: caseData.loanAmount },
-            { label: "Verification Type", value: caseData.verType === "RESIDENTIAL" ? "Residential" : "Business" },
-            { label: "Branch",            value: caseData.branch },
             { label: "Priority",          value: caseData.priority },
             { label: "Assigned On",       value: caseData.assignedOn },
           ].map(({ label, value }) => (
-            <div key={label} className="bg-white p-3">
+            <div key={label} className="bg-white p-4">
               <p className="text-[10px] text-slate-400 mb-0.5">{label}</p>
-              <p className="text-[13px] font-semibold text-slate-800">{value}</p>
+              <p className="text-slate-800 font-semibold text-[13px]">{value}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Map */}
+      {/* Navigation Card */}
       {showMap && (
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FiMap className="w-4 h-4 text-[#1E3A5F]" />
+              <FiMapPin className="w-4 h-4 text-purple-500" />
               <h2 className="text-[13px] font-semibold text-slate-900">Route to Customer</h2>
             </div>
             <span className="text-[10px] text-purple-700 bg-purple-50 font-semibold px-2 py-0.5 rounded-full">
@@ -313,15 +359,15 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      {/* ── Sticky Action Buttons ── */}
+      {/* Sticky Action Buttons */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-4 py-3 z-40 shadow-lg lg:max-w-3xl lg:mx-auto">
         {isReadOnly ? (
           <div className="text-center py-2">
             <span
               className="text-sm font-semibold px-4 py-2 rounded-xl"
-              style={{ color: STATUS_STYLE[status]?.color, background: STATUS_STYLE[status]?.bg }}
+              style={{ color: (STATUS_STYLE[status] || STATUS_STYLE.COMPLETED).color, background: (STATUS_STYLE[status] || STATUS_STYLE.COMPLETED).bg }}
             >
-              {STATUS_STYLE[status]?.label} — No further action needed
+              {(STATUS_STYLE[status] || STATUS_STYLE.COMPLETED).label} — No further action needed
             </span>
           </div>
         ) : (
@@ -330,7 +376,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 onClick={handleCallCustomer}
-                className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 border-[#1E3A5F] text-[#1E3A5F] hover:bg-blue-50 transition-colors active:scale-95"
+                className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 border-slate-200 hover:bg-slate-50 transition-colors active:scale-95"
               >
                 <FiPhone className="w-4 h-4" /> Call Customer
               </button>
