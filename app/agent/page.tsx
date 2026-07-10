@@ -49,10 +49,26 @@ export default function AgentDashboard() {
   const [activeKpi, setActiveKpi] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [currentDate, setCurrentDate] = useState("May 27, 2026");
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [liveCases, setLiveCases] = useState<any[]>([]);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(timer);
+    async function loadDashboard() {
+      try {
+        const { getAgentDashboardApi, getAgentCasesApi } = await import("@/lib/api");
+        const [dashRes, casesRes] = await Promise.all([
+          getAgentDashboardApi(),
+          getAgentCasesApi(),
+        ]);
+        setDashboardData(dashRes.data.data);
+        setLiveCases(casesRes.data.data || []);
+      } catch (err) {
+        console.error("Failed to load dashboard data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadDashboard();
   }, []);
 
   if (loading) {
@@ -500,42 +516,35 @@ export default function AgentDashboard() {
           <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-[16px] font-bold text-gray-900">Current Case</h2>
-              <Link href="/agent/cases/CASE-2026-0893" className="text-xs font-semibold text-[#1E4DB7] hover:underline">
-                View details
-              </Link>
+              {liveCases[0] && (
+                <Link href={`/agent/cases/${liveCases[0].id}`} className="text-xs font-semibold text-[#1E4DB7] hover:underline">
+                  View details
+                </Link>
+              )}
             </div>
             
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-mono font-semibold text-gray-400">CASE-2026-0893</span>
-                <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">In Progress</span>
+            {liveCases[0] ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-mono font-semibold text-gray-400">{liveCases[0].id}</span>
+                  <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">{liveCases[0].status}</span>
+                </div>
+                <h3 className="text-[15px] font-bold text-gray-900">{liveCases[0].customer}</h3>
+                <p className="text-[11px] font-semibold text-gray-400">{liveCases[0].type === 'BUSINESS' ? 'Business' : 'Residential'} Verification</p>
+                
+                <div className="flex items-start gap-1.5 bg-gray-50 p-2.5 rounded-xl">
+                  <FiMapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                  <p className="text-xs text-gray-500 leading-snug">{liveCases[0].address}</p>
+                </div>
               </div>
-              <h3 className="text-[15px] font-bold text-gray-900">Vijay Enterprises</h3>
-              <p className="text-[11px] font-semibold text-gray-400">Business Verification</p>
-              
-              <div className="flex items-start gap-1.5 bg-gray-50 p-2.5 rounded-xl">
-                <FiMapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-gray-500 leading-snug">18, Lawspet Road, Lawspet, Pondicherry - 605008</p>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-400">No active cases assigned</p>
               </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 border-t border-b border-gray-100 py-3 text-center">
-              <div>
-                <p className="text-[10px] text-gray-400 font-semibold">Distance</p>
-                <p className="text-sm font-bold text-gray-900 mt-0.5">8.1 km</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400 font-semibold">Est. Time</p>
-                <p className="text-sm font-bold text-gray-900 mt-0.5">22 min</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400 font-semibold">Due Time</p>
-                <p className="text-sm font-bold text-gray-900 mt-0.5">02:30 PM</p>
-              </div>
-            </div>
+            )}
 
             <button
-              onClick={() => router.push("/agent/verify/CASE-2026-0893")}
+              onClick={() => liveCases[0] && router.push(`/agent/verify/${liveCases[0].id}`)}
               className="w-full text-white py-2.5 rounded-xl text-xs font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1.5"
               style={{ background: "#1E4DB7" }}
             >

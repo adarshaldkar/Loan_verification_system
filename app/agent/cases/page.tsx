@@ -1,40 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { FiSearch, FiFilter, FiMapPin, FiNavigation, FiChevronRight } from "react-icons/fi";
+import { FiSearch, FiFilter, FiMapPin, FiNavigation, FiChevronRight, FiRefreshCw } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect } from "react";
+import { getAgentCasesApi } from "@/lib/api";
+import { toast } from "sonner";
 
-/* ─── Mock Cases ─────────────────────────────────────────────────────────── */
-
-type CaseStatus = "ASSIGNED" | "TRAVELLING" | "AT_LOCATION" | "IN_PROGRESS" | "SUBMITTED" | "COMPLETED" | "RE_VERIFICATION";
-type CaseType   = "RESIDENTIAL" | "BUSINESS";
-type Priority   = "High" | "Medium" | "Low";
+type CaseStatus = "ASSIGNED" | "PENDING" | "TRAVELLING" | "AT_LOCATION" | "IN_PROGRESS" | "SUBMITTED" | "COMPLETED" | "RE_VERIFICATION" | "REJECTED";
+type CaseType   = "RESIDENTIAL" | "BUSINESS" | "ADDRESS";
 
 type AgentCase = {
   id: string;
   customer: string;
   type: CaseType;
   address: string;
-  priority: Priority;
-  distance: string;
+  priority: "High" | "Medium" | "Low";
   status: CaseStatus;
   assignedOn: string;
+  loanType: string;
+  branch: string;
 };
 
-const allCases: AgentCase[] = [
-  { id: "CASE-2026-0891", customer: "Ramesh Kumar",     type: "RESIDENTIAL", address: "123, 4th Cross Street, Anna Nagar, Trichy - 620018", priority: "High",   distance: "2.3 km", status: "ASSIGNED",       assignedOn: "Today, 10:30 AM" },
-  { id: "CASE-2026-0892", customer: "Lakshmi Devi",     type: "BUSINESS",    address: "56, Bharathi Nagar, Woraiyur, Trichy - 620003",       priority: "Medium", distance: "5.6 km", status: "ASSIGNED",       assignedOn: "Today, 12:00 PM" },
-  { id: "CASE-2026-0893", customer: "Vijay Enterprises",type: "BUSINESS",    address: "18, Lawspet Road, Lawspet, Pondicherry - 605008",     priority: "Medium", distance: "8.1 km", status: "IN_PROGRESS",    assignedOn: "Today, 02:30 PM" },
-  { id: "CASE-2026-0894", customer: "Suresh Babu",      type: "RESIDENTIAL", address: "9, East Street, Srirangam, Trichy - 620006",          priority: "Low",    distance: "12.4 km",status: "ASSIGNED",       assignedOn: "Yesterday" },
-  { id: "CASE-2026-0895", customer: "Karthik Traders",  type: "BUSINESS",    address: "77, Main Road, Thanjavur - 613001",                   priority: "Low",    distance: "18.7 km",status: "ASSIGNED",       assignedOn: "06 Jul 2026" },
-];
-
-const STATUS_FILTERS = ["All", "ASSIGNED", "IN_PROGRESS", "SUBMITTED", "COMPLETED", "RE_VERIFICATION"] as const;
+const STATUS_FILTERS = ["All", "ASSIGNED", "IN_PROGRESS", "SUBMITTED", "COMPLETED", "REJECTED"] as const;
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
+  PENDING:         { label: "Pending",     color: "#7C3AED", bg: "#EDE9FE" },
   ASSIGNED:        { label: "Assigned",    color: "#1E3A5F", bg: "#EEF2FF" },
   TRAVELLING:      { label: "Travelling",  color: "#7C3AED", bg: "#EDE9FE" },
   AT_LOCATION:     { label: "At Location", color: "#0D9488", bg: "#CCFBF1" },
@@ -42,19 +34,53 @@ const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }>
   SUBMITTED:       { label: "Submitted",   color: "#2563EB", bg: "#DBEAFE" },
   COMPLETED:       { label: "Completed",   color: "#0D9488", bg: "#CCFBF1" },
   RE_VERIFICATION: { label: "Re-verify",   color: "#DC2626", bg: "#FEE2E2" },
+  REJECTED:        { label: "Rejected",    color: "#DC2626", bg: "#FEE2E2" },
 };
+
+function getPriority(status: CaseStatus): "High" | "Medium" | "Low" {
+  if (status === "PENDING" || status === "ASSIGNED") return "High";
+  if (status === "IN_PROGRESS" || status === "RE_VERIFICATION") return "Medium";
+  return "Low";
+}
 
 /* ─── Assigned Cases Page ────────────────────────────────────────────────── */
 export default function AssignedCasesPage() {
   const router = useRouter();
-  const [search, setSearch]   = useState("");
-  const [filter, setFilter]   = useState<string>("All");
-  const [sortDist, setSortDist] = useState(false);
+  const [search, setSearch]     = useState("");
+  const [filter, setFilter]     = useState<string>("All");
   const [loading, setLoading]   = useState(true);
+  const [cases, setCases]       = useState<AgentCase[]>([]);
+  const [error, setError]       = useState<string | null>(null);
+
+  async function fetchCases() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getAgentCasesApi();
+      const fetched: AgentCase[] = (res.data.data || []).map((c: any) => ({
+        id: c.id,
+        customer: c.customer,
+        type: c.type as CaseType,
+        address: c.address,
+        priority: getPriority(c.status),
+        status: c.status as CaseStatus,
+        assignedOn: c.assignedOn,
+        loanType: c.loanType,
+        branch: c.branch,
+      }));
+      setCases(fetched);
+    } catch (err: any) {
+      console.error("Failed to load cases:", err);
+      const msg = err?.response?.data?.message || "Failed to load assigned cases";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
+    fetchCases();
   }, []);
 
   if (loading) {
@@ -73,10 +99,9 @@ export default function AssignedCasesPage() {
           ))}
         </div>
 
-        {/* Search & Sort Row Skeleton */}
+        {/* Search Row Skeleton */}
         <div className="flex gap-2">
           <Skeleton className="h-10 flex-1 rounded-xl" />
-          <Skeleton className="h-10 w-24 rounded-xl" />
         </div>
 
         {/* Cases List Skeleton */}
@@ -99,29 +124,51 @@ export default function AssignedCasesPage() {
     );
   }
 
-  const filtered = allCases
-    .filter((c) => {
-      const matchSearch =
-        c.customer.toLowerCase().includes(search.toLowerCase()) ||
-        c.id.toLowerCase().includes(search.toLowerCase()) ||
-        c.address.toLowerCase().includes(search.toLowerCase());
-      const matchFilter = filter === "All" || c.status === filter;
-      return matchSearch && matchFilter;
-    })
-    .sort((a, b) =>
-      sortDist
-        ? parseFloat(a.distance) - parseFloat(b.distance)
-        : 0
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center">
+          <FiFilter className="w-8 h-8 text-rose-400" />
+        </div>
+        <p className="text-slate-600 font-medium">Could not load assigned cases</p>
+        <p className="text-sm text-slate-400">{error}</p>
+        <button
+          onClick={fetchCases}
+          className="flex items-center gap-2 text-sm font-semibold text-white px-4 py-2 rounded-xl"
+          style={{ background: "#1E3A5F" }}
+        >
+          <FiRefreshCw className="w-4 h-4" /> Retry
+        </button>
+      </div>
     );
+  }
+
+  const filtered = cases.filter((c) => {
+    const matchSearch =
+      c.customer.toLowerCase().includes(search.toLowerCase()) ||
+      c.id.toLowerCase().includes(search.toLowerCase()) ||
+      c.address.toLowerCase().includes(search.toLowerCase());
+    const matchFilter = filter === "All" || c.status === filter;
+    return matchSearch && matchFilter;
+  });
 
   return (
     <div className="space-y-4 pb-8">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-          Assigned Cases
-        </h1>
-        <p className="text-sm text-slate-500 mt-0.5">{filtered.length} of {allCases.length} cases</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
+            Assigned Cases
+          </h1>
+          <p className="text-sm text-slate-500 mt-0.5">{filtered.length} of {cases.length} cases</p>
+        </div>
+        <button
+          onClick={fetchCases}
+          className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-slate-800 transition-colors shadow-sm"
+          title="Refresh"
+        >
+          <FiRefreshCw className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Search */}
@@ -153,16 +200,6 @@ export default function AssignedCasesPage() {
             {f === "All" ? "All" : STATUS_STYLE[f]?.label ?? f}
           </button>
         ))}
-        <button
-          onClick={() => setSortDist(!sortDist)}
-          className={cn(
-            "shrink-0 text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all",
-            sortDist ? "text-white" : "bg-white text-slate-500 border border-slate-200"
-          )}
-          style={sortDist ? { background: "#0D9488" } : {}}
-        >
-          <FiNavigation className="w-3 h-3" /> Nearest
-        </button>
       </div>
 
       {/* Cases List */}
@@ -171,10 +208,13 @@ export default function AssignedCasesPage() {
           <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
             <FiFilter className="w-8 h-8 text-slate-300 mx-auto mb-2" />
             <p className="text-sm text-slate-400">No cases found</p>
+            {cases.length === 0 && (
+              <p className="text-xs text-slate-400 mt-1">No cases are currently assigned to you</p>
+            )}
           </div>
         ) : (
           filtered.map((c) => {
-            const style = STATUS_STYLE[c.status];
+            const style = STATUS_STYLE[c.status] || STATUS_STYLE.ASSIGNED;
             return (
               <button
                 key={c.id}
@@ -208,9 +248,9 @@ export default function AssignedCasesPage() {
                   <div className="flex items-center gap-2">
                     <span className={cn(
                       "text-[10px] font-semibold px-2 py-0.5 rounded-full",
-                      c.type === "RESIDENTIAL" ? "bg-blue-50 text-blue-700" : "bg-purple-50 text-purple-700"
+                      c.type === "RESIDENTIAL" || c.type === "ADDRESS" ? "bg-blue-50 text-blue-700" : "bg-purple-50 text-purple-700"
                     )}>
-                      {c.type === "RESIDENTIAL" ? "Residential" : "Business"}
+                      {c.type === "BUSINESS" ? "Business" : "Residential"}
                     </span>
                     <span className={cn(
                       "text-[10px] font-semibold px-2 py-0.5 rounded-full",
@@ -220,11 +260,8 @@ export default function AssignedCasesPage() {
                       {c.priority}
                     </span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                      <FiNavigation className="w-3 h-3" />
-                      {c.distance}
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400">{c.branch}</span>
                     <FiChevronRight className="w-4 h-4 text-slate-300" />
                   </div>
                 </div>
