@@ -50,7 +50,7 @@ const navSections: NavSection[] = [
   },
 ];
 
-function Sidebar({ onClose }: { onClose?: () => void }) {
+function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () => void }) {
   const pathname = usePathname();
   const router   = useRouter();
 
@@ -88,7 +88,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
                   return (
                     <button
                       key={href}
-                      onClick={() => { onClose?.(); router.push(href); }}
+                      onClick={() => { onClose?.(); onLogout?.(); }}
                       className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 transition-all"
                     >
                       <Icon className="w-4 h-4 shrink-0" />
@@ -209,7 +209,9 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
 /* ── Layout ── */
 export default function AgentLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth < 1024) {
@@ -232,7 +234,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
           sidebarOpen ? "w-56" : "w-0 overflow-hidden border-r-0"
         )}
       >
-        <Sidebar />
+        <Sidebar onLogout={() => setShowLogoutDialog(true)} />
       </aside>
 
       {/* Mobile drawer */}
@@ -240,7 +242,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
         <div className="fixed inset-0 z-50 flex lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setSidebarOpen(false)} />
           <aside className="relative w-60 h-full z-10 shadow-xl">
-            <Sidebar onClose={() => setSidebarOpen(false)} />
+            <Sidebar onClose={() => setSidebarOpen(false)} onLogout={() => setShowLogoutDialog(true)} />
           </aside>
         </div>
       )}
@@ -252,6 +254,40 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
           {children}
         </main>
       </div>
+
+      {/* Logout Confirmation Dialog Modal */}
+      {showLogoutDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={() => setShowLogoutDialog(false)} />
+          <div className="relative bg-white rounded-3xl p-6 w-full max-w-sm border border-gray-100 shadow-xl text-center space-y-4">
+            <div className="w-14 h-14 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto">
+              <FiLogOut className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Confirm Logout</h3>
+              <p className="text-xs text-gray-500 mt-1">Are you sure you want to log out of your session?</p>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setShowLogoutDialog(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors"
+              >
+                NO
+              </button>
+              <button
+                onClick={() => {
+                  setShowLogoutDialog(false);
+                  router.push("/agent/login");
+                }}
+                className="flex-1 py-2.5 rounded-xl text-white text-xs font-semibold hover:opacity-90 transition-opacity"
+                style={{ background: "#EF4444" }}
+              >
+                YES
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

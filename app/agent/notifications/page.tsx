@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   FiBell, FiBriefcase, FiCheckCircle, FiAlertTriangle, FiInfo, FiRefreshCw,
 } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect } from "react";
 
 /* ─── Mock Notifications ─────────────────────────────────────────────────── */
 
@@ -17,37 +18,37 @@ const allNotifications = [
     id: 1, type: "ASSIGNMENT" as NotifType,
     title: "New Case Assigned",
     message: "Case LV-2026-10821 (Priya Sharma — Business Verification) has been assigned to you.",
-    time: "10 min ago", unread: true,
+    time: "10 min ago", unread: true, caseId: "LV-2026-10821"
   },
   {
     id: 2, type: "APPROVED" as NotifType,
     title: "Verification Approved",
-    message: "Your verification for Case LV-2026-10815 (Kavita Singh) has been approved. Case marked as Completed.",
-    time: "2 hrs ago", unread: true,
+    message: "Your verification for Case LV-2026-10816 (Kavita Singh) has been approved. Case marked as Completed.",
+    time: "2 hrs ago", unread: true, caseId: "LV-2026-10816"
   },
   {
     id: 3, type: "REMINDER" as NotifType,
     title: "Overdue Case",
     message: "Case LV-2026-10819 (Sandeep Yadav) is overdue by 1 day. Please complete the verification immediately.",
-    time: "5 hrs ago", unread: false,
+    time: "5 hrs ago", unread: false, caseId: "LV-2026-10819"
   },
   {
     id: 4, type: "REJECTED" as NotifType,
     title: "Re-verification Required",
     message: "Case LV-2026-10814 (Arvind Patel) was rejected. Reason: Business signboard photo is missing. Please re-visit and resubmit.",
-    time: "Yesterday", unread: false,
+    time: "Yesterday", unread: false, caseId: "LV-2026-10814"
   },
   {
     id: 5, type: "INFO" as NotifType,
     title: "System Update",
     message: "The LVMS app has been updated. GPS accuracy improved for verification forms.",
-    time: "2 days ago", unread: false,
+    time: "2 days ago", unread: false
   },
   {
     id: 6, type: "APPROVED" as NotifType,
     title: "Verification Approved",
-    message: "Case LV-2026-10810 (Neha Verma) has been approved. Excellent verification report!",
-    time: "3 days ago", unread: false,
+    message: "Case LV-2026-10809 (Deepa Nair) has been approved. Excellent verification report!",
+    time: "3 days ago", unread: false, caseId: "LV-2026-10809"
   },
 ];
 
@@ -62,6 +63,7 @@ const TYPE_CONFIG: Record<NotifType, { icon: React.ElementType; color: string; b
 /* ─── Notifications Page ─────────────────────────────────────────────────── */
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const [notifications, setNotifications] = useState(allNotifications);
   const [filter, setFilter] = useState<"All" | "Unread">("All");
   const [loading, setLoading] = useState(true);
@@ -162,9 +164,15 @@ export default function NotificationsPage() {
             return (
               <button
                 key={n.id}
-                onClick={() => markRead(n.id)}
+                onClick={() => {
+                  markRead(n.id);
+                  if (n.caseId) {
+                    toast.info(`Opening case: ${n.caseId}`);
+                    router.push(`/agent/cases/${n.caseId}`);
+                  }
+                }}
                 className={cn(
-                  "w-full bg-white rounded-2xl p-4 text-left shadow-sm transition-all active:scale-[0.99]",
+                  "w-full bg-white rounded-2xl p-4 text-left shadow-sm transition-all active:scale-[0.99] border hover:border-slate-200",
                   n.unread && "border-l-4"
                 )}
                 style={n.unread ? { borderColor: cfg.color } : {}}

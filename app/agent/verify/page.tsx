@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { z } from "zod";
 import {
   FiCheckSquare, FiUser, FiHome, FiBriefcase, FiMapPin, FiCamera, FiPlus,
@@ -9,6 +9,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import LocationPickerMap from "@/components/shared/LocationPickerMap";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /* ─── Zod Schemas ─── */
 
@@ -93,6 +94,12 @@ export default function VerificationProcessPage() {
   const [showSubmittedModal, setShowSubmittedModal] = useState(false);
   const [lat, setLat] = useState(12.9716);
   const [lng, setLng] = useState(77.5946);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 500);
+    return () => clearTimeout(t);
+  }, []);
 
   // Form states
   const [resForm, setResForm] = useState<Partial<ResidentialFormType>>({
@@ -113,6 +120,44 @@ export default function VerificationProcessPage() {
     gstLicenseAvailable: "Yes - Valid License", signboardAvailable: "Yes - Board Displayed",
     customerPresence: "Yes - Met Client", documentsVerified: "Yes - All Documents Valid", remarks: "",
   });
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-4xl">
+        {/* Header Skeleton */}
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+
+        {/* Tab switchers skeleton */}
+        <div className="flex gap-2">
+          <Skeleton className="h-10 w-32 rounded-xl" />
+          <Skeleton className="h-10 w-32 rounded-xl" />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
+          {/* Main forms block skeleton */}
+          <div className="md:col-span-2 bg-white p-5 rounded-2xl border border-gray-100 space-y-4">
+            <Skeleton className="h-6 w-36" />
+            <div className="space-y-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-3 w-16" />
+                  <Skeleton className="h-10 w-full rounded-xl" />
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Sidebar map context skeleton */}
+          <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-4">
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-44 w-full rounded-xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Handle Photo Simulation
   const handleAddPhoto = () => {

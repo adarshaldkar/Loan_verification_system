@@ -1,18 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { use } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import {
   FiCheckSquare, FiUser, FiHome, FiBriefcase, FiMapPin, FiCamera, FiPlus,
-  FiCalendar, FiEye, FiCheckCircle, FiInfo, FiTrash2, FiClock, FiChevronLeft
+  FiCalendar, FiEye, FiCheckCircle, FiInfo, FiTrash2, FiClock, FiChevronLeft, FiFileText, FiEdit2
 } from "react-icons/fi";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import LocationPickerMap from "@/components/shared/LocationPickerMap";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEffect } from "react";
 
 /* ─── Zod Schemas ─── */
 
@@ -81,11 +79,11 @@ const CASE_DETAILS: Record<string, {
   district: string;
   pincode: string;
 }> = {
-  "CASE-2026-0891": { id: "CASE-2026-0891", name: "Ramesh Kumar", phone: "9876543210", type: "RESIDENTIAL", address: "123, 4th Cross Street, Anna Nagar, Trichy - 620018", houseNo: "123", streetArea: "4th Cross Street, Anna Nagar", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620018" },
-  "CASE-2026-0892": { id: "CASE-2026-0892", name: "Lakshmi Devi", phone: "9988776655", type: "BUSINESS", address: "56, Bharathi Nagar, Woraiyur, Trichy - 620003", houseNo: "56", streetArea: "Bharathi Nagar, Woraiyur", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620003" },
-  "CASE-2026-0893": { id: "CASE-2026-0893", name: "Vijay Enterprises", phone: "9876509876", type: "BUSINESS", address: "18, Lawspet Road, Lawspet, Pondicherry - 605008", houseNo: "18", streetArea: "Lawspet Road, Lawspet", cityTown: "Pondicherry", district: "Pondicherry", pincode: "605008" },
-  "CASE-2026-0894": { id: "CASE-2026-0894", name: "Suresh Babu", phone: "8877665544", type: "RESIDENTIAL", address: "9, East Street, Srirangam, Trichy - 620006", houseNo: "9", streetArea: "East Street, Srirangam", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620006" },
-  "CASE-2026-0895": { id: "CASE-2026-0895", name: "Karthik Traders", phone: "7766554433", type: "BUSINESS", address: "77, Main Road, Thanjavur - 613001", houseNo: "77", streetArea: "Main Road", cityTown: "Thanjavur", district: "Tiruchirappalli", pincode: "613001" },
+  "CASE-2026-0891": { id: "CASE-2026-0891", name: "Ramesh Kumar", phone: "+91 98765 43210", type: "RESIDENTIAL", address: "123, 4th Cross Street, Anna Nagar, Trichy - 620018", houseNo: "123", streetArea: "4th Cross Street, Anna Nagar", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620018" },
+  "CASE-2026-0892": { id: "CASE-2026-0892", name: "Lakshmi Devi", phone: "+91 99887 76655", type: "BUSINESS", address: "56, Bharathi Nagar, Woraiyur, Trichy - 620003", houseNo: "56", streetArea: "Bharathi Nagar, Woraiyur", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620003" },
+  "CASE-2026-0893": { id: "CASE-2026-0893", name: "Vijay Enterprises", phone: "+91 98765 09876", type: "BUSINESS", address: "18, Lawspet Road, Lawspet, Pondicherry - 605008", houseNo: "18", streetArea: "Lawspet Road, Lawspet", cityTown: "Pondicherry", district: "Pondicherry", pincode: "605008" },
+  "CASE-2026-0894": { id: "CASE-2026-0894", name: "Suresh Babu", phone: "+91 88776 65544", type: "RESIDENTIAL", address: "9, East Street, Srirangam, Trichy - 620006", houseNo: "9", streetArea: "East Street, Srirangam", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620006" },
+  "CASE-2026-0895": { id: "CASE-2026-0895", name: "Karthik Traders", phone: "+91 77665 54433", type: "BUSINESS", address: "77, Main Road, Thanjavur - 613001", houseNo: "77", streetArea: "Main Road", cityTown: "Thanjavur", district: "Tiruchirappalli", pincode: "613001" },
 };
 
 const DISTRICT_OPTIONS = ["Tiruchirappalli", "Chennai", "Coimbatore", "Pondicherry", "Madurai", "Salem"];
@@ -116,7 +114,7 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
   const currentCase = CASE_DETAILS[caseId] || {
     id: caseId,
     name: "Vijay Enterprises",
-    phone: "9876543210",
+    phone: "9876509876",
     type: "BUSINESS",
     address: "18, Lawspet Road, Lawspet, Pondicherry - 605008",
     houseNo: "18",
@@ -132,10 +130,16 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
   const [submitted, setSubmitted] = useState(false);
   const [lat, setLat] = useState(12.9716);
   const [lng, setLng] = useState(77.5946);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [metCustomer, setMetCustomer] = useState("Yes");
+  const [applicantAvailable, setApplicantAvailable] = useState("Yes");
+  const [houseExists, setHouseExists] = useState("Yes");
+  const [gpsLocked, setGpsLocked] = useState(false);
+  const [gpsTime, setGpsTime] = useState("");
 
   // Form states prefilled where possible from case data
   const [resForm, setResForm] = useState<Partial<ResidentialFormType>>({
-    applicantName: currentCase.name,
+    applicantName: currentCase.type === "RESIDENTIAL" ? currentCase.name : "",
     mobileNumber: currentCase.phone,
     dateOfBirth: "",
     aadhaarNumber: "",
@@ -159,7 +163,7 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
   });
 
   const [busForm, setBusForm] = useState<Partial<BusinessFormType>>({
-    companyName: currentCase.name,
+    companyName: currentCase.type === "BUSINESS" ? currentCase.name : "",
     businessType: "Proprietorship",
     natureOfBusiness: "",
     yearsInBusiness: 1,
@@ -190,7 +194,7 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
 
   if (loading) {
     return (
-      <div className="space-y-6 max-w-2xl mx-auto">
+      <div className="space-y-6 max-w-4xl mx-auto">
         {/* Header Skeleton */}
         <div className="flex items-center gap-3">
           <Skeleton className="h-9 w-9 rounded-full" />
@@ -234,52 +238,47 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
   };
 
   // Submit handlers
-  const handleResSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
     
-    const parsed = residentialSchema.safeParse(resForm);
-    if (!parsed.success) {
+    // Validate Residential form
+    const parsedRes = residentialSchema.safeParse(resForm);
+    // Validate Business form
+    const parsedBus = businessSchema.safeParse(busForm);
+
+    if (!parsedRes.success || !parsedBus.success) {
       const errMap: Record<string, string> = {};
-      parsed.error.issues.forEach((err: z.ZodIssue) => {
-        if (err.path[0]) errMap[err.path[0].toString()] = err.message;
-      });
+      if (!parsedRes.success) {
+        parsedRes.error.issues.forEach((err: z.ZodIssue) => {
+          if (err.path[0]) errMap[err.path[0].toString()] = err.message;
+        });
+      }
+      if (!parsedBus.success) {
+        parsedBus.error.issues.forEach((err: z.ZodIssue) => {
+          if (err.path[0]) errMap[err.path[0].toString()] = err.message;
+        });
+      }
       setErrors(errMap);
-      toast.error("Please fix verification errors");
+      toast.error("Please fix evaluation errors in Residential or Business sections");
+      
+      // Navigate to the step that has the first error
+      if (!parsedRes.success) {
+        setCurrentStep(4);
+      } else {
+        setCurrentStep(5);
+      }
       return;
     }
 
     if (photos.length === 0) {
       toast.error("Capture at least 1 photo as evidence!");
+      setCurrentStep(3);
       return;
     }
 
     setSubmitted(true);
-    toast.success("Residential Verification report submitted!");
-  };
-
-  const handleBusSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({});
-
-    const parsed = businessSchema.safeParse(busForm);
-    if (!parsed.success) {
-      const errMap: Record<string, string> = {};
-      parsed.error.issues.forEach((err: z.ZodIssue) => {
-        if (err.path[0]) errMap[err.path[0].toString()] = err.message;
-      });
-      setErrors(errMap);
-      toast.error("Please fix verification errors");
-      return;
-    }
-
-    if (photos.length === 0) {
-      toast.error("Capture at least 1 photo as evidence!");
-      return;
-    }
-
-    setSubmitted(true);
-    toast.success("Business Verification report submitted!");
+    toast.success("Verification report submitted successfully!");
   };
 
   const getResInputSetter = (key: keyof ResidentialFormType) => (e: any) => {
@@ -292,13 +291,13 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
 
   if (submitted) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center space-y-5 bg-white border border-gray-100 shadow-sm rounded-3xl p-6">
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-5 bg-white border border-gray-100 shadow-sm rounded-3xl p-6 max-w-2xl mx-auto">
         <div className="w-20 h-20 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center">
           <FiCheckCircle className="w-10 h-10" />
         </div>
         <h2 className="text-xl font-bold text-gray-900">Verification Report Submitted!</h2>
         <p className="text-sm text-gray-500 max-w-sm">
-          Report for <strong>{currentCase.name}</strong> ({caseId}) has been successfully compiled and sent for administrative audit.
+          Reports for both Residential and Business components of <strong>{currentCase.name}</strong> ({caseId}) have been successfully uploaded and finalized.
         </p>
         <button
           onClick={() => router.push("/agent")}
@@ -324,407 +323,569 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
         </button>
       </div>
 
+      {/* Step Indicators Bar */}
+      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center justify-between overflow-x-auto gap-4">
+        {[
+          { step: 1, label: "Verify Customer" },
+          { step: 2, label: "Capture GPS" },
+          { step: 3, label: "Capture Photo" },
+          { step: 4, label: "Residential Details" },
+          { step: 5, label: "Business Details" },
+          { step: 6, label: "Add Remarks" },
+          { step: 7, label: "Submit" }
+        ].map((s) => (
+          <div key={s.step} className="flex items-center gap-2 whitespace-nowrap">
+            <span className={cn(
+              "w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+              currentStep === s.step ? "text-white bg-[#1E4DB7] ring-4 ring-blue-100" :
+              currentStep > s.step ? "text-white bg-emerald-500" : "text-gray-400 bg-gray-100"
+            )}>
+              {s.step}
+            </span>
+            <span className={cn(
+              "text-xs font-semibold",
+              currentStep === s.step ? "text-gray-900 font-bold" : "text-gray-400"
+            )}>
+              {s.label}
+            </span>
+            {s.step < 7 && <span className="text-gray-300">→</span>}
+          </div>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         {/* Main form card */}
-        <div className="xl:col-span-8 bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
-          {currentCase.type === "RESIDENTIAL" ? (
-            /* Residential Form View */
-            <form onSubmit={handleResSubmit} className="space-y-6">
-              <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
-                  <FiHome className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">Residential Verification Form</h2>
-                  <p className="text-xs text-gray-400">Case ID: {caseId} · verify residential context</p>
-                </div>
-              </div>
-
-              {/* 1. Applicant Personal Details */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">1. Applicant Personal Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Applicant Name *</label>
-                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.applicantName} onChange={getResInputSetter("applicantName")} />
-                    {errors.applicantName && <p className="text-xs text-rose-500 mt-1">{errors.applicantName}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Mobile Number *</label>
-                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.mobileNumber} onChange={getResInputSetter("mobileNumber")} />
-                    {errors.mobileNumber && <p className="text-xs text-rose-500 mt-1">{errors.mobileNumber}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Date of Birth *</label>
-                    <input type="date" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.dateOfBirth} onChange={getResInputSetter("dateOfBirth")} />
-                    {errors.dateOfBirth && <p className="text-xs text-rose-500 mt-1">{errors.dateOfBirth}</p>}
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Aadhaar / ID Number *</label>
-                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.aadhaarNumber} onChange={getResInputSetter("aadhaarNumber")} />
-                    {errors.aadhaarNumber && <p className="text-xs text-rose-500 mt-1">{errors.aadhaarNumber}</p>}
-                  </div>
-                </div>
-              </div>
-
-              {/* 2. Residential Address Details */}
-              <div className="space-y-4 pt-4 border-t border-gray-50">
-                <h3 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">2. Residential Address Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">House / Door No. *</label>
-                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.houseNo} onChange={getResInputSetter("houseNo")} />
-                    {errors.houseNo && <p className="text-xs text-rose-500 mt-1">{errors.houseNo}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Street / Area *</label>
-                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.streetArea} onChange={getResInputSetter("streetArea")} />
-                    {errors.streetArea && <p className="text-xs text-rose-500 mt-1">{errors.streetArea}</p>}
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">City / Town *</label>
-                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.cityTown} onChange={getResInputSetter("cityTown")} />
-                    {errors.cityTown && <p className="text-xs text-rose-500 mt-1">{errors.cityTown}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">District *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.district} onChange={getResInputSetter("district")}>
-                      {DISTRICT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Pincode *</label>
-                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.pincode} onChange={getResInputSetter("pincode")} />
-                    {errors.pincode && <p className="text-xs text-rose-500 mt-1">{errors.pincode}</p>}
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. Residence Information */}
-              <div className="space-y-4 pt-4 border-t border-gray-50">
-                <h3 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">3. Residence Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Type of Residence *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.residenceType} onChange={getResInputSetter("residenceType")}>
-                      {RESIDENCE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Ownership Status *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.ownershipStatus} onChange={getResInputSetter("ownershipStatus")}>
-                      {OWNERSHIP_STATUSES.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Living Since *</label>
-                    <input type="date" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.livingSince} onChange={getResInputSetter("livingSince")} />
-                    {errors.livingSince && <p className="text-xs text-rose-500 mt-1">{errors.livingSince}</p>}
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">No. of Family Members *</label>
-                    <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.familyMembers} onChange={getResInputSetter("familyMembers")} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Monthly Rent (if rented)</label>
-                    <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.monthlyRent} onChange={getResInputSetter("monthlyRent")} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Contact Person (Neighbor) *</label>
-                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.contactNeighbor} onChange={getResInputSetter("contactNeighbor")} />
-                    {errors.contactNeighbor && <p className="text-xs text-rose-500 mt-1">{errors.contactNeighbor}</p>}
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. Verification Details */}
-              <div className="space-y-4 pt-4 border-t border-gray-50">
-                <h3 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">4. Verification Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Address Found As Per Record *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.addressFoundMatch} onChange={getResInputSetter("addressFoundMatch")}>
-                      {ADDRESS_MATCH_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Neighbor Confirmation *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.neighborConfirm} onChange={getResInputSetter("neighborConfirm")}>
-                      {NEIGHBOR_CONFIRMS.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Electricity Connection *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.electricityConnection} onChange={getResInputSetter("electricityConnection")}>
-                      {ELECTRIC_CONNECTIONS.map(e => <option key={e} value={e}>{e}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Water Connection *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.waterConnection} onChange={getResInputSetter("waterConnection")}>
-                      {WATER_CONNECTIONS.map(w => <option key={w} value={w}>{w}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Residence Condition *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={resForm.residenceCondition} onChange={getResInputSetter("residenceCondition")}>
-                      {RESIDENCE_CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <textarea
-                    placeholder="Enter observations / remarks (optional)"
-                    rows={3}
-                    maxLength={300}
-                    className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm resize-none"
-                    value={resForm.remarks}
-                    onChange={getResInputSetter("remarks")}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full text-white py-3 rounded-2xl text-sm font-bold shadow-sm transition-all hover:opacity-95 flex items-center justify-center gap-2"
-                style={{ background: "#1E4DB7" }}
-              >
-                <FiCheckSquare className="w-5 h-5" />
-                <span>Submit Residential Verification</span>
-              </button>
-
-            </form>
-          ) : (
-            /* Business Form View */
-            <form onSubmit={handleBusSubmit} className="space-y-6">
-              <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                  <FiBriefcase className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">Business Verification Form</h2>
-                  <p className="text-xs text-gray-400">Case ID: {caseId} · verify business premises</p>
-                </div>
-              </div>
-
-              {/* 1. Business Details */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider">1. Business Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Business / Shop Name *</label>
-                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.companyName} onChange={getBusInputSetter("companyName")} />
-                    {errors.companyName && <p className="text-xs text-rose-500 mt-1">{errors.companyName}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Business Type *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.businessType} onChange={getBusInputSetter("businessType")}>
-                      {BUSINESS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Nature of Business *</label>
-                    <input type="text" placeholder="e.g. Retail, Manufacturing" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.natureOfBusiness} onChange={getBusInputSetter("natureOfBusiness")} />
-                    {errors.natureOfBusiness && <p className="text-xs text-rose-500 mt-1">{errors.natureOfBusiness}</p>}
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Years in Business *</label>
-                    <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.yearsInBusiness} onChange={getBusInputSetter("yearsInBusiness")} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">No. of Employees *</label>
-                    <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.noOfEmployees} onChange={getBusInputSetter("noOfEmployees")} />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Monthly Income (Approx.) *</label>
-                    <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.monthlyIncome} onChange={getBusInputSetter("monthlyIncome")} />
-                  </div>
-                </div>
-              </div>
-
-              {/* 2. Business Address */}
-              <div className="space-y-4 pt-4 border-t border-gray-50">
-                <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider">2. Business Address Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Door / Shop No. *</label>
-                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.doorNo} onChange={getBusInputSetter("doorNo")} />
-                    {errors.doorNo && <p className="text-xs text-rose-500 mt-1">{errors.doorNo}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Street / Area *</label>
-                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.streetArea} onChange={getBusInputSetter("streetArea")} />
-                    {errors.streetArea && <p className="text-xs text-rose-500 mt-1">{errors.streetArea}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Landmark</label>
-                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.landmark} onChange={getBusInputSetter("landmark")} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">City / Town *</label>
-                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.cityTown} onChange={getBusInputSetter("cityTown")} />
-                    {errors.cityTown && <p className="text-xs text-rose-500 mt-1">{errors.cityTown}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">District *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.district} onChange={getBusInputSetter("district")}>
-                      {DISTRICT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Pincode *</label>
-                    <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.pincode} onChange={getBusInputSetter("pincode")} />
-                    {errors.pincode && <p className="text-xs text-rose-500 mt-1">{errors.pincode}</p>}
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. Business Verification */}
-              <div className="space-y-4 pt-4 border-t border-gray-50">
-                <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider">3. Business Verification Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Business Found At Location *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.businessFoundAtLocation} onChange={getBusInputSetter("businessFoundAtLocation")}>
-                      {BUSINESS_FOUND_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Business Operational *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.businessOperational} onChange={getBusInputSetter("businessOperational")}>
-                      {OPERATIONAL_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Business Owned By Applicant *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.businessOwnedByApplicant} onChange={getBusInputSetter("businessOwnedByApplicant")}>
-                      {OWNED_BY_APPLICANT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Business Premises Type *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.businessPremisesType} onChange={getBusInputSetter("businessPremisesType")}>
-                      {PREMISES_TYPES.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Stock / Inventory Available *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.stockInventoryAvailable} onChange={getBusInputSetter("stockInventoryAvailable")}>
-                      {STOCK_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">GST / License Available *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.gstLicenseAvailable} onChange={getBusInputSetter("gstLicenseAvailable")}>
-                      {GST_LICENSE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. Verification Details */}
-              <div className="space-y-4 pt-4 border-t border-gray-50">
-                <h3 className="text-xs font-bold text-emerald-600 uppercase tracking-wider">4. Verification Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Business Sign / Board Available *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.signboardAvailable} onChange={getBusInputSetter("signboardAvailable")}>
-                      {SIGNBOARD_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Customer / Client Presence *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.customerPresence} onChange={getBusInputSetter("customerPresence")}>
-                      {CLIENT_PRESENCE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-gray-600 mb-1">Documents Verified *</label>
-                    <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm" value={busForm.documentsVerified} onChange={getBusInputSetter("documentsVerified")}>
-                      {DOCUMENTS_VERIFIED_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <textarea
-                    placeholder="Enter observations / remarks (optional)"
-                    rows={3}
-                    maxLength={300}
-                    className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm resize-none"
-                    value={busForm.remarks}
-                    onChange={getBusInputSetter("remarks")}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full text-white py-3 rounded-2xl text-sm font-bold shadow-sm transition-all hover:opacity-95 flex items-center justify-center gap-2"
-                style={{ background: "#10B981" }}
-              >
-                <FiCheckSquare className="w-5 h-5" />
-                <span>Submit Business Verification</span>
-              </button>
-
-            </form>
-          )}
-        </div>
-
-        {/* Right sidebar evidence details */}
-        <div className="xl:col-span-4 space-y-6">
-          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
-            <h3 className="text-[14px] font-bold text-gray-900 flex items-center gap-2">
-              <FiCamera className="w-4.5 h-4.5 text-[#1E4DB7]" />
-              <span>Evidence Upload</span>
-            </h3>
-
-            <button
-              onClick={handleAddPhoto}
-              className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 hover:border-[#1E4DB7] hover:bg-blue-50/50 py-6 rounded-2xl transition-all active:scale-98"
-            >
-              <div className="w-10 h-10 rounded-full bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
-                <FiPlus className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-800">Add Photos</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">Maximum 5 photos (Geo-tagged)</p>
-              </div>
-            </button>
-
-            {photos.length > 0 ? (
-              <div className="space-y-2">
-                {photos.map((p, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-2.5 bg-gray-50 border border-gray-100 rounded-xl">
-                    <div className="flex items-center gap-2">
-                      <FiCheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <span className="text-xs font-semibold text-gray-700">{p}</span>
+        <div className="xl:col-span-8 bg-white rounded-3xl p-6 border border-gray-100 shadow-sm flex flex-col justify-between min-h-[480px]">
+          <form onSubmit={handleSubmit} className="space-y-6 flex-1 flex flex-col justify-between">
+            <div className="space-y-6">
+              
+              {/* Step 1: Verify Customer */}
+              {currentStep === 1 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
+                      <FiUser className="w-5 h-5" />
                     </div>
-                    <button onClick={() => handleRemovePhoto(idx)} className="text-gray-400 hover:text-rose-500 p-1">
-                      <FiTrash2 className="w-4 h-4" />
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Step 1: Verify Customer</h2>
+                      <p className="text-xs text-gray-400">Establish primary contact presence</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 max-w-md">
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-gray-600">Met Customer / Client? *</label>
+                      <select value={metCustomer} onChange={(e) => setMetCustomer(e.target.value)} className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white">
+                        <option value="Yes">Yes - Met Applicant</option>
+                        <option value="No">No - Met family member / representative</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-gray-600">Applicant Available? *</label>
+                      <select value={applicantAvailable} onChange={(e) => setApplicantAvailable(e.target.value)} className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white">
+                        <option value="Yes">Yes - Present at location</option>
+                        <option value="No">No - Not available</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-gray-600">House / Premises Exists? *</label>
+                      <select value={houseExists} onChange={(e) => setHouseExists(e.target.value)} className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white">
+                        <option value="Yes">Yes - Premises exists and matches</option>
+                        <option value="No">No - Address untraceable / does not exist</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 2: Capture GPS */}
+              {currentStep === 2 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
+                      <FiMapPin className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Step 2: Capture GPS</h2>
+                      <p className="text-xs text-gray-400">Lock verified geo-coordinates</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 max-w-md">
+                    <div className="p-4 bg-gray-50 border border-gray-100 rounded-xl space-y-3">
+                      <div className="flex justify-between items-center text-xs font-semibold">
+                        <span className="text-gray-500">Latitude</span>
+                        <span className="text-gray-900 font-mono">{lat.toFixed(6)}° N</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs font-semibold">
+                        <span className="text-gray-500">Longitude</span>
+                        <span className="text-gray-900 font-mono">{lng.toFixed(6)}° E</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs font-semibold">
+                        <span className="text-gray-500">Capture Timestamp</span>
+                        <span className="text-gray-900 font-mono">{gpsTime || "Not captured"}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGpsLocked(true);
+                        setGpsTime(new Date().toLocaleString());
+                        toast.success("GPS Location successfully captured and locked!");
+                      }}
+                      className="w-full py-2.5 rounded-xl text-white font-bold text-xs shadow-sm hover:opacity-90 flex items-center justify-center gap-2"
+                      style={{ background: "#1E4DB7" }}
+                    >
+                      <FiMapPin className="w-4 h-4" />
+                      {gpsLocked ? "Re-Capture GPS Coordinates" : "Capture GPS Coordinates"}
                     </button>
                   </div>
-                ))}
+                </div>
+              )}
+
+              {/* Step 3: Capture Photo */}
+              {currentStep === 3 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
+                      <FiCamera className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Step 3: Capture Photo</h2>
+                      <p className="text-xs text-gray-400">Add geo-tagged visual evidence</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 max-w-md">
+                    <button
+                      type="button"
+                      onClick={handleAddPhoto}
+                      className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 hover:border-[#1E4DB7] hover:bg-blue-50/50 py-6 rounded-2xl transition-all"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
+                        <FiPlus className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-800">Add Photos</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">Maximum 5 photos (Geo-tagged)</p>
+                      </div>
+                    </button>
+
+                    {photos.length > 0 ? (
+                      <div className="space-y-2">
+                        {photos.map((p, idx) => (
+                          <div key={idx} className="flex items-center justify-between p-2.5 bg-gray-50 border border-gray-100 rounded-xl">
+                            <div className="flex items-center gap-2">
+                              <FiCheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <span className="text-xs font-semibold text-gray-700">{p}</span>
+                            </div>
+                            <button type="button" onClick={() => handleRemovePhoto(idx)} className="text-gray-400 hover:text-rose-500 p-1">
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-amber-600 bg-amber-50/50 border border-amber-100 p-3 rounded-xl">
+                        <FiInfo className="w-4 h-4 shrink-0" />
+                        <p className="text-[11px] font-semibold leading-snug">Capture at least 1 photo before proceeding.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Step 4: Residential Details */}
+              {currentStep === 4 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
+                      <FiHome className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Step 4: Residential Details</h2>
+                      <p className="text-xs text-gray-400">Complete residential evaluation checklist</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6 max-h-[50vh] overflow-y-auto pr-2">
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">Personal Information</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Applicant Name *</label>
+                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.applicantName} onChange={getResInputSetter("applicantName")} />
+                          {errors.applicantName && <p className="text-xs text-rose-500 mt-1">{errors.applicantName}</p>}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Mobile Number *</label>
+                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.mobileNumber} onChange={getResInputSetter("mobileNumber")} />
+                          {errors.mobileNumber && <p className="text-xs text-rose-500 mt-1">{errors.mobileNumber}</p>}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Date of Birth *</label>
+                          <input type="date" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.dateOfBirth} onChange={getResInputSetter("dateOfBirth")} />
+                          {errors.dateOfBirth && <p className="text-xs text-rose-500 mt-1">{errors.dateOfBirth}</p>}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Aadhaar Number *</label>
+                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.aadhaarNumber} onChange={getResInputSetter("aadhaarNumber")} />
+                          {errors.aadhaarNumber && <p className="text-xs text-rose-500 mt-1">{errors.aadhaarNumber}</p>}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                      <h4 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">Address Details</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">House / Door No *</label>
+                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.houseNo} onChange={getResInputSetter("houseNo")} />
+                          {errors.houseNo && <p className="text-xs text-rose-500 mt-1">{errors.houseNo}</p>}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Street / Area *</label>
+                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.streetArea} onChange={getResInputSetter("streetArea")} />
+                          {errors.streetArea && <p className="text-xs text-rose-500 mt-1">{errors.streetArea}</p>}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Type of Residence *</label>
+                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.residenceType} onChange={getResInputSetter("residenceType")}>
+                            {RESIDENCE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Ownership Status *</label>
+                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.ownershipStatus} onChange={getResInputSetter("ownershipStatus")}>
+                            {OWNERSHIP_STATUSES.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Living Since *</label>
+                          <input type="date" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.livingSince} onChange={getResInputSetter("livingSince")} />
+                          {errors.livingSince && <p className="text-xs text-rose-500 mt-1">{errors.livingSince}</p>}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">No. of Family Members *</label>
+                          <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.familyMembers} onChange={getResInputSetter("familyMembers")} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Monthly Rent (if rented)</label>
+                          <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.monthlyRent} onChange={getResInputSetter("monthlyRent")} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Contact Neighbor *</label>
+                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={resForm.contactNeighbor} onChange={getResInputSetter("contactNeighbor")} />
+                          {errors.contactNeighbor && <p className="text-xs text-rose-500 mt-1">{errors.contactNeighbor}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 5: Business Details */}
+              {currentStep === 5 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
+                      <FiBriefcase className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Step 5: Business Details</h2>
+                      <p className="text-xs text-gray-400">Complete business audit checklist</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6 max-h-[50vh] overflow-y-auto pr-2">
+                    {/* Business General Info */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">Business Information</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Company / Shop Name *</label>
+                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.companyName} onChange={getBusInputSetter("companyName")} />
+                          {errors.companyName && <p className="text-xs text-rose-500 mt-1">{errors.companyName}</p>}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Nature of Business *</label>
+                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.natureOfBusiness} onChange={getBusInputSetter("natureOfBusiness")} />
+                          {errors.natureOfBusiness && <p className="text-xs text-rose-500 mt-1">{errors.natureOfBusiness}</p>}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Business Type *</label>
+                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.businessType} onChange={getBusInputSetter("businessType")}>
+                            {BUSINESS_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Years in Business *</label>
+                          <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.yearsInBusiness} onChange={getBusInputSetter("yearsInBusiness")} />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Monthly Income (₹) *</label>
+                          <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.monthlyIncome} onChange={getBusInputSetter("monthlyIncome")} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Business Address Info */}
+                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                      <h4 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">Address Details</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Door / Shop No *</label>
+                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.doorNo} onChange={getBusInputSetter("doorNo")} />
+                          {errors.doorNo && <p className="text-xs text-rose-500 mt-1">{errors.doorNo}</p>}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Street / Area *</label>
+                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.streetArea} onChange={getBusInputSetter("streetArea")} />
+                          {errors.streetArea && <p className="text-xs text-rose-500 mt-1">{errors.streetArea}</p>}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-bold text-gray-600 mb-1">City / Town *</label>
+                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.cityTown} onChange={getBusInputSetter("cityTown")} />
+                          {errors.cityTown && <p className="text-xs text-rose-500 mt-1">{errors.cityTown}</p>}
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">District *</label>
+                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.district} onChange={getBusInputSetter("district")}>
+                            {DISTRICT_OPTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Pincode *</label>
+                          <input type="text" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.pincode} onChange={getBusInputSetter("pincode")} />
+                          {errors.pincode && <p className="text-xs text-rose-500 mt-1">{errors.pincode}</p>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Business Verification Specifics */}
+                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                      <h4 className="text-xs font-bold text-[#1E4DB7] uppercase tracking-wider">Operational Audit Checklist</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">GST / License Available *</label>
+                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.gstLicenseAvailable} onChange={getBusInputSetter("gstLicenseAvailable")}>
+                            {GST_LICENSE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Signboard Available *</label>
+                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.signboardAvailable} onChange={getBusInputSetter("signboardAvailable")}>
+                            {SIGNBOARD_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">No. of Employees *</label>
+                          <input type="number" className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.noOfEmployees} onChange={getBusInputSetter("noOfEmployees")} />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Location Verification *</label>
+                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.businessFoundAtLocation} onChange={getBusInputSetter("businessFoundAtLocation")}>
+                            {BUSINESS_FOUND_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Business Operational State *</label>
+                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.businessOperational} onChange={getBusInputSetter("businessOperational")}>
+                            {OPERATIONAL_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Ownership Verification *</label>
+                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.businessOwnedByApplicant} onChange={getBusInputSetter("businessOwnedByApplicant")}>
+                            {OWNED_BY_APPLICANT_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Premises Type *</label>
+                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.businessPremisesType} onChange={getBusInputSetter("businessPremisesType")}>
+                            {PREMISES_TYPES.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Stock Level Status *</label>
+                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.stockInventoryAvailable} onChange={getBusInputSetter("stockInventoryAvailable")}>
+                            {STOCK_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Customer Presence *</label>
+                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.customerPresence} onChange={getBusInputSetter("customerPresence")}>
+                            {CLIENT_PRESENCE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-600 mb-1">Documents Verified *</label>
+                          <select className="select-flat w-full border border-gray-200 rounded-xl px-3.5 py-2 text-sm bg-white" value={busForm.documentsVerified} onChange={getBusInputSetter("documentsVerified")}>
+                            {DOCUMENTS_VERIFIED_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Step 6: Add Remarks */}
+              {currentStep === 6 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
+                      <FiEdit2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Step 6: Add Remarks</h2>
+                      <p className="text-xs text-gray-400">Add observations and remarks</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 max-w-lg">
+                    <label className="block text-xs font-bold text-gray-600">Verification Agent Remarks *</label>
+                    <textarea
+                      placeholder="e.g. Applicant available. House verified. Address matched."
+                      rows={5}
+                      className="input-flat w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm resize-none"
+                      value={resForm.remarks}
+                      onChange={getResInputSetter("remarks")}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Step 7: Submit Verification */}
+              {currentStep === 7 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
+                      <FiCheckCircle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-900">Step 7: Submit Verification</h2>
+                      <p className="text-xs text-gray-400">Review and submit verification report</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 text-xs font-semibold text-gray-600 max-w-md">
+                    <div className="flex justify-between items-center py-2.5 px-3 bg-gray-50 border border-gray-100 rounded-xl">
+                      <span className="text-gray-500">Applicant / Customer</span>
+                      <span className="text-gray-900 font-bold">{currentCase.name}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2.5 px-3 bg-gray-50 border border-gray-100 rounded-xl">
+                      <span className="text-gray-500">GPS Coordinates</span>
+                      <span className="text-gray-900 font-mono">{gpsLocked ? "✓ Locked" : "✗ Not Locked"}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2.5 px-3 bg-gray-50 border border-gray-100 rounded-xl">
+                      <span className="text-gray-500">Evidence Photos</span>
+                      <span className="text-gray-900">{photos.length} Captured</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* Wizard Navigation Footer */}
+            <div className="flex justify-between items-center pt-4 border-t border-gray-100 mt-6">
+              {currentStep > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(currentStep - 1)}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold hover:bg-gray-50 transition-colors"
+                >
+                  Back
+                </button>
+              ) : (
+                <div />
+              )}
+
+              {currentStep < 7 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (currentStep === 2 && !gpsLocked) {
+                      toast.error("Please lock GPS coordinates before continuing.");
+                      return;
+                    }
+                    if (currentStep === 3 && photos.length === 0) {
+                      toast.error("Please capture at least 1 photo before continuing.");
+                      return;
+                    }
+                    setCurrentStep(currentStep + 1);
+                  }}
+                  className="px-6 py-2.5 rounded-xl text-white text-xs font-bold transition-opacity hover:opacity-90"
+                  style={{ background: "#1E4DB7" }}
+                >
+                  Next Step
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 rounded-xl text-white text-xs font-bold transition-opacity hover:opacity-90 flex items-center gap-1.5"
+                  style={{ background: "#10B981" }}
+                >
+                  <FiCheckCircle className="w-4.5 h-4.5" />
+                  Submit Report
+                </button>
+              )}
+            </div>
+
+          </form>
+        </div>
+
+        {/* Right sidebar evidence & map context */}
+        <div className="xl:col-span-4 space-y-6">
+          {/* Case Context Details Card */}
+          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-3">
+            <h3 className="text-[14px] font-bold text-gray-900 flex items-center gap-2">
+              <FiBriefcase className="w-4.5 h-4.5 text-[#1E4DB7]" />
+              <span>Case Details Context</span>
+            </h3>
+            <div className="space-y-2 text-xs font-semibold text-gray-600">
+              <div className="flex justify-between py-1 border-b border-gray-50">
+                <span className="text-gray-500">Applicant</span>
+                <span className="text-gray-900 font-bold">{currentCase.name}</span>
               </div>
-            ) : (
-              <div className="flex items-center gap-2 text-amber-600 bg-amber-50/50 border border-amber-100 p-3 rounded-xl">
-                <FiInfo className="w-4 h-4 shrink-0" />
-                <p className="text-[11px] font-semibold leading-snug">Evidence requirement: Capture at least 1 photo before submitting.</p>
+              <div className="flex justify-between py-1 border-b border-gray-50">
+                <span className="text-gray-500">Phone</span>
+                <span className="text-gray-900 font-mono">{currentCase.phone}</span>
               </div>
-            )}
+              <div className="flex justify-between py-1 border-b border-gray-50">
+                <span className="text-gray-500">Verify Type</span>
+                <span className="text-gray-900 font-bold">{currentCase.type}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-gray-50">
+                <span className="text-gray-500">Address</span>
+                <span className="text-gray-900 text-right max-w-[160px] truncate" title={currentCase.address}>{currentCase.address}</span>
+              </div>
+            </div>
           </div>
 
           <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
@@ -733,30 +894,29 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
               <span>Location Context</span>
             </h3>
 
-            {/* Interactive map location picker */}
             <div className="h-56 relative overflow-hidden bg-slate-50 rounded-2xl border border-gray-100">
               <LocationPickerMap lat={lat} lng={lng} onChange={(newLat, newLng) => { setLat(newLat); setLng(newLng); }} />
             </div>
 
             <div className="space-y-3 text-xs font-semibold text-gray-600">
               <div className="flex items-center gap-2.5 py-2.5 px-3 bg-gray-50 border border-gray-100 rounded-xl">
-                <FiMapPin className="w-4 h-4 text-[#1E4DB7] shrink-0" />
+                <FiMapPin className="w-4.5 h-4.5 text-[#1E4DB7] shrink-0" />
                 <div>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Current Coordinates</p>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Coordinates</p>
                   <p className="text-gray-900 mt-0.5">{lat.toFixed(6)}° N, {lng.toFixed(6)}° E</p>
                 </div>
               </div>
-
               <div className="flex items-center gap-2.5 py-2.5 px-3 bg-gray-50 border border-gray-100 rounded-xl">
-                <FiClock className="w-4 h-4 text-[#1E4DB7] shrink-0" />
+                <FiClock className="w-4.5 h-4.5 text-[#1E4DB7] shrink-0" />
                 <div>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Current Timestamp</p>
-                  <p className="text-gray-900 mt-0.5">27 May 2026, 10:30 AM</p>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Lock Timestamp</p>
+                  <p className="text-gray-900 mt-0.5">{gpsTime || "Pending GPS Lock"}</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   );

@@ -24,46 +24,55 @@ const CASES: Record<string, {
   branch: string; priority: string; assignedOn: string;
   status: CaseStatus; agentNote?: string;
 }> = {
-  "LV-2026-10821": {
-    id: "LV-2026-10821", customer: "Priya Sharma",
-    phone: "+91 87654 32109", email: "priya.sharma@email.com",
-    address: "45, Park Street, Dadar West, Mumbai — 400028",
-    lat: 19.018255, lng: 72.847145,
-    loanType: "Business Loan", loanAmount: "₹12,00,000",
-    verType: "BUSINESS", branch: "Mumbai West",
-    priority: "High", assignedOn: "09 Jul 2026, 09:00 AM",
+  "CASE-2026-0891": {
+    id: "CASE-2026-0891", customer: "Ramesh Kumar",
+    phone: "+91 98765 43210", email: "ramesh.k@email.com",
+    address: "123, 4th Cross Street, Anna Nagar, Trichy - 620018",
+    lat: 10.8049, lng: 78.6872,
+    loanType: "Personal Loan", loanAmount: "₹5,00,000",
+    verType: "RESIDENTIAL", branch: "Trichy HQ",
+    priority: "High", assignedOn: "Today, 10:30 AM",
     status: "ASSIGNED",
   },
-  "LV-2026-10819": {
-    id: "LV-2026-10819", customer: "Sandeep Yadav",
-    phone: "+91 76543 21098", email: "sandeep.y@email.com",
-    address: "78, Civil Lines, Connaught Place, Delhi — 110001",
-    lat: 28.632450, lng: 77.219640,
-    loanType: "Home Loan", loanAmount: "₹45,00,000",
-    verType: "RESIDENTIAL", branch: "Delhi North",
-    priority: "High", assignedOn: "09 Jul 2026, 08:30 AM",
+  "CASE-2026-0892": {
+    id: "CASE-2026-0892", customer: "Lakshmi Devi",
+    phone: "+91 99887 76655", email: "lakshmi.d@email.com",
+    address: "56, Bharathi Nagar, Woraiyur, Trichy - 620003",
+    lat: 10.8142, lng: 78.6744,
+    loanType: "Business Loan", loanAmount: "₹15,00,000",
+    verType: "BUSINESS", branch: "Trichy HQ",
+    priority: "Medium", assignedOn: "Today, 12:00 PM",
+    status: "ASSIGNED",
+  },
+  "CASE-2026-0893": {
+    id: "CASE-2026-0893", customer: "Vijay Enterprises",
+    phone: "+91 98765 09876", email: "vijay.ent@email.com",
+    address: "18, Lawspet Road, Lawspet, Pondicherry - 605008",
+    lat: 11.9542, lng: 79.8214,
+    loanType: "Commercial Loan", loanAmount: "₹50,00,000",
+    verType: "BUSINESS", branch: "Pondicherry Branch",
+    priority: "Medium", assignedOn: "Today, 02:30 PM",
     status: "IN_PROGRESS",
   },
-  "LV-2026-10817": {
-    id: "LV-2026-10817", customer: "Rahul Gupta",
-    phone: "+91 54321 09876", email: "rahul.g@email.com",
-    address: "23, Station Road, Kothrud, Pune — 411038",
-    lat: 18.507800, lng: 73.807700,
-    loanType: "Personal Loan", loanAmount: "₹5,00,000",
-    verType: "RESIDENTIAL", branch: "Pune",
-    priority: "Medium", assignedOn: "08 Jul 2026",
-    status: "SUBMITTED",
+  "CASE-2026-0894": {
+    id: "CASE-2026-0894", customer: "Suresh Babu",
+    phone: "+91 88776 65544", email: "suresh.b@email.com",
+    address: "9, East Street, Srirangam, Trichy - 620006",
+    lat: 10.8624, lng: 78.6908,
+    loanType: "Home Loan", loanAmount: "₹25,00,000",
+    verType: "RESIDENTIAL", branch: "Trichy HQ",
+    priority: "Low", assignedOn: "Yesterday",
+    status: "ASSIGNED",
   },
-  "LV-2026-10814": {
-    id: "LV-2026-10814", customer: "Arvind Patel",
-    phone: "+91 32109 87654", email: "arvind.p@email.com",
-    address: "89, Gandhi Nagar, CG Road, Ahmedabad — 380009",
-    lat: 23.022505, lng: 72.571362,
-    loanType: "Business Loan", loanAmount: "₹8,50,000",
-    verType: "BUSINESS", branch: "Ahmedabad",
-    priority: "Medium", assignedOn: "06 Jul 2026",
-    status: "RE_VERIFICATION",
-    agentNote: "Admin rejected: Signboard photo missing. Please re-capture.",
+  "CASE-2026-0895": {
+    id: "CASE-2026-0895", customer: "Karthik Traders",
+    phone: "+91 77665 54433", email: "karthik.t@email.com",
+    address: "77, Main Road, Thanjavur - 613001",
+    lat: 10.7870, lng: 79.1378,
+    loanType: "Business Loan", loanAmount: "₹10,00,000",
+    verType: "BUSINESS", branch: "Thanjavur Branch",
+    priority: "Low", assignedOn: "06 Jul 2026",
+    status: "ASSIGNED",
   },
 };
 
@@ -155,10 +164,11 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
     if (status === "ASSIGNED") {
       setStatus("TRAVELLING");
       setShowMap(true);
-      toast.success("Navigation started. Case status: Travelling");
+      toast.success("Navigation started. Case status: Travelling. Opening Google Maps...");
     } else {
       setShowMap(true);
     }
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${caseData.lat},${caseData.lng}`, "_blank");
   }
 
   function handleArrived() {
@@ -174,7 +184,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
 
   const canNavigate    = ["ASSIGNED", "TRAVELLING", "AT_LOCATION", "IN_PROGRESS", "SUBMITTED", "RE_VERIFICATION"].includes(status);
   const canArrived     = status === "TRAVELLING";
-  const canVerify      = status === "AT_LOCATION" || status === "IN_PROGRESS" || status === "RE_VERIFICATION";
+  const canVerify      = true;
   const isReadOnly     = status === "SUBMITTED" || status === "COMPLETED";
 
   return (
@@ -361,9 +371,9 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
               {canVerify && <FiArrowRight className="w-4 h-4 ml-1" />}
             </button>
 
-            {!canVerify && status === "ASSIGNED" && (
+            {status === "ASSIGNED" && (
               <p className="text-center text-[11px] text-slate-400">
-                ⚠️ Navigate to the location first, then confirm arrival to unlock verification
+                💡 Tip: You can navigate to location or start verification directly.
               </p>
             )}
           </div>

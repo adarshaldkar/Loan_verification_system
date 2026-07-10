@@ -154,11 +154,20 @@ export default function AgentDashboard() {
 
   // Quick Action Handlers
   const triggerCamera = () => {
-    toast.success("Initializing camera sensor... GPS Geo-tag active!");
+    toast.success("Opening Camera (GPS Geo-tag active)...");
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.setAttribute("capture", "environment");
+    input.onchange = () => {
+      toast.success("Photo captured and stored with GPS geo-tags!");
+    };
+    input.click();
   };
 
   const triggerCall = () => {
-    toast.success("Dialing customer: Vijay Enterprises (+91 98765 43210)");
+    toast.success("Opening dialer: Vijay Enterprises (+91 98765 43210)");
+    window.location.href = "tel:+919876543210";
   };
 
   const triggerUpload = () => {
@@ -182,7 +191,8 @@ export default function AgentDashboard() {
   };
 
   const triggerNavigation = () => {
-    toast.success("Starting navigation: Showing optimal route to Pondicherry");
+    toast.success("Starting navigation: Opening Google Maps...");
+    window.open("https://www.google.com/maps/dir/?api=1&destination=18,+Lawspet+Road,+Lawspet,+Pondicherry+-+605008", "_blank");
   };
 
   return (

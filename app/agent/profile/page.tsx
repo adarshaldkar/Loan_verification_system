@@ -1,13 +1,17 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   FiUser, FiPhone, FiMail, FiMapPin, FiShield, FiBriefcase,
-  FiStar, FiCheckCircle, FiClock, FiCalendar,
+  FiStar, FiCheckCircle, FiClock, FiCalendar, FiEdit2, FiLock, FiX
 } from "react-icons/fi";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 
 /* ─── Mock Agent Profile ─────────────────────────────────────────────────── */
 
@@ -32,14 +36,41 @@ const AGENT = {
   },
 };
 
-/* ─── Profile Page ───────────────────────────────────────────────────────── */
-
 export default function AgentProfilePage() {
   const [loading, setLoading] = useState(true);
+  const [phone, setPhone] = useState(AGENT.phone);
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 400);
     return () => clearTimeout(t);
   }, []);
+
+  const handleUpdateProfile = () => {
+    toast.success("Profile details updated successfully!");
+    setIsEditingPhone(false);
+  };
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      toast.error("Please fill in all password fields.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("New passwords do not match.");
+      return;
+    }
+    toast.success("Password changed successfully!");
+    setShowPasswordModal(false);
+    setOldPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+  };
 
   if (loading) {
     return (
@@ -69,14 +100,14 @@ export default function AgentProfilePage() {
   }
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className="space-y-4 pb-8 text-slate-800" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
       {/* Header */}
-      <h1 className="text-xl font-bold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
+      <h1 className="text-xl font-bold text-slate-900">
         My Profile
       </h1>
 
       {/* Profile Card */}
-      <div className="bg-gradient-to-br from-[#0F2240] to-[#1E3A5F] rounded-2xl p-5 text-white">
+      <div className="bg-gradient-to-br from-[#0F2240] to-[#1E3A5F] rounded-2xl p-5 text-white shadow-sm">
         <div className="flex items-center gap-4">
           <Avatar className="w-16 h-16 border-2 border-white/30">
             <AvatarFallback className="text-xl font-bold text-[#1E3A5F]" style={{ background: "#E8EFF8" }}>
@@ -84,13 +115,13 @@ export default function AgentProfilePage() {
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <h2 className="text-lg font-bold" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
+            <h2 className="text-lg font-bold">
               {AGENT.name}
             </h2>
             <p className="text-blue-200 text-sm">{AGENT.role}</p>
             <div className="flex items-center gap-1.5 mt-1">
               <FiShield className="w-3.5 h-3.5 text-blue-300" />
-              <span className="text-xs font-mono text-blue-300">{AGENT.id}</span>
+              <span className="text-xs font-mono text-blue-300">Agent ID: {AGENT.id}</span>
             </div>
           </div>
         </div>
@@ -113,69 +144,147 @@ export default function AgentProfilePage() {
       </div>
 
       {/* Contact Info */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
           <FiUser className="w-4 h-4 text-slate-400" />
           <h3 className="text-[13px] font-semibold text-slate-900">Personal Information</h3>
         </div>
         <div className="divide-y divide-slate-50">
-          {[
-            { icon: FiMail,     label: "Email",    value: AGENT.email },
-            { icon: FiPhone,    label: "Phone",    value: AGENT.phone },
-            { icon: FiMapPin,   label: "Branch",   value: AGENT.branch },
-            { icon: FiBriefcase, label: "Zone",    value: AGENT.zone },
-            { icon: FiCalendar, label: "Joined",   value: AGENT.joinDate },
-          ].map(({ icon: Icon, label, value }) => (
-            <div key={label} className="flex items-center gap-3 px-4 py-3">
+          {/* Email */}
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
+              <FiMail className="w-4 h-4 text-slate-400" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400">Email Address</p>
+              <p className="text-[13px] font-medium text-slate-800">{AGENT.email}</p>
+            </div>
+          </div>
+
+          {/* Phone (Editable) */}
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
-                <Icon className="w-4 h-4 text-slate-400" />
+                <FiPhone className="w-4 h-4 text-slate-400" />
               </div>
               <div>
-                <p className="text-[10px] text-slate-400">{label}</p>
-                <p className="text-[13px] font-medium text-slate-800">{value}</p>
+                <p className="text-[10px] text-slate-400">Mobile Number</p>
+                {isEditingPhone ? (
+                  <input
+                    type="text"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="border border-slate-200 rounded px-2 py-0.5 text-xs focus:outline-none focus:border-[#1E3A5F]"
+                  />
+                ) : (
+                  <p className="text-[13px] font-medium text-slate-800">{phone}</p>
+                )}
               </div>
             </div>
-          ))}
+            {isEditingPhone ? (
+              <button onClick={handleUpdateProfile} className="text-xs font-semibold text-emerald-600 hover:underline">
+                Save
+              </button>
+            ) : (
+              <button onClick={() => setIsEditingPhone(true)} className="text-slate-400 hover:text-slate-600 p-1">
+                <FiEdit2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Branch */}
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
+              <FiMapPin className="w-4 h-4 text-slate-400" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400">Branch Location</p>
+              <p className="text-[13px] font-medium text-slate-800">{AGENT.branch}</p>
+            </div>
+          </div>
+
+          {/* Zone */}
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0">
+              <FiBriefcase className="w-4 h-4 text-slate-400" />
+            </div>
+            <div>
+              <p className="text-[10px] text-slate-400">Coverage Zone</p>
+              <p className="text-[13px] font-medium text-slate-800">{AGENT.zone}</p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Performance Stats */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-          <FiStar className="w-4 h-4 text-amber-400" />
-          <h3 className="text-[13px] font-semibold text-slate-900">Performance Overview</h3>
-        </div>
-        <div className="p-4 space-y-4">
-          {/* Success rate bar */}
-          <div>
-            <div className="flex justify-between text-xs mb-1.5">
-              <span className="text-slate-600 font-medium">Success Rate</span>
-              <span className="font-bold text-slate-900">{AGENT.stats.successRate}%</span>
-            </div>
-            <Progress value={AGENT.stats.successRate} className="h-2" />
-          </div>
-
-          {/* Stats grid */}
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "Total Assigned",   value: AGENT.stats.totalAssigned, icon: FiBriefcase,   color: "#1E3A5F", bg: "#EEF2FF" },
-              { label: "Completed",        value: AGENT.stats.completed,     icon: FiCheckCircle,  color: "#0D9488", bg: "#CCFBF1" },
-              { label: "In Progress",      value: AGENT.stats.inProgress,    icon: FiClock,         color: "#D97706", bg: "#FEF3C7" },
-              { label: "This Month",       value: AGENT.stats.thisMonth,     icon: FiCalendar,      color: "#6366F1", bg: "#EEF2FF" },
-            ].map(({ label, value, icon: Icon, color, bg }) => (
-              <div key={label} className="rounded-xl p-3" style={{ background: bg }}>
-                <div className="flex items-center gap-2 mb-1">
-                  <Icon className="w-3.5 h-3.5" style={{ color }} />
-                  <p className="text-[10px] font-medium" style={{ color }}>{label}</p>
-                </div>
-                <p className="text-lg font-bold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-                  {value}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Profile Actions */}
+      <div className="flex gap-3">
+        <Button
+          onClick={() => setShowPasswordModal(true)}
+          variant="outline"
+          className="flex-1 rounded-xl gap-2 font-semibold text-xs border-slate-200"
+        >
+          <FiLock className="w-4 h-4" />
+          Change Password
+        </Button>
+        <Button
+          onClick={handleUpdateProfile}
+          className="flex-1 rounded-xl text-white font-semibold text-xs"
+          style={{ background: "#1E3A5F" }}
+        >
+          Update Profile
+        </Button>
       </div>
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={() => setShowPasswordModal(false)} />
+          <div className="relative bg-white rounded-3xl p-6 w-full max-w-sm border border-gray-100 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="font-bold text-gray-900 text-sm">Change Account Password</h3>
+              <button onClick={() => setShowPasswordModal(false)} className="text-gray-400 hover:text-gray-600">
+                <FiX className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="space-y-3">
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-500">Current Password</Label>
+                <Input
+                  type="password"
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  placeholder="Enter current password"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-500">New Password</Label>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-500">Confirm Password</Label>
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                />
+              </div>
+
+              <Button type="submit" className="w-full mt-3 rounded-xl text-white font-bold text-xs" style={{ background: "#1E3A5F" }}>
+                Save Password
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

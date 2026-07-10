@@ -25,14 +25,11 @@ type AgentCase = {
 };
 
 const allCases: AgentCase[] = [
-  { id: "LV-2026-10821", customer: "Priya Sharma",   type: "RESIDENTIAL", address: "45 Park St, Dadar, Mumbai",         priority: "High",   distance: "3.2 km", status: "ASSIGNED",       assignedOn: "Today, 09:00 AM" },
-  { id: "LV-2026-10819", customer: "Sandeep Yadav",  type: "BUSINESS",    address: "78 Civil Lines, Connaught, Delhi",   priority: "High",   distance: "8.7 km", status: "IN_PROGRESS",    assignedOn: "Today, 08:30 AM" },
-  { id: "LV-2026-10817", customer: "Rahul Gupta",    type: "RESIDENTIAL", address: "23 Station Rd, Kothrud, Pune",       priority: "Medium", distance: "5.1 km", status: "SUBMITTED",      assignedOn: "Yesterday" },
-  { id: "LV-2026-10816", customer: "Kavita Singh",   type: "RESIDENTIAL", address: "56 Lake View, Adyar, Chennai",       priority: "Low",    distance: "12 km",  status: "COMPLETED",      assignedOn: "07 Jul 2026" },
-  { id: "LV-2026-10814", customer: "Arvind Patel",   type: "BUSINESS",    address: "89 Gandhi Nagar, CG Road, Ahmedabad",priority: "Medium", distance: "6.4 km", status: "RE_VERIFICATION", assignedOn: "06 Jul 2026" },
-  { id: "LV-2026-10813", customer: "Sunita Joshi",   type: "RESIDENTIAL", address: "34 Mall Rd, Vaishali Nagar, Jaipur", priority: "Low",    distance: "9.2 km", status: "ASSIGNED",       assignedOn: "06 Jul 2026" },
-  { id: "LV-2026-10811", customer: "Manoj Tiwari",   type: "BUSINESS",    address: "12 MIDC Area, Andheri East, Mumbai", priority: "High",   distance: "4.8 km", status: "TRAVELLING",     assignedOn: "05 Jul 2026" },
-  { id: "LV-2026-10809", customer: "Deepa Nair",     type: "RESIDENTIAL", address: "67 Anna Nagar, West, Chennai",       priority: "Medium", distance: "7.6 km", status: "ASSIGNED",       assignedOn: "05 Jul 2026" },
+  { id: "CASE-2026-0891", customer: "Ramesh Kumar",     type: "RESIDENTIAL", address: "123, 4th Cross Street, Anna Nagar, Trichy - 620018", priority: "High",   distance: "2.3 km", status: "ASSIGNED",       assignedOn: "Today, 10:30 AM" },
+  { id: "CASE-2026-0892", customer: "Lakshmi Devi",     type: "BUSINESS",    address: "56, Bharathi Nagar, Woraiyur, Trichy - 620003",       priority: "Medium", distance: "5.6 km", status: "ASSIGNED",       assignedOn: "Today, 12:00 PM" },
+  { id: "CASE-2026-0893", customer: "Vijay Enterprises",type: "BUSINESS",    address: "18, Lawspet Road, Lawspet, Pondicherry - 605008",     priority: "Medium", distance: "8.1 km", status: "IN_PROGRESS",    assignedOn: "Today, 02:30 PM" },
+  { id: "CASE-2026-0894", customer: "Suresh Babu",      type: "RESIDENTIAL", address: "9, East Street, Srirangam, Trichy - 620006",          priority: "Low",    distance: "12.4 km",status: "ASSIGNED",       assignedOn: "Yesterday" },
+  { id: "CASE-2026-0895", customer: "Karthik Traders",  type: "BUSINESS",    address: "77, Main Road, Thanjavur - 613001",                   priority: "Low",    distance: "18.7 km",status: "ASSIGNED",       assignedOn: "06 Jul 2026" },
 ];
 
 const STATUS_FILTERS = ["All", "ASSIGNED", "IN_PROGRESS", "SUBMITTED", "COMPLETED", "RE_VERIFICATION"] as const;
