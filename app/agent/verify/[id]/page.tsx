@@ -113,39 +113,6 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
   const router = useRouter();
   const caseId = resolvedParams.id;
 
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="space-y-6 max-w-2xl mx-auto">
-        {/* Header Skeleton */}
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-9 w-9 rounded-full" />
-          <div className="space-y-2 flex-1">
-            <Skeleton className="h-6 w-44" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-        </div>
-
-        {/* Form sections skeleton */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-4">
-          <Skeleton className="h-6 w-36" />
-          <div className="space-y-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="h-10 w-full rounded-xl" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
   const currentCase = CASE_DETAILS[caseId] || {
     id: caseId,
     name: "Vijay Enterprises",
@@ -159,6 +126,7 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
     pincode: "605008",
   };
 
+  const [loading, setLoading] = useState(true);
   const [photos, setPhotos] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -214,6 +182,39 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
     documentsVerified: "Yes - All Documents Valid",
     remarks: "",
   });
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 500);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-2xl mx-auto">
+        {/* Header Skeleton */}
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-9 w-9 rounded-full" />
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-6 w-44" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+
+        {/* Form sections skeleton */}
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-4">
+          <Skeleton className="h-6 w-36" />
+          <div className="space-y-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-10 w-full rounded-xl" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Photo handlers
   const handleAddPhoto = () => {

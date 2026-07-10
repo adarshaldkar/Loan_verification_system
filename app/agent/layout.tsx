@@ -190,7 +190,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
       </Link>
 
       {/* Avatar */}
-      <div className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 rounded-xl px-2 py-1.5 transition-all">
+      <Link href="/agent/profile" className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 rounded-xl px-2 py-1.5 transition-all">
         <Avatar className="w-8 h-8">
           <AvatarFallback className="text-xs font-bold text-white" style={{ background: "#1E4DB7" }}>
             {AGENT.initials}
@@ -201,7 +201,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
           <p className="text-[10px] text-gray-400">Agent ID: {AGENT.id}</p>
         </div>
         <FiChevronDown className="w-3.5 h-3.5 text-gray-400" />
-      </div>
+      </Link>
     </header>
   );
 }

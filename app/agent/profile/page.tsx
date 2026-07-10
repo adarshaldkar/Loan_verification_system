@@ -12,9 +12,9 @@ import { useState, useEffect } from "react";
 /* ─── Mock Agent Profile ─────────────────────────────────────────────────── */
 
 const AGENT = {
-  name: "Amit Kumar",
-  id: "AGT-001",
-  email: "amit.kumar@lvms.com",
+  name: "Arun Kumar",
+  id: "AGT-1024",
+  email: "arun.kumar@lvms.com",
   phone: "+91 98765 43210",
   branch: "Bangalore HQ",
   role: "Field Verification Agent",
