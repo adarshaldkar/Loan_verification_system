@@ -42,6 +42,11 @@ export const registerAgentApi = (data: {
 }) => api.post("/admin/agents/register", data);
 export const toggleAgentStatusApi = (agentId: string) =>
   api.patch(`/admin/agents/${agentId}/toggle`);
+export const updateAgentApi = (agentId: string, data: {
+  email: string; password?: string;
+  firstName: string; lastName: string;
+  phone?: string; branch?: string;
+}) => api.put(`/admin/agents/${agentId}`, data);
 
 // ─── Admins ───────────────────────────────────────────────────────────────
 export const getAdminsApi = () => api.get("/admin/admins");

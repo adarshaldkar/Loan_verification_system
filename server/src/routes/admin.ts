@@ -4,7 +4,7 @@ import { authenticateToken, requireRole } from '../middlewares/auth';
 // ── New Domain-Specific Controllers ────────────────────────────────────────
 import { getDashboard, getAnalytics } from '../controllers/admin/dashboardController';
 import { getCustomers, createCustomerAndCase } from '../controllers/admin/customerController';
-import { getAgents, toggleAgentStatus } from '../controllers/admin/agentController';
+import { getAgents, toggleAgentStatus, updateAgent } from '../controllers/admin/agentController';
 import { getCases, assignCase, updateCaseStatus, getCaseById } from '../controllers/admin/caseController';
 import { getBranches, createBranch } from '../controllers/admin/branchController';
 import { getReports, generateReport } from '../controllers/admin/reportController';
@@ -28,6 +28,7 @@ router.get('/analytics', getAnalytics);
 // ── Agents ─────────────────────────────────────────────────────────────────
 router.post('/agents/register', registerAgent);
 router.get('/agents', getAgents);
+router.put('/agents/:agentId', updateAgent);
 router.patch('/agents/:agentId/toggle', toggleAgentStatus);
 
 // ── Customers ──────────────────────────────────────────────────────────────

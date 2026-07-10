@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import bcrypt from 'bcryptjs';
 import prisma from '../../config/db';
 import { AuthRequest } from '../../middlewares/auth';
 import { parseFullName, apiError } from '../../utils/helpers';
@@ -30,6 +31,9 @@ export const getAgents = async (req: AuthRequest, res: Response) => {
       return {
         id: agent.id,
         name: parseFullName(agent.firstName, agent.lastName),
+        firstName: agent.firstName,
+        lastName: agent.lastName,
+        email: agent.email,
         phone: agent.phone ?? '',
         branch: agent.branch ?? 'Unassigned',
         status: agent.isActive ? 'Active' : 'Inactive',
@@ -62,5 +66,37 @@ export const toggleAgentStatus = async (req: AuthRequest, res: Response) => {
     return res.status(200).json({ success: true, message: `Agent ${updated.isActive ? 'activated' : 'deactivated'}`, data: updated });
   } catch (error: any) {
     return apiError(res, 'Failed to toggle agent status', 500, error);
+  }
+};
+
+export const updateAgent = async (req: AuthRequest, res: Response) => {
+  try {
+    const adminId = req.user?.id;
+    const agentId = req.params.agentId as string;
+    const { firstName, lastName, email, phone, branch, password } = req.body;
+
+    const agent = await (prisma.user as any).findFirst({ where: { id: agentId, adminId } });
+    if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
+
+    const updateData: any = {
+      firstName,
+      lastName,
+      email,
+      phone: phone || null,
+      branch: branch || null,
+    };
+
+    if (password && password.trim() !== '') {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: agentId },
+      data: updateData,
+    });
+
+    return res.status(200).json({ success: true, message: 'Agent updated successfully', data: updated });
+  } catch (error: any) {
+    return apiError(res, 'Failed to update agent', 500, error);
   }
 };

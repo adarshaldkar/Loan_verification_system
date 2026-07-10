@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FiSearch, FiEye, FiUserPlus, FiUserX, FiUserCheck, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiSearch, FiEye, FiUserPlus, FiUserX, FiUserCheck, FiChevronLeft, FiChevronRight, FiEdit2 } from "react-icons/fi";
 import { toast } from "sonner";
+import { z } from "zod";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,8 +14,17 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/shared/page-header";
-import { getAgentsApi, registerAgentApi, toggleAgentStatusApi } from "@/lib/api";
+import { getAgentsApi, registerAgentApi, toggleAgentStatusApi, getBranchesApi, updateAgentApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
+
+const agentSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits").regex(/^[+]?[0-9\s-]{10,15}$/, "Invalid phone format"),
+  branch: z.string().min(1, "Branch name is required"),
+});
 
 type Agent = {
   id: string;
@@ -39,12 +49,15 @@ export default function AgentsPage() {
 
   // Add Agent Form State
   const [addOpen, setAddOpen] = useState(false);
+  const [editAgentId, setEditAgentId] = useState<string | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [branch, setBranch] = useState("");
+  const [branchesList, setBranchesList] = useState<any[]>([]);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   const fetchAgents = async () => {
@@ -59,23 +72,99 @@ export default function AgentsPage() {
     }
   };
 
+  const fetchBranches = async () => {
+    try {
+      const res = await getBranchesApi();
+      setBranchesList(res.data.data || []);
+    } catch (err) {
+      console.error("Failed to load branches:", err);
+    }
+  };
+
   useEffect(() => {
     fetchAgents();
+    fetchBranches();
   }, []);
+
+  const handleOpenAdd = () => {
+    setEditAgentId(null);
+    setEmail("");
+    setPassword("");
+    setFirstName("");
+    setLastName("");
+    setPhone("");
+    setBranch("");
+    setErrors({});
+    setAddOpen(true);
+  };
+
+  const handleOpenEdit = (agent: any) => {
+    setEditAgentId(agent.id);
+    setFirstName(agent.firstName || agent.name.split(" ")[0] || "");
+    setLastName(agent.lastName || agent.name.split(" ").slice(1).join(" ") || "");
+    setEmail(agent.email || "");
+    setPhone(agent.phone || "");
+    setBranch(agent.branch && agent.branch !== "Unassigned" ? agent.branch : "");
+    setPassword("");
+    setErrors({});
+    setAddOpen(true);
+  };
 
   const handleAddAgent = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Zod validation
+    const validationResult = agentSchema.safeParse({
+      firstName,
+      lastName,
+      email,
+      phone,
+      branch,
+    });
+
+    if (!validationResult.success) {
+      const errMap: Record<string, string> = {};
+      validationResult.error.issues.forEach((err) => {
+        if (err.path[0]) {
+          errMap[err.path[0] as string] = err.message;
+        }
+      });
+      setErrors(errMap);
+      const firstError = validationResult.error.issues[0]?.message || "Validation error";
+      toast.error(firstError);
+      return;
+    }
+
+    if (!editAgentId && (!password || password.length < 6)) {
+      setErrors(prev => ({ ...prev, password: "Password must be at least 6 characters" }));
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    setErrors({});
     setSubmitting(true);
     try {
-      await registerAgentApi({
-        email,
-        password,
-        firstName,
-        lastName,
-        phone,
-        branch,
-      });
-      toast.success("Agent registered successfully!");
+      if (editAgentId) {
+        await updateAgentApi(editAgentId, {
+          email,
+          password: password || undefined,
+          firstName,
+          lastName,
+          phone,
+          branch,
+        });
+        toast.success("Agent profile updated successfully!");
+      } else {
+        await registerAgentApi({
+          email,
+          password,
+          firstName,
+          lastName,
+          phone,
+          branch,
+        });
+        toast.success("Agent registered successfully!");
+      }
       setAddOpen(false);
       // Reset form
       setEmail("");
@@ -84,9 +173,10 @@ export default function AgentsPage() {
       setLastName("");
       setPhone("");
       setBranch("");
+      setEditAgentId(null);
       fetchAgents();
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Failed to register agent");
+      toast.error(err?.response?.data?.message || "Failed to submit agent details");
     } finally {
       setSubmitting(false);
     }
@@ -123,7 +213,7 @@ export default function AgentsPage() {
           <Button
             className="text-white gap-2 cursor-pointer"
             style={{ background: "#1E3A5F" }}
-            onClick={() => setAddOpen(true)}
+            onClick={handleOpenAdd}
           >
             <FiUserPlus className="w-4 h-4" />
             Add Agent
@@ -213,9 +303,12 @@ export default function AgentsPage() {
                       </div>
                     </td>
                     <td className="px-5 py-4 text-slate-500">{a.avgTurnaround}</td>
-                    <td className="px-5 py-4">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelected(a)}>
+                     <td className="px-5 py-4 flex gap-1.5 items-center">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setSelected(a); }}>
                         <FiEye className="w-4 h-4 text-slate-400" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-800" onClick={(e) => { e.stopPropagation(); handleOpenEdit(a); }}>
+                        <FiEdit2 className="w-4 h-4 text-slate-400" />
                       </Button>
                     </td>
                   </tr>
@@ -341,40 +434,92 @@ export default function AgentsPage() {
         </SheetContent>
       </Sheet>
 
-      {/* Add Agent Sheet */}
+       {/* Add / Edit Agent Sheet */}
       <Sheet open={addOpen} onOpenChange={setAddOpen}>
-        <SheetContent className="w-[400px] sm:w-[480px]">
+        <SheetContent className="w-[400px] sm:w-[480px] overflow-y-auto">
           <SheetHeader className="mb-6">
-            <SheetTitle className="text-xl">Register New Agent</SheetTitle>
-            <SheetDescription>Create a profile for a new field verification agent.</SheetDescription>
+            <SheetTitle className="text-xl">{editAgentId ? "Edit Agent Profile" : "Register New Agent"}</SheetTitle>
+            <SheetDescription>
+              {editAgentId ? "Modify field agent profile details below." : "Create a profile for a new field verification agent."}
+            </SheetDescription>
           </SheetHeader>
           <Separator className="mb-6" />
           <form onSubmit={handleAddAgent} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                <Label htmlFor="firstName">First Name *</Label>
+                <Input
+                  id="firstName"
+                  value={firstName}
+                  onChange={(e) => { setFirstName(e.target.value); if (errors.firstName) setErrors(prev => ({ ...prev, firstName: "" })); }}
+                  className={errors.firstName ? "border-rose-500 focus-visible:ring-rose-500" : ""}
+                />
+                {errors.firstName && <p className="text-[10px] text-rose-500 font-semibold">{errors.firstName}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                <Label htmlFor="lastName">Last Name *</Label>
+                <Input
+                  id="lastName"
+                  value={lastName}
+                  onChange={(e) => { setLastName(e.target.value); if (errors.lastName) setErrors(prev => ({ ...prev, lastName: "" })); }}
+                  className={errors.lastName ? "border-rose-500 focus-visible:ring-rose-500" : ""}
+                />
+                {errors.lastName && <p className="text-[10px] text-rose-500 font-semibold">{errors.lastName}</p>}
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Label htmlFor="email">Email *</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); if (errors.email) setErrors(prev => ({ ...prev, email: "" })); }}
+                className={errors.email ? "border-rose-500 focus-visible:ring-rose-500" : ""}
+              />
+              {errors.email && <p className="text-[10px] text-rose-500 font-semibold">{errors.email}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Label htmlFor="password">Password {editAgentId ? "(leave blank to keep current)" : "*"}</Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                placeholder={editAgentId ? "••••••••" : ""}
+                onChange={(e) => { setPassword(e.target.value); if (errors.password) setErrors(prev => ({ ...prev, password: "" })); }}
+                className={errors.password ? "border-rose-500 focus-visible:ring-rose-500" : ""}
+              />
+              {errors.password && <p className="text-[10px] text-rose-500 font-semibold">{errors.password}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 XXXXX XXXXX" />
+              <Label htmlFor="phone">Phone *</Label>
+              <Input
+                id="phone"
+                value={phone}
+                onChange={(e) => { setPhone(e.target.value); if (errors.phone) setErrors(prev => ({ ...prev, phone: "" })); }}
+                placeholder="+91 XXXXX XXXXX"
+                className={errors.phone ? "border-rose-500 focus-visible:ring-rose-500" : ""}
+              />
+              {errors.phone && <p className="text-[10px] text-rose-500 font-semibold">{errors.phone}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="branch">Branch Name</Label>
-              <Input id="branch" value={branch} onChange={(e) => setBranch(e.target.value)} placeholder="e.g. Bangalore HQ" />
+              <Label htmlFor="branch">Branch Name *</Label>
+              <select
+                id="branch"
+                value={branch}
+                onChange={(e) => { setBranch(e.target.value); if (errors.branch) setErrors(prev => ({ ...prev, branch: "" })); }}
+                className={cn(
+                  "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+                  errors.branch ? "border-rose-500 focus-visible:ring-rose-500" : ""
+                )}
+              >
+                <option value="">Select a branch</option>
+                {branchesList.map((b) => (
+                  <option key={b.id} value={b.name}>
+                    {b.name} ({b.city})
+                  </option>
+                ))}
+              </select>
+              {errors.branch && <p className="text-[10px] text-rose-500 font-semibold">{errors.branch}</p>}
             </div>
             <Button
               type="submit"
@@ -382,7 +527,7 @@ export default function AgentsPage() {
               className="w-full text-white cursor-pointer mt-4"
               style={{ background: "#1E3A5F" }}
             >
-              {submitting ? "Registering..." : "Register Agent"}
+              {submitting ? "Submitting..." : editAgentId ? "Save Agent Profile" : "Register Agent"}
             </Button>
           </form>
         </SheetContent>

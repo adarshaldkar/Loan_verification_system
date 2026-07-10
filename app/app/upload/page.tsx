@@ -170,7 +170,7 @@ export default function UploadPage() {
               Drag and drop your Excel/CSV file here
             </p>
             <p className="text-xs text-slate-400 mt-1">
-              or click to browse · .csv accepted · Max 10 MB
+              or click to browse · .xlsx, .xls, .csv accepted · Max 10 MB
             </p>
           </div>
           <Button className="text-white gap-2" style={{ background: "#1E3A5F" }}>
@@ -180,7 +180,7 @@ export default function UploadPage() {
           <input
             ref={inputRef}
             type="file"
-            accept=".csv"
+            accept=".xlsx,.xls,.csv"
             className="hidden"
             onChange={handleFileChange}
           />
