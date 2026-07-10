@@ -138,24 +138,24 @@ export default function AgentDashboard() {
 
   // Filter cases logic
   const getFilteredCases = () => {
-    let result = cases;
+    let result = liveCases;
     
     // If active KPI is clicked, filter by that status
     if (activeKpi) {
       if (activeKpi === "Assigned") {
-        return result.filter(c => c.status === "Pending" || c.status === "In Progress");
+        return result.filter(c => c.status === "ASSIGNED" || c.status === "PENDING" || c.status === "IN_PROGRESS");
       }
-      return result.filter(c => c.status === activeKpi);
+      return result.filter(c => c.status === activeKpi.toUpperCase());
     }
 
     if (selectedFilter === "Pending") {
-      return result.filter(c => c.status === "Pending");
+      return result.filter(c => c.status === "ASSIGNED" || c.status === "PENDING");
     }
     if (selectedFilter === "In Progress") {
-      return result.filter(c => c.status === "In Progress");
+      return result.filter(c => c.status === "IN_PROGRESS");
     }
     if (selectedFilter === "High Priority") {
-      return result.filter(c => c.priority === "High");
+      return result.filter(c => c.status === "PENDING");
     }
     return result.slice(0, 5); // Default display of 5 cases
   };
@@ -218,7 +218,7 @@ export default function AgentDashboard() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            Welcome back, Arun Kumar! 👋
+            Welcome back, {dashboardData?.agent?.name || "Arun Kumar"}! 👋
           </h1>
           <p className="text-sm text-gray-500 mt-1">Here's your verification overview for today.</p>
         </div>
@@ -271,10 +271,10 @@ export default function AgentDashboard() {
             <FiBriefcase className="w-5 h-5" />
           </div>
           <p className="text-xs font-semibold text-gray-500">Assigned Cases</p>
-          <p className="text-3xl font-extrabold text-gray-900 mt-1">8</p>
+          <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData?.kpis?.pending ?? 0}</p>
           <div className="flex items-center gap-1 mt-2 text-xs font-medium text-emerald-600">
             <FiTrendingUp className="w-3.5 h-3.5" />
-            <span>2 new today</span>
+            <span>Active assigned</span>
           </div>
         </button>
 
@@ -290,10 +290,10 @@ export default function AgentDashboard() {
             <FiClock className="w-5 h-5" />
           </div>
           <p className="text-xs font-semibold text-gray-500">In Progress</p>
-          <p className="text-3xl font-extrabold text-gray-900 mt-1">2</p>
+          <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData?.kpis?.inProgress ?? 0}</p>
           <div className="flex items-center gap-1 mt-2 text-xs font-medium text-amber-600">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            <span>Continue pending</span>
+            <span>Under review</span>
           </div>
         </button>
 
@@ -309,10 +309,10 @@ export default function AgentDashboard() {
             <FiCheckCircle className="w-5 h-5" />
           </div>
           <p className="text-xs font-semibold text-gray-500">Completed</p>
-          <p className="text-3xl font-extrabold text-gray-900 mt-1">5</p>
+          <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData?.kpis?.completed ?? 0}</p>
           <div className="flex items-center gap-1 mt-2 text-xs font-medium text-emerald-600">
             <FiTrendingUp className="w-3.5 h-3.5" />
-            <span>2 today</span>
+            <span>Total verified</span>
           </div>
         </button>
 
@@ -328,9 +328,9 @@ export default function AgentDashboard() {
             <FiAlertCircle className="w-5 h-5" />
           </div>
           <p className="text-xs font-semibold text-gray-500">Rejected</p>
-          <p className="text-3xl font-extrabold text-gray-900 mt-1">1</p>
+          <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData?.kpis?.rejected ?? 0}</p>
           <div className="flex items-center gap-1 mt-2 text-xs font-medium text-rose-600 hover:underline">
-            <span>View details</span>
+            <span>Declined/failed</span>
           </div>
         </button>
 
@@ -363,10 +363,10 @@ export default function AgentDashboard() {
             {/* Filter pills */}
             <div className="flex gap-1.5 overflow-x-auto pb-3 mb-2">
               {[
-                { label: "All", count: 8 },
-                { label: "Pending", count: 5 },
-                { label: "In Progress", count: 2 },
-                { label: "High Priority", count: 2 }
+                { label: "All", count: liveCases.length },
+                { label: "Pending", count: liveCases.filter(c => c.status === "ASSIGNED" || c.status === "PENDING").length },
+                { label: "In Progress", count: liveCases.filter(c => c.status === "IN_PROGRESS").length },
+                { label: "High Priority", count: liveCases.filter(c => c.priority === "High" || c.status === "PENDING").length }
               ].map((pill) => (
                 <button
                   key={pill.label}
@@ -389,36 +389,47 @@ export default function AgentDashboard() {
 
             {/* Case List */}
             <div className="space-y-4">
-              {getFilteredCases().map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => router.push(`/agent/cases/${c.id}`)}
-                  className="flex items-start justify-between gap-3 p-3.5 rounded-xl border border-gray-50 bg-[#FAFBFD] hover:bg-gray-50 cursor-pointer transition-all"
-                >
-                  <div className="space-y-1.5 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={cn(
-                        "text-[9px] font-bold px-2 py-0.5 rounded-full uppercase",
-                        c.priority === "High" ? "bg-rose-100 text-rose-700" :
-                        c.priority === "Medium" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600"
-                      )}>
-                        {c.priority}
-                      </span>
-                      <span className="text-[11px] font-mono text-gray-400 font-semibold">{c.id}</span>
-                    </div>
-                    <h4 className="text-[14px] font-bold text-gray-900 leading-snug">{c.customer}</h4>
-                    <p className="text-[12px] text-gray-400 truncate leading-snug">{c.address}</p>
-                    <p className="text-[11px] font-medium text-gray-500">{c.type}</p>
-                  </div>
-                  <div className="flex flex-col items-end justify-between self-stretch shrink-0">
-                    <span className="text-[11px] text-[#1E4DB7] font-semibold flex items-center gap-1">
-                      <FiMapPin className="w-3.5 h-3.5" />
-                      {c.distance}
-                    </span>
-                    <FiChevronRight className="w-4 h-4 text-gray-300" />
-                  </div>
+              {getFilteredCases().length === 0 ? (
+                <div className="text-center py-6 text-gray-400 text-xs">
+                  No cases found under this filter
                 </div>
-              ))}
+              ) : (
+                getFilteredCases().map((c) => {
+                  const p = c.status === "PENDING" || c.status === "ASSIGNED" ? "High" : c.status === "IN_PROGRESS" ? "Medium" : "Low";
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => router.push(`/agent/cases/${c.id}`)}
+                      className="flex items-start justify-between gap-3 p-3.5 rounded-xl border border-gray-50 bg-[#FAFBFD] hover:bg-gray-50 cursor-pointer transition-all"
+                    >
+                      <div className="space-y-1.5 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            "text-[9px] font-bold px-2 py-0.5 rounded-full uppercase",
+                            p === "High" ? "bg-rose-100 text-rose-700" :
+                            p === "Medium" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600"
+                          )}>
+                            {p}
+                          </span>
+                          <span className="text-[11px] font-mono text-gray-400 font-semibold">{c.id}</span>
+                        </div>
+                        <h4 className="text-[14px] font-bold text-gray-900 leading-snug">{c.customer}</h4>
+                        <p className="text-[12px] text-gray-400 truncate leading-snug">{c.address}</p>
+                        <p className="text-[11px] font-medium text-gray-500">
+                          {c.type === 'RESIDENTIAL' || c.type === 'ADDRESS' ? 'Residential Verification' : 'Business Verification'}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end justify-between self-stretch shrink-0">
+                        <span className="text-[11px] text-[#1E4DB7] font-semibold flex items-center gap-1">
+                          <FiMapPin className="w-3.5 h-3.5" />
+                          {c.distance || "3.2 km away"}
+                        </span>
+                        <FiChevronRight className="w-4 h-4 text-gray-300" />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 
