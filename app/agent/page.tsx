@@ -760,7 +760,11 @@ export default function AgentDashboard() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-[16px] font-bold text-gray-900">Today's Schedule</h2>
-              <button onClick={triggerMultiRouteNavigation} className="text-xs font-semibold text-[#1E4DB7] hover:underline" disabled={destinations.length === 0}>
+              <button 
+                onClick={triggerMultiRouteNavigation} 
+                className="text-xs font-semibold text-[#1E4DB7] hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed" 
+                disabled={destinations.length === 0}
+              >
                 View route
               </button>
             </div>
