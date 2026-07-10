@@ -5,31 +5,25 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/a
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
+  withCredentials: true, // Crucial for sending/receiving HttpOnly cookies
 });
 
-// Auto-attach JWT to every request
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("lvms_token");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Auto-logout on 401
+// Auto-logout on 401 — redirect to correct login page based on current path
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== "undefined") {
-      localStorage.removeItem("lvms_token");
       localStorage.removeItem("lvms_user");
-      window.location.href = "/login";
+      localStorage.removeItem("lvms_agent");
+      const isAgentPath = window.location.pathname.startsWith("/agent");
+      window.location.href = isAgentPath ? "/agent/login" : "/login";
     }
     return Promise.reject(error);
   }
 );
 
 export default api;
+
 
 // ─── Auth ─────────────────────────────────────────────────────────────────
 export const loginApi = (email: string, password: string) =>
@@ -87,3 +81,36 @@ export const getAuditLogsApi = () => api.get("/admin/audit-logs");
 export const getProfileApi = () => api.get("/admin/profile");
 export const getSettingsApi = () => api.get("/admin/settings");
 export const updateSettingsApi = (data: any) => api.put("/admin/settings", data);
+
+// ─── Agent Panel APIs ──────────────────────────────────────────────────────
+export const agentLoginApi = (email: string, password: string) =>
+  api.post("/auth/login", { email, password });
+
+export const agentLogoutApi = () =>
+  api.post("/auth/logout");
+
+export const getAgentDashboardApi = () =>
+  api.get("/agent/dashboard");
+
+export const getAgentCasesApi = (status?: string) =>
+  api.get("/agent/cases", { params: status && status !== "All" ? { status } : {} });
+
+export const getAgentCaseByIdApi = (id: string) =>
+  api.get(`/agent/cases/${id}`);
+
+export const updateAgentCaseStatusApi = (id: string, status: string) =>
+  api.patch(`/agent/cases/${id}/status`, { status });
+
+export const submitVerificationApi = (id: string, data: {
+  remarks?: string;
+  gpsLatitude?: number;
+  gpsLongitude?: number;
+  profileData?: any;
+}) => api.post(`/agent/cases/${id}/submit`, data);
+
+export const getAgentProfileApi = () =>
+  api.get("/agent/profile");
+
+export const getAgentNotificationsApi = () =>
+  api.get("/agent/notifications");
+
