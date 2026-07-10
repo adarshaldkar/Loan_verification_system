@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import ScheduleRouteMap from "@/components/shared/ScheduleRouteMap";
 
 /* ─── Mock Data ──────────────────────────────────────────────────────────── */
 
@@ -48,9 +49,118 @@ export default function AgentDashboard() {
   const [selectedFilter, setSelectedFilter] = useState<"All" | "Pending" | "In Progress" | "High Priority">("All");
   const [activeKpi, setActiveKpi] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [currentDate, setCurrentDate] = useState("May 27, 2026");
+  const [currentDate, setCurrentDate] = useState(() => {
+    return new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  });
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [liveCases, setLiveCases] = useState<any[]>([]);
+  const [agentCoords, setAgentCoords] = useState({ lat: 10.7905, lng: 78.7047 });
+  const [gpsActive, setGpsActive] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && navigator.geolocation) {
+      const watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          setAgentCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          setGpsActive(true);
+        },
+        (err) => {
+          console.warn("Geolocation watch failed, using fallback:", err);
+          // Try to get current position once as fallback
+          navigator.geolocation.getCurrentPosition(
+            (p) => {
+              setAgentCoords({ lat: p.coords.latitude, lng: p.coords.longitude });
+              setGpsActive(true);
+            },
+            undefined,
+            { timeout: 5000 }
+          );
+        },
+        { enableHighAccuracy: true }
+      );
+      return () => navigator.geolocation.clearWatch(watchId);
+    }
+  }, []);
+
+  function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  const [caseCoords, setCaseCoords] = useState<Record<string, { lat: number; lng: number }>>({});
+
+  useEffect(() => {
+    if (!dashboardData?.todaySchedule) return;
+    
+    async function geocodeSchedules() {
+      const coords: Record<string, { lat: number; lng: number }> = {};
+      
+      for (const s of dashboardData.todaySchedule) {
+        if (!s.address) continue;
+        try {
+          const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(s.address)}&limit=1`;
+          const res = await fetch(url);
+          const data = await res.json();
+          if (data && data.length > 0) {
+            coords[s.id] = {
+              lat: parseFloat(data[0].lat),
+              lng: parseFloat(data[0].lon)
+            };
+          } else {
+            // Fallback: Deterministic offset
+            let hash = 0;
+            const str = s.name || s.address || "";
+            for (let i = 0; i < str.length; i++) {
+              hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const latOffset = ((Math.abs(hash) % 100) / 4000) - 0.0125;
+            const lngOffset = (((Math.abs(hash) >> 8) % 100) / 4000) - 0.0125;
+            coords[s.id] = {
+              lat: agentCoords.lat + latOffset,
+              lng: agentCoords.lng + lngOffset
+            };
+          }
+        } catch (e) {
+          // Fallback on network error/CORS
+          let hash = 0;
+          const str = s.name || s.address || "";
+          for (let i = 0; i < str.length; i++) {
+            hash = str.charCodeAt(i) + ((hash << 5) - hash);
+          }
+          const latOffset = ((Math.abs(hash) % 100) / 4000) - 0.0125;
+          const lngOffset = (((Math.abs(hash) >> 8) % 100) / 4000) - 0.0125;
+          coords[s.id] = {
+            lat: agentCoords.lat + latOffset,
+            lng: agentCoords.lng + lngOffset
+          };
+        }
+      }
+      setCaseCoords(coords);
+    }
+    
+    geocodeSchedules();
+  }, [dashboardData, agentCoords.lat, agentCoords.lng]);
+
+  const destinations = dashboardData?.todaySchedule?.map((s: any, idx: number) => {
+    const coords = caseCoords[s.id] || {
+      lat: agentCoords.lat,
+      lng: agentCoords.lng
+    };
+    return {
+      id: s.id,
+      name: s.name,
+      address: s.address || "No address provided",
+      lat: coords.lat,
+      lng: coords.lng,
+    };
+  }) || [];
 
   useEffect(() => {
     async function loadDashboard() {
@@ -143,21 +253,43 @@ export default function AgentDashboard() {
     // If active KPI is clicked, filter by that status
     if (activeKpi) {
       if (activeKpi === "Assigned") {
-        return result.filter(c => c.status === "ASSIGNED" || c.status === "PENDING" || c.status === "IN_PROGRESS");
+        result = result.filter(c => c.status === "ASSIGNED" || c.status === "PENDING" || c.status === "IN_PROGRESS");
+      } else {
+        result = result.filter(c => c.status === activeKpi.toUpperCase());
       }
-      return result.filter(c => c.status === activeKpi.toUpperCase());
+    } else {
+      if (selectedFilter === "Pending") {
+        result = result.filter(c => c.status === "ASSIGNED" || c.status === "PENDING");
+      } else if (selectedFilter === "In Progress") {
+        result = result.filter(c => c.status === "IN_PROGRESS");
+      } else if (selectedFilter === "High Priority") {
+        result = result.filter(c => c.status === "PENDING");
+      }
     }
 
-    if (selectedFilter === "Pending") {
-      return result.filter(c => c.status === "ASSIGNED" || c.status === "PENDING");
-    }
-    if (selectedFilter === "In Progress") {
-      return result.filter(c => c.status === "IN_PROGRESS");
-    }
-    if (selectedFilter === "High Priority") {
-      return result.filter(c => c.status === "PENDING");
-    }
-    return result.slice(0, 5); // Default display of 5 cases
+    return result.map(c => {
+      const coords = caseCoords[c.id] || (() => {
+        let hash = 0;
+        const str = c.customer || c.address || "";
+        for (let i = 0; i < str.length; i++) {
+          hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const latOffset = ((Math.abs(hash) % 100) / 4000) - 0.0125;
+        const lngOffset = (((Math.abs(hash) >> 8) % 100) / 4000) - 0.0125;
+        return {
+          lat: agentCoords.lat + latOffset,
+          lng: agentCoords.lng + lngOffset
+        };
+      })();
+      
+      const distanceVal = haversineDistance(agentCoords.lat, agentCoords.lng, coords.lat, coords.lng);
+      return {
+        ...c,
+        distance: `${distanceVal.toFixed(1)} km away`,
+        lat: coords.lat,
+        lng: coords.lng,
+      };
+    });
   };
 
   const handleKpiClick = (kpiName: string) => {
@@ -170,45 +302,77 @@ export default function AgentDashboard() {
 
   // Quick Action Handlers
   const triggerCamera = () => {
-    toast.success("Opening Camera (GPS Geo-tag active)...");
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.setAttribute("capture", "environment");
-    input.onchange = () => {
-      toast.success("Photo captured and stored with GPS geo-tags!");
-    };
-    input.click();
+    const currentCase = liveCases[0];
+    if (!currentCase) {
+      toast.error("No active case assigned to capture photo for.");
+      return;
+    }
+    toast.success(`Opening Camera for ${currentCase.customer}...`);
+    router.push(`/agent/verify/${currentCase.id}`);
   };
 
   const triggerCall = () => {
-    toast.success("Opening dialer: Vijay Enterprises (+91 98765 43210)");
-    window.location.href = "tel:+919876543210";
+    const currentCase = liveCases[0];
+    if (!currentCase || !currentCase.phone) {
+      toast.error("No active case with a valid phone number found.");
+      return;
+    }
+    toast.success(`Calling ${currentCase.customer} at ${currentCase.phone}...`);
+    window.location.href = `tel:${currentCase.phone}`;
   };
 
   const triggerUpload = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*,application/pdf";
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        toast.success(`Uploading ${file.name} (Geo-tagged)...`);
-      }
-    };
-    input.click();
+    const currentCase = liveCases[0];
+    if (!currentCase) {
+      toast.error("No active case assigned to upload document for.");
+      return;
+    }
+    toast.success(`Directing to upload documents for ${currentCase.customer}...`);
+    router.push(`/agent/verify/${currentCase.id}`);
   };
 
   const triggerAddRemark = () => {
-    const remark = prompt("Enter observation remark for Vijay Enterprises:");
-    if (remark) {
-      toast.success("Observation remark added successfully!");
+    const currentCase = liveCases[0];
+    if (!currentCase) {
+      toast.error("No active case assigned to add remark to.");
+      return;
     }
+    router.push(`/agent/verify/${currentCase.id}`);
   };
 
   const triggerNavigation = () => {
-    toast.success("Starting navigation: Opening Google Maps...");
-    window.open("https://www.google.com/maps/dir/?api=1&destination=18,+Lawspet+Road,+Lawspet,+Pondicherry+-+605008", "_blank");
+    const currentCase = liveCases[0];
+    if (!currentCase) {
+      toast.error("No active case assigned to start navigation for.");
+      return;
+    }
+    toast.success(`Opening Google Maps direction for ${currentCase.customer}...`);
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(currentCase.address)}`, "_blank");
+  };
+
+  const triggerMultiRouteNavigation = () => {
+    if (!destinations || destinations.length === 0) {
+      toast.error("No active verifications scheduled to view route.");
+      return;
+    }
+    // Starting coordinates
+    const origin = `${agentCoords.lat},${agentCoords.lng}`;
+    // Last stop coordinates
+    const lastStop = destinations[destinations.length - 1];
+    const destination = `${lastStop.lat},${lastStop.lng}`;
+    // Intermediate stops
+    const waypoints = destinations
+      .slice(0, -1)
+      .map(d => `${d.lat},${d.lng}`)
+      .join('|');
+      
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+    if (waypoints) {
+      url += `&waypoints=${encodeURIComponent(waypoints)}`;
+    }
+    
+    toast.success(`Opening Google Maps route with ${destinations.length} stops...`);
+    window.open(url, "_blank");
   };
 
   return (
@@ -236,22 +400,27 @@ export default function AgentDashboard() {
           
           {showDatePicker && (
             <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-50 py-1.5">
-              {["May 27, 2026", "May 28, 2026", "May 29, 2026"].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => {
-                    setCurrentDate(d);
-                    setShowDatePicker(false);
-                    toast.success(`Date changed to ${d}`);
-                  }}
-                  className={cn(
-                    "w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors",
-                    currentDate === d ? "text-[#1E4DB7] font-semibold" : "text-gray-600"
-                  )}
-                >
-                  {d}
-                </button>
-              ))}
+              {Array.from({ length: 3 }).map((_, i) => {
+                const d = new Date();
+                d.setDate(d.getDate() + i);
+                const str = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                return (
+                  <button
+                    key={str}
+                    onClick={() => {
+                      setCurrentDate(str);
+                      setShowDatePicker(false);
+                      toast.success(`Date changed to ${str}`);
+                    }}
+                    className={cn(
+                      "w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors",
+                      currentDate === str ? "text-[#1E4DB7] font-semibold" : "text-gray-600"
+                    )}
+                  >
+                    {str}
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -340,7 +509,7 @@ export default function AgentDashboard() {
             <FiClock className="w-5 h-5" />
           </div>
           <p className="text-xs font-semibold text-gray-500">Avg. Time</p>
-          <p className="text-3xl font-extrabold text-gray-900 mt-1">42 min</p>
+          <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData?.kpis?.avgTime || '—'}</p>
           <div className="flex items-center gap-1 mt-2 text-xs font-medium text-gray-400">
             <span>Per verification</span>
           </div>
@@ -446,75 +615,53 @@ export default function AgentDashboard() {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-[16px] font-bold text-gray-900">Today's Schedule</h2>
-              <button onClick={triggerNavigation} className="text-xs font-semibold text-[#1E4DB7] hover:underline">
+              <button onClick={triggerMultiRouteNavigation} className="text-xs font-semibold text-[#1E4DB7] hover:underline" disabled={destinations.length === 0}>
                 View route
               </button>
             </div>
 
             {/* Route Map (SVG route vector matching design) */}
-            <div className="bg-[#EBF1FA] rounded-2xl h-44 relative overflow-hidden border border-blue-100 flex items-center justify-center mb-4">
-              {/* Map background grid simulation */}
-              <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#1E4DB7_1.5px,transparent_1.5px)] [background-size:16px_16px]" />
-              
-              {/* Map path SVG matching Trichy routing view */}
-              <svg className="absolute inset-0 w-full h-full p-6 text-[#1E4DB7]" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <path d="M 20 20 Q 50 15 80 40 T 30 70 T 50 90" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="4 2" />
-                <path d="M 20 20 Q 50 15 80 40 T 30 70 T 50 90" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="animate-[dash_4s_linear_infinite]" />
-              </svg>
-
-              {/* Pins matching schedule items */}
-              <div className="absolute top-[15%] left-[20%] w-6 h-6 rounded-full bg-rose-500 border-2 border-white shadow flex items-center justify-center text-[10px] font-bold text-white">1</div>
-              <div className="absolute top-[35%] left-[78%] w-6 h-6 rounded-full bg-amber-500 border-2 border-white shadow flex items-center justify-center text-[10px] font-bold text-white">2</div>
-              <div className="absolute top-[68%] left-[28%] w-6 h-6 rounded-full bg-blue-600 border-2 border-white shadow flex items-center justify-center text-[10px] font-bold text-white">3</div>
-              <div className="absolute top-[85%] left-[48%] w-6 h-6 rounded-full bg-slate-500 border-2 border-white shadow flex items-center justify-center text-[10px] font-bold text-white">4</div>
-
-              {/* Labels */}
-              <span className="absolute top-[16%] left-[30%] text-[10px] font-bold text-gray-700 bg-white/80 px-1.5 py-0.5 rounded shadow-sm">Anna Nagar</span>
-              <span className="absolute top-[38%] left-[55%] text-[10px] font-bold text-gray-700 bg-white/80 px-1.5 py-0.5 rounded shadow-sm">Woraiyur</span>
-              <span className="absolute top-[65%] left-[40%] text-[10px] font-bold text-gray-700 bg-white/80 px-1.5 py-0.5 rounded shadow-sm">Lawspet</span>
-              <span className="absolute top-[82%] left-[58%] text-[10px] font-bold text-gray-700 bg-white/80 px-1.5 py-0.5 rounded shadow-sm">Srirangam</span>
-
-              {/* Map Title center */}
-              <div className="absolute text-[16px] font-extrabold text-gray-900 drop-shadow-sm tracking-wide">
-                Tiruchirappalli
-              </div>
+            <div className="h-44 relative overflow-hidden mb-4">
+              <ScheduleRouteMap agentLat={agentCoords.lat} agentLng={agentCoords.lng} destinations={destinations} />
             </div>
 
             {/* Schedule List */}
             <div className="space-y-3">
-              {[
-                { num: 1, name: "Ramesh Kumar", type: "Residential Verification", time: "10:30 AM", status: "Pending", bg: "bg-amber-50 text-amber-700" },
-                { num: 2, name: "Lakshmi Devi", type: "Business Verification", time: "12:00 PM", status: "Pending", bg: "bg-amber-50 text-amber-700" },
-                { num: 3, name: "Vijay Enterprises", type: "Business Verification", time: "02:30 PM", status: "In Progress", bg: "bg-blue-50 text-blue-700" },
-                { num: 4, name: "Suresh Babu", type: "Residential Verification", time: "04:30 PM", status: "Pending", bg: "bg-amber-50 text-amber-700" }
-              ].map((s) => (
-                <div key={s.num} className="flex items-center justify-between gap-2 p-2 bg-[#FAFBFD] rounded-xl border border-gray-50">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center text-white",
-                      s.num === 1 ? "bg-rose-500" :
-                      s.num === 2 ? "bg-amber-500" :
-                      s.num === 3 ? "bg-blue-600" : "bg-slate-500"
-                    )}>{s.num}</div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-900">{s.name}</p>
-                      <p className="text-[10px] text-gray-400">{s.type}</p>
+              {!dashboardData?.todaySchedule || dashboardData.todaySchedule.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-xs">
+                  No active verifications scheduled for today.
+                </div>
+              ) : (
+                dashboardData.todaySchedule.map((s: any) => (
+                  <div key={s.id} className="flex items-center justify-between gap-2 p-2 bg-[#FAFBFD] rounded-xl border border-gray-50">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center text-white",
+                        s.num === 1 ? "bg-rose-500" :
+                        s.num === 2 ? "bg-amber-500" :
+                        s.num === 3 ? "bg-blue-600" : "bg-slate-500"
+                      )}>{s.num}</div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-900">{s.name}</p>
+                        <p className="text-[10px] text-gray-400">{s.type}</p>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[10px] font-semibold text-gray-500">{s.time}</p>
+                      <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5", s.bg)}>
+                        {s.status}
+                      </span>
                     </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[10px] font-semibold text-gray-500">{s.time}</p>
-                    <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5", s.bg)}>
-                      {s.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
           <button
             onClick={triggerNavigation}
-            className="w-full mt-4 border border-[#1E4DB7] text-[#1E4DB7] hover:bg-blue-50 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+            disabled={!liveCases[0]}
+            className="w-full mt-4 border border-[#1E4DB7] text-[#1E4DB7] hover:bg-blue-50 disabled:opacity-50 disabled:hover:bg-transparent py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
           >
             <FiNavigation className="w-4.5 h-4.5" />
             <span>Start Navigation</span>
@@ -573,62 +720,74 @@ export default function AgentDashboard() {
               </Link>
             </div>
 
-            <div className="flex items-center gap-6">
-              {/* Radial Progress Chart SVG */}
-              <div className="relative w-24 h-24 shrink-0 flex items-center justify-center">
-                <svg className="w-full h-full transform -rotate-90">
-                  <circle cx="48" cy="48" r="38" className="text-gray-100" strokeWidth="6" stroke="currentColor" fill="transparent" />
-                  <circle cx="48" cy="48" r="38" className="text-teal-500" strokeWidth="7" strokeDasharray={238} strokeDashoffset={238 - (238 * 75) / 100} strokeLinecap="round" stroke="currentColor" fill="transparent" />
-                </svg>
-                <div className="absolute text-center">
-                  <span className="text-[16px] font-black text-gray-900">75%</span>
-                  <p className="text-[9px] text-gray-400 font-semibold leading-tight">Completed</p>
-                </div>
-              </div>
+            {(() => {
+              const total = dashboardData?.kpis?.total ?? 0;
+              const completed = dashboardData?.kpis?.completed ?? 0;
+              const inProgress = dashboardData?.kpis?.inProgress ?? 0;
+              const pending = dashboardData?.kpis?.pending ?? 0;
+              const rejected = dashboardData?.kpis?.rejected ?? 0;
+              const completedPercent = total === 0 ? 0 : Math.round((completed / total) * 100);
+              return (
+                <>
+                  <div className="flex items-center gap-6">
+                    {/* Radial Progress Chart SVG */}
+                    <div className="relative w-24 h-24 shrink-0 flex items-center justify-center">
+                      <svg className="w-full h-full transform -rotate-90">
+                        <circle cx="48" cy="48" r="38" className="text-gray-100" strokeWidth="6" stroke="currentColor" fill="transparent" />
+                        <circle cx="48" cy="48" r="38" className="text-teal-500" strokeWidth="7" strokeDasharray={238} strokeDashoffset={238 - (238 * completedPercent) / 100} strokeLinecap="round" stroke="currentColor" fill="transparent" />
+                      </svg>
+                      <div className="absolute text-center">
+                        <span className="text-[16px] font-black text-gray-900">{completedPercent}%</span>
+                        <p className="text-[9px] text-gray-400 font-semibold leading-tight">Completed</p>
+                      </div>
+                    </div>
 
-              {/* Legend matching reference image */}
-              <div className="space-y-1.5 flex-1 text-xs font-semibold text-gray-600">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                    <span>Completed</span>
+                    {/* Legend matching reference image */}
+                    <div className="space-y-1.5 flex-1 text-xs font-semibold text-gray-600">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                          <span>Completed</span>
+                        </div>
+                        <span className="text-gray-900">{completed}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                          <span>In Progress</span>
+                        </div>
+                        <span className="text-gray-900">{inProgress}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                          <span>Pending</span>
+                        </div>
+                        <span className="text-gray-900">{pending}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                          <span>Rejected</span>
+                        </div>
+                        <span className="text-gray-900">{rejected}</span>
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-gray-900">5</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                    <span>In Progress</span>
-                  </div>
-                  <span className="text-gray-900">2</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                    <span>Pending</span>
-                  </div>
-                  <span className="text-gray-900">5</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                    <span>Rejected</span>
-                  </div>
-                  <span className="text-gray-900">1</span>
-                </div>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-2 border-t border-gray-50 pt-3 text-center">
-              <div>
-                <p className="text-[10px] text-gray-400 font-semibold">Total Cases</p>
-                <p className="text-sm font-bold text-gray-900 mt-0.5">13</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-gray-400 font-semibold">This Month</p>
-                <p className="text-sm font-bold text-gray-900 mt-0.5">13</p>
-              </div>
-            </div>
+                  <div className="grid grid-cols-2 gap-2 border-t border-gray-50 pt-3 text-center">
+                    <div>
+                      <p className="text-[10px] text-gray-400 font-semibold">Total Cases</p>
+                      <p className="text-sm font-bold text-gray-900 mt-0.5">{total}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-400 font-semibold">This Month</p>
+                      <p className="text-sm font-bold text-gray-900 mt-0.5">{total}</p>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* Card 3: Quick Actions */}

@@ -100,14 +100,14 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
         // Map database fields to front-end schema
         setCaseData({
           id: fetched.id,
-          customer: fetched.customer,
-          phone: fetched.phone,
-          email: fetched.email || "N/A",
-          address: fetched.address,
+          customer: fetched.customer?.name || "Unknown",
+          phone: fetched.customer?.phone || "N/A",
+          email: fetched.customer?.email || "N/A",
+          address: fetched.customer?.address || "No address provided",
           lat: fetched.gpsLatitude || 12.9716,
           lng: fetched.gpsLongitude || 77.5946,
-          loanType: fetched.loanType || "Verification Loan",
-          loanAmount: fetched.loanAmount ? `₹${fetched.loanAmount.toLocaleString()}` : "N/A",
+          loanType: fetched.customer?.loanType || "Verification Loan",
+          loanAmount: fetched.customer?.loanAmount ? `₹${fetched.customer.loanAmount.toLocaleString()}` : "N/A",
           verType: fetched.type,
           branch: fetched.branch || "Unassigned",
           priority: "Medium",
@@ -189,7 +189,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
   }
 
   async function handleStartNavigation() {
-    if (status === "ASSIGNED") {
+    if (status === "ASSIGNED" || status === "PENDING") {
       try {
         await updateAgentCaseStatusApi(id, "TRAVELLING");
         setStatus("TRAVELLING");
@@ -226,7 +226,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
     router.push(`/agent/verify/${id}`);
   }
 
-  const canNavigate    = ["ASSIGNED", "TRAVELLING", "AT_LOCATION", "IN_PROGRESS", "SUBMITTED", "RE_VERIFICATION"].includes(status);
+  const canNavigate    = ["PENDING", "ASSIGNED", "TRAVELLING", "AT_LOCATION", "IN_PROGRESS", "SUBMITTED", "RE_VERIFICATION"].includes(status);
   const canArrived     = status === "TRAVELLING";
   const canVerify      = true;
   const isReadOnly     = status === "SUBMITTED" || status === "COMPLETED";
