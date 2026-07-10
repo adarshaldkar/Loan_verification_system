@@ -10,6 +10,8 @@ import {
 } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect } from "react";
 
 /* ─── Mock Case Data ─────────────────────────────────────────────────────── */
 
@@ -86,6 +88,49 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
 
   const [status, setStatus]     = useState<CaseStatus>(caseData?.status ?? "ASSIGNED");
   const [showMap, setShowMap]   = useState(false);
+  const [loading, setLoading]   = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 500);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-9 w-9 rounded-full" />
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+        </div>
+
+        {/* Action card skeleton */}
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-4">
+          <div className="flex justify-between items-center">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-8 w-24 rounded-full" />
+          </div>
+          <Skeleton className="h-10 w-full rounded-xl" />
+        </div>
+
+        {/* Client details block skeleton */}
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-4">
+          <Skeleton className="h-6 w-40" />
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex justify-between py-1 border-b border-gray-50 last:border-0">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-4 w-48" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!caseData) {
     return (

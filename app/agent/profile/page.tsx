@@ -6,6 +6,8 @@ import {
 } from "react-icons/fi";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useState, useEffect } from "react";
 
 /* ─── Mock Agent Profile ─────────────────────────────────────────────────── */
 
@@ -33,6 +35,39 @@ const AGENT = {
 /* ─── Profile Page ───────────────────────────────────────────────────────── */
 
 export default function AgentProfilePage() {
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 400);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-4 pb-8">
+        <Skeleton className="h-6 w-32" />
+
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-4">
+          <div className="flex items-center gap-4 animate-pulse">
+            <Skeleton className="w-16 h-16 rounded-full shrink-0" />
+            <div className="space-y-2 flex-1">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-40" />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white p-4 rounded-2xl border border-gray-100 space-y-2">
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-6 w-12" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 pb-8">
       {/* Header */}

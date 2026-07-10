@@ -5,6 +5,8 @@ import {
   FiBell, FiBriefcase, FiCheckCircle, FiAlertTriangle, FiInfo, FiRefreshCw,
 } from "react-icons/fi";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect } from "react";
 
 /* ─── Mock Notifications ─────────────────────────────────────────────────── */
 
@@ -62,8 +64,39 @@ const TYPE_CONFIG: Record<NotifType, { icon: React.ElementType; color: string; b
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState(allNotifications);
   const [filter, setFilter] = useState<"All" | "Unread">("All");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 500);
+    return () => clearTimeout(t);
+  }, []);
 
   const unreadCount = notifications.filter((n) => n.unread).length;
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-44" />
+          <Skeleton className="h-4 w-60" />
+        </div>
+
+        {/* List skeleton */}
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-start gap-3">
+              <Skeleton className="h-8 w-8 rounded-xl shrink-0" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   function markAllRead() {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
