@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/shared/page-header";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect } from "react";
 
 export default function SettingsPage() {
   const [orgName, setOrgName] = useState("Apex Financial Services Ltd.");
@@ -19,6 +21,37 @@ export default function SettingsPage() {
     "Notify on new Excel upload": false,
     "Notify when agent completes a case": false,
   });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 400);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-2xl">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+
+        <div className="card-flat p-6 space-y-5 bg-white border border-border rounded-xl">
+          <Skeleton className="h-5 w-40" />
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-10 w-full rounded-xl" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-10 w-full rounded-xl" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   function flipToggle(label: string) {
     setToggles((prev) => ({ ...prev, [label]: !prev[label as keyof typeof prev] }));

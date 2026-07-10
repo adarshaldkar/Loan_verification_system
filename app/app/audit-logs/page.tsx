@@ -10,6 +10,7 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { getAuditLogsApi } from "@/lib/api";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /* ─── Audit Logs Page ────────────────────────────────────────────────────── */
 
@@ -17,6 +18,7 @@ export default function AuditLogsPage() {
   const [search, setSearch] = useState("");
   const [actorFilter, setActorFilter] = useState("All");
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchLogs();
@@ -24,10 +26,13 @@ export default function AuditLogsPage() {
 
   const fetchLogs = async () => {
     try {
+      setLoading(true);
       const res = await getAuditLogsApi();
       setAuditLogs(res.data.data);
     } catch (err) {
       toast.error("Failed to load audit logs");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -92,7 +97,17 @@ export default function AuditLogsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filtered.length === 0 ? (
+              {loading ? (
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={idx} className="animate-pulse">
+                    <td className="px-5 py-4"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-40" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-28" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-32" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-24" /></td>
+                  </tr>
+                ))
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-5 py-16 text-center text-slate-400 text-sm">
                     No log entries match your filters.

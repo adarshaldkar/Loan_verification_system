@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/shared/page-header";
 import { toast } from "sonner";
 import { getBranchesApi, createBranchApi } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /* ─── Branches Page ──────────────────────────────────────────────────────── */
 
@@ -79,7 +80,25 @@ export default function BranchesPage() {
 
       {/* Branch Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {branches.map((b) => (
+        {loading ? (
+          Array.from({ length: 4 }).map((_, idx) => (
+            <div key={idx} className="card-flat p-5 space-y-4 animate-pulse bg-white border border-border rounded-xl">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <Skeleton className="h-4 w-12" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Skeleton className="h-10 rounded-lg" />
+                <Skeleton className="h-10 rounded-lg" />
+              </div>
+            </div>
+          ))
+        ) : (
+          branches.map((b) => (
           <div key={b.id} className="card-flat p-5 hover:shadow-sm transition-shadow cursor-pointer">
             <div className="flex items-start justify-between mb-4">
               <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
@@ -111,7 +130,7 @@ export default function BranchesPage() {
               <p className="text-xs text-slate-400 mt-0.5">{b.phone}</p>
             )}
           </div>
-        ))}
+        )))}
       </div>
 
       {/* ── Add Branch Modal ── */}

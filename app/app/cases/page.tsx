@@ -13,6 +13,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getCasesApi } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Case = {
   id: string;
@@ -121,11 +122,18 @@ export default function CasesPage() {
             </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
-                <tr>
-                  <td colSpan={8} className="px-5 py-16 text-center text-slate-400">
-                    Loading cases...
-                  </td>
-                </tr>
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={idx} className="animate-pulse">
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-28" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-5 w-24 rounded-full" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-24" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-24" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-28" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-7 w-7 rounded-md" /></td>
+                  </tr>
+                ))
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-16 text-center text-slate-400 text-sm">

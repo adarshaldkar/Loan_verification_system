@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
 import { getProfileApi } from "@/lib/api";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ProfileData {
   name: string;
@@ -40,9 +41,38 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
-        <div className="w-10 h-10 rounded-full border-4 border-slate-100 border-t-[#1E3A5F] animate-spin" />
-        <p className="text-xs font-semibold text-gray-400">Loading profile data...</p>
+      <div className="space-y-6 max-w-3xl">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+
+        {/* Profile Card Skeleton */}
+        <div className="card-flat p-6 bg-white border border-border rounded-xl">
+          <div className="flex items-start gap-5 flex-wrap">
+            <Skeleton className="w-20 h-20 rounded-full shrink-0" />
+            <div className="flex-1 space-y-3">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-5 w-24 rounded-full" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats Grid Skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="card-flat p-4 bg-white border border-border rounded-xl space-y-2 text-center flex flex-col items-center">
+              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

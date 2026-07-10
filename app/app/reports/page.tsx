@@ -14,6 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getReportsApi, generateReportApi } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /* ─── Data ───────────────────────────────────────────────────────────────── */
 
@@ -54,6 +55,7 @@ export default function ReportsPage() {
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState(0);
   const [reports, setReports]       = useState<any[]>([]);
+  const [loading, setLoading]       = useState(true);
 
   useEffect(() => {
     fetchReports();
@@ -61,10 +63,13 @@ export default function ReportsPage() {
 
   const fetchReports = async () => {
     try {
+      setLoading(true);
       const res = await getReportsApi();
       setReports(res.data.data);
     } catch (err) {
       toast.error("Failed to fetch reports");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -212,35 +217,51 @@ export default function ReportsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {reports.map((r, i) => (
-                <tr key={i} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2">
-                      <FiFileText className="w-4 h-4 text-slate-300 shrink-0" />
-                      <span className="font-medium text-slate-900">{r.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${r.type === "PDF" ? "bg-rose-50 text-rose-700" : "bg-teal-50 text-teal-700"}`}>
-                      {r.type}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3.5 text-slate-500">{r.generatedBy}</td>
-                  <td className="px-5 py-3.5 text-slate-400 text-xs font-mono whitespace-nowrap">{r.generatedAt}</td>
-                  <td className="px-5 py-3.5 text-slate-400 text-xs">{r.size}</td>
-                  <td className="px-5 py-3.5">
-                    <Button
-                      variant="ghost" size="sm"
-                      className="gap-1.5 text-xs font-semibold"
-                      style={{ color: "#1E3A5F" }}
-                      onClick={() => handleDownload(r)}
-                    >
-                      <FiDownload className="w-3.5 h-3.5" />
-                      Download
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+              {loading ? (
+                Array.from({ length: 4 }).map((_, idx) => (
+                  <tr key={idx} className="animate-pulse">
+                    <td className="px-5 py-4 flex items-center gap-2">
+                      <Skeleton className="h-4 w-4 rounded" />
+                      <Skeleton className="h-4 w-48" />
+                    </td>
+                    <td className="px-5 py-4"><Skeleton className="h-5 w-12 rounded-full" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-32" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-4 w-12" /></td>
+                    <td className="px-5 py-4"><Skeleton className="h-7 w-20 rounded-md" /></td>
+                  </tr>
+                ))
+              ) : (
+                reports.map((r, i) => (
+                  <tr key={i} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <FiFileText className="w-4 h-4 text-slate-300 shrink-0" />
+                        <span className="font-medium text-slate-900">{r.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${r.type === "PDF" ? "bg-rose-50 text-rose-700" : "bg-teal-50 text-teal-700"}`}>
+                        {r.type}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-slate-500">{r.generatedBy}</td>
+                    <td className="px-5 py-3.5 text-slate-400 text-xs font-mono whitespace-nowrap">{r.generatedAt}</td>
+                    <td className="px-5 py-3.5 text-slate-400 text-xs">{r.size}</td>
+                    <td className="px-5 py-3.5">
+                      <Button
+                        variant="ghost" size="sm"
+                        className="gap-1.5 text-xs font-semibold"
+                        style={{ color: "#1E3A5F" }}
+                        onClick={() => handleDownload(r)}
+                      >
+                        <FiDownload className="w-3.5 h-3.5" />
+                        Download
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
