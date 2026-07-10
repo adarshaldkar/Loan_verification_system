@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import LocationPickerMap from "@/components/shared/LocationPickerMap";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/* ─── Zod Schemas ─── */
+// Zod Schemas
 
 const residentialSchema = z.object({
   applicantName: z.string().min(2, "Applicant name must be at least 2 characters"),
@@ -66,7 +66,7 @@ const businessSchema = z.object({
 type ResidentialFormType = z.infer<typeof residentialSchema>;
 type BusinessFormType = z.infer<typeof businessSchema>;
 
-/* ─── Mock Cases Database ─── */
+// Mock Cases Database
 const CASE_DETAILS: Record<string, {
   id: string;
   name: string;
@@ -312,7 +312,7 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
 
   return (
     <div className="space-y-6 pb-12 text-slate-800" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-      {/* ── Top Bar / Back button ── */}
+      {/* Top Bar / Back button */}
       <div>
         <button
           onClick={() => router.push(`/agent/cases/${caseId}`)}

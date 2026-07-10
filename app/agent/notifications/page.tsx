@@ -9,7 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
-/* ─── Mock Notifications ─────────────────────────────────────────────────── */
+// Mock Notifications
 
 type NotifType = "ASSIGNMENT" | "APPROVED" | "REJECTED" | "REMINDER" | "INFO";
 
