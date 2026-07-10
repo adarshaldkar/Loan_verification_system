@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import LocationPickerMap from "@/components/shared/LocationPickerMap";
 import { Skeleton } from "@/components/ui/skeleton";
-import { submitVerificationApi } from "@/lib/api";
+import { submitVerificationApi, getAgentCaseByIdApi } from "@/lib/api";
 
 // Zod Schemas
 
@@ -112,19 +112,7 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
   const router = useRouter();
   const caseId = resolvedParams.id;
 
-  const currentCase = CASE_DETAILS[caseId] || {
-    id: caseId,
-    name: "Vijay Enterprises",
-    phone: "9876509876",
-    type: "BUSINESS",
-    address: "18, Lawspet Road, Lawspet, Pondicherry - 605008",
-    houseNo: "18",
-    streetArea: "Lawspet Road, Lawspet",
-    cityTown: "Pondicherry",
-    district: "Pondicherry",
-    pincode: "605008",
-  };
-
+  const [currentCase, setCurrentCase] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [photos, setPhotos] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -140,15 +128,15 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
 
   // Form states prefilled where possible from case data
   const [resForm, setResForm] = useState<Partial<ResidentialFormType>>({
-    applicantName: currentCase.type === "RESIDENTIAL" ? currentCase.name : "",
-    mobileNumber: currentCase.phone,
+    applicantName: "",
+    mobileNumber: "",
     dateOfBirth: "",
     aadhaarNumber: "",
-    houseNo: currentCase.houseNo,
-    streetArea: currentCase.streetArea,
-    cityTown: currentCase.cityTown,
-    district: currentCase.district || "Tiruchirappalli",
-    pincode: currentCase.pincode,
+    houseNo: "",
+    streetArea: "",
+    cityTown: "",
+    district: "Tiruchirappalli",
+    pincode: "",
     residenceType: "Apartment / Flat",
     ownershipStatus: "Owned",
     livingSince: "",
@@ -164,18 +152,18 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
   });
 
   const [busForm, setBusForm] = useState<Partial<BusinessFormType>>({
-    companyName: currentCase.type === "BUSINESS" ? currentCase.name : "",
+    companyName: "",
     businessType: "Proprietorship",
     natureOfBusiness: "",
     yearsInBusiness: 1,
     noOfEmployees: 1,
     monthlyIncome: 10000,
-    doorNo: currentCase.houseNo,
-    streetArea: currentCase.streetArea,
+    doorNo: "",
+    streetArea: "",
     landmark: "",
-    cityTown: currentCase.cityTown,
-    district: currentCase.district || "Tiruchirappalli",
-    pincode: currentCase.pincode,
+    cityTown: "",
+    district: "Tiruchirappalli",
+    pincode: "",
     businessFoundAtLocation: "Yes - Active Shop/Office",
     businessOperational: "Yes - Fully Operational",
     businessOwnedByApplicant: "Yes - Owner",
@@ -189,9 +177,74 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
   });
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(t);
-  }, []);
+    async function load() {
+      try {
+        const res = await getAgentCaseByIdApi(caseId);
+        const fetched = res.data.data;
+        const mappedCase = {
+          id: fetched.id,
+          name: fetched.customer,
+          phone: fetched.phone,
+          type: fetched.type,
+          address: fetched.address,
+          houseNo: fetched.houseNo || "",
+          streetArea: fetched.streetArea || "",
+          cityTown: fetched.cityTown || "",
+          district: fetched.branch || fetched.customer.branch || "",
+          pincode: fetched.pincode || "",
+        };
+        setCurrentCase(mappedCase);
+
+        setResForm((prev) => ({
+          ...prev,
+          applicantName: fetched.customer,
+          mobileNumber: fetched.phone,
+          houseNo: fetched.houseNo || "",
+          streetArea: fetched.streetArea || "",
+          cityTown: fetched.cityTown || "",
+          pincode: fetched.pincode || "",
+        }));
+
+        setBusForm((prev) => ({
+          ...prev,
+          companyName: fetched.customer,
+          doorNo: fetched.houseNo || "",
+          streetArea: fetched.streetArea || "",
+          cityTown: fetched.cityTown || "",
+          pincode: fetched.pincode || "",
+        }));
+
+      } catch (err: any) {
+        console.error("Failed to load live case verification context:", err);
+        const mock = CASE_DETAILS[caseId];
+        if (mock) {
+          setCurrentCase(mock);
+          setResForm((prev) => ({
+            ...prev,
+            applicantName: mock.type === "RESIDENTIAL" ? mock.name : "",
+            mobileNumber: mock.phone,
+            houseNo: mock.houseNo,
+            streetArea: mock.streetArea,
+            cityTown: mock.cityTown,
+            pincode: mock.pincode,
+          }));
+          setBusForm((prev) => ({
+            ...prev,
+            companyName: mock.type === "BUSINESS" ? mock.name : "",
+            doorNo: mock.houseNo,
+            streetArea: mock.streetArea,
+            cityTown: mock.cityTown,
+            pincode: mock.pincode,
+          }));
+        } else {
+          toast.error("Failed to load verification case data from database");
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, [caseId]);
 
   if (loading) {
     return (
@@ -217,6 +270,18 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
             ))}
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (!currentCase) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center text-slate-800" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
+        <FiBriefcase className="w-12 h-12 text-slate-300 mb-3" />
+        <p className="text-slate-500 text-sm">Case not found in database</p>
+        <button onClick={() => router.push("/agent/cases")} className="mt-4 text-sm font-semibold text-[#1E4DB7] hover:underline">
+          ← Return to Assigned Cases
+        </button>
       </div>
     );
   }
