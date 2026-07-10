@@ -41,4 +41,10 @@ router.get('/profile', getAgentProfile);
 // ── Notifications ──────────────────────────────────────────────────────────
 router.get('/notifications', getAgentNotifications);
 
+// ── Rides & Tracking ───────────────────────────────────────────────────────
+import { startRide, logLocationPing, endRide } from '../controllers/agent/rideController';
+router.post('/rides/start', startRide);
+router.post('/rides/ping', logLocationPing);
+router.post('/rides/end', endRide);
+
 export default router;

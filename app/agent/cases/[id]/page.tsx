@@ -189,7 +189,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
   }
 
   async function handleStartNavigation() {
-    if (status === "ASSIGNED" || status === "PENDING") {
+    if (status === "ASSIGNED") {
       try {
         await updateAgentCaseStatusApi(id, "TRAVELLING");
         setStatus("TRAVELLING");

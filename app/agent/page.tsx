@@ -11,7 +11,9 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import ScheduleRouteMap from "@/components/shared/ScheduleRouteMap";
+import { startRideApi, endRideApi, logLocationPingApi } from "@/lib/api";
 
 /* ─── Mock Data ──────────────────────────────────────────────────────────── */
 
@@ -56,6 +58,82 @@ export default function AgentDashboard() {
   const [liveCases, setLiveCases] = useState<any[]>([]);
   const [agentCoords, setAgentCoords] = useState({ lat: 10.7905, lng: 78.7047 });
   const [gpsActive, setGpsActive] = useState(false);
+
+  // Tracking State
+  const [activeRideId, setActiveRideId] = useState<string | null>(null);
+  const [rideDuration, setRideDuration] = useState(0);
+
+  // Ride Location Pinger & Timer
+  useEffect(() => {
+    if (!activeRideId) return;
+
+    const timer = setInterval(() => {
+      setRideDuration((prev) => prev + 1);
+    }, 1000);
+
+    const pinger = setInterval(() => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          try {
+            await logLocationPingApi({
+              rideId: activeRideId,
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+              speed: pos.coords.speed || 0,
+            });
+          } catch (e) {}
+        });
+      }
+    }, 10000); // ping every 10s
+
+    return () => {
+      clearInterval(timer);
+      clearInterval(pinger);
+    };
+  }, [activeRideId]);
+
+  // BeforeUnload Warning
+  useEffect(() => {
+    if (!activeRideId) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "Active Ride in Progress. Leaving this page will pause your tracking.";
+      return e.returnValue;
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [activeRideId]);
+
+  const handleStartRide = async () => {
+    try {
+      const res = await startRideApi();
+      setActiveRideId(res.data.data.id);
+      toast.success("Ride started! Screen is locked.");
+      if ("wakeLock" in navigator) {
+        try {
+          (window as any).wakeLockObj = await (navigator as any).wakeLock.request("screen");
+        } catch (err) {}
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to start ride");
+    }
+  };
+
+  const handleEndRide = async () => {
+    if (!activeRideId) return;
+    try {
+      await endRideApi(activeRideId);
+      setActiveRideId(null);
+      setRideDuration(0);
+      toast.success("Ride ended successfully.");
+      if ((window as any).wakeLockObj) {
+        (window as any).wakeLockObj.release();
+        (window as any).wakeLockObj = null;
+      }
+    } catch (err: any) {
+      toast.error("Failed to end ride");
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined" && navigator.geolocation) {
@@ -363,7 +441,7 @@ export default function AgentDashboard() {
     // Intermediate stops
     const waypoints = destinations
       .slice(0, -1)
-      .map(d => `${d.lat},${d.lng}`)
+      .map((d: any) => `${d.lat},${d.lng}`)
       .join('|');
       
     let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
@@ -376,6 +454,73 @@ export default function AgentDashboard() {
   };
 
   return (
+    <>
+      {activeRideId && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900 text-white flex flex-col items-center justify-center p-6">
+          <div className="bg-slate-800 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl space-y-6">
+            <div className="mx-auto w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center relative">
+              <div className="absolute inset-0 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin"></div>
+              <FiMapPin className="w-10 h-10 text-emerald-400" />
+            </div>
+            
+            <div>
+              <h2 className="text-3xl font-bold mb-2 tracking-tight">Ride Active</h2>
+              <p className="text-slate-400 text-sm">Your location is being shared securely with your branch admin.</p>
+            </div>
+
+            <div className="bg-slate-900 rounded-xl p-6 border border-slate-700 shadow-inner">
+              <div className="text-5xl font-mono tracking-widest text-emerald-400 font-medium">
+                {Math.floor(rideDuration / 60).toString().padStart(2, '0')}:{ (rideDuration % 60).toString().padStart(2, '0') }
+              </div>
+              <div className="text-xs text-slate-500 mt-2 uppercase tracking-widest font-semibold">Elapsed Time</div>
+            </div>
+
+            {/* Navigation Shortcuts */}
+            <div className="space-y-2 text-left bg-slate-900/40 p-4 rounded-xl border border-slate-700/50">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Navigation Shortcuts</span>
+              {liveCases[0] ? (
+                <div className="pt-2 space-y-3">
+                  <div className="text-xs">
+                    <p className="font-bold text-slate-200">Next Case: {liveCases[0].customer}</p>
+                    <p className="text-slate-400 truncate mt-0.5">{liveCases[0].address}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={triggerNavigation}
+                      className="flex-1 h-10 bg-[#1E4DB7] hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5"
+                    >
+                      <FiNavigation className="w-3.5 h-3.5" />
+                      <span>Next Stop</span>
+                    </Button>
+                    <Button
+                      onClick={triggerMultiRouteNavigation}
+                      disabled={destinations.length === 0}
+                      className="flex-1 h-10 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5"
+                    >
+                      <FiMapPin className="w-3.5 h-3.5" />
+                      <span>Full Route</span>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500 pt-1">No active stops assigned.</p>
+              )}
+            </div>
+
+            <p className="text-xs text-slate-400 px-4 leading-relaxed">
+              Do not close this app. Ensure your screen remains active to avoid tracking loss.
+            </p>
+
+            <Button 
+              onClick={handleEndRide}
+              className="w-full h-14 bg-rose-600 hover:bg-rose-700 text-white font-bold text-lg rounded-xl transition-all shadow-[0_0_20px_rgba(225,29,72,0.3)]"
+            >
+              End Ride
+            </Button>
+          </div>
+        </div>
+      )}
+
     <div className="space-y-6 pb-12 text-slate-800" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
       
       {/* ── Header ── */}
@@ -659,12 +804,12 @@ export default function AgentDashboard() {
           </div>
 
           <button
-            onClick={triggerNavigation}
+            onClick={handleStartRide}
             disabled={!liveCases[0]}
-            className="w-full mt-4 border border-[#1E4DB7] text-[#1E4DB7] hover:bg-blue-50 disabled:opacity-50 disabled:hover:bg-transparent py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2"
+            className="w-full mt-4 bg-[#1E4DB7] text-white hover:bg-blue-800 disabled:opacity-50 disabled:hover:bg-[#1E4DB7] py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20"
           >
-            <FiNavigation className="w-4.5 h-4.5" />
-            <span>Start Navigation</span>
+            <FiMapPin className="w-5 h-5" />
+            <span>Start Ride Tracking</span>
           </button>
         </div>
 
@@ -850,5 +995,6 @@ export default function AgentDashboard() {
       </div>
 
     </div>
+    </>
   );
 }

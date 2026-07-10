@@ -134,3 +134,16 @@ export const getAgentProfileApi = () =>
 export const getAgentNotificationsApi = () =>
   api.get("/agent/notifications");
 
+// ─── Agent Ride Tracking ───────────────────────────────────────────────────
+export const startRideApi = () =>
+  api.post("/agent/rides/start");
+export const endRideApi = (rideId: string) =>
+  api.post("/agent/rides/end", { rideId });
+export const logLocationPingApi = (data: { rideId: string; latitude: number; longitude: number; speed?: number }) =>
+  api.post("/agent/rides/ping", data);
+
+// ─── Admin Tracking Map ───────────────────────────────────────────────────
+export const getActiveRidesApi = () =>
+  api.get("/admin/tracking/active");
+export const getRideHistoryApi = (rideId: string) =>
+  api.get(`/admin/tracking/history/${rideId}`);

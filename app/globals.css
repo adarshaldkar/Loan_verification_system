@@ -172,6 +172,12 @@
   code, pre, [data-mono], .font-mono {
     font-family: var(--font-mono, ui-monospace), monospace;
   }
+  .maplibregl-popup-content {
+    @apply bg-transparent! shadow-none! p-0! rounded-none!;
+  }
+  .maplibregl-popup-tip {
+    @apply hidden!;
+  }
 }
 
 /* ─── Utility Classes ────────────────────────────────────────────────────── */

@@ -64,5 +64,9 @@ router.post('/upload/bulk', bulkUploadCases);
 router.get('/admins', getAdmins);
 router.post('/admins/register', registerAdmin);
 
-export default router;
+// ── Tracking ───────────────────────────────────────────────────────────────
+import { getActiveRides, getRideHistory } from '../controllers/admin/trackingController';
+router.get('/tracking/active', getActiveRides);
+router.get('/tracking/history/:rideId', getRideHistory);
 
+export default router;

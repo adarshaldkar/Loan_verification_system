@@ -29,9 +29,28 @@ export default function ScheduleRouteMap({ agentLat, agentLng, destinations }: S
     // Initialize MapLibre Map
     const map = new maplibregl.Map({
       container: mapContainerRef.current,
-      style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tileSize: 256,
+            attribution: "© OpenStreetMap contributors",
+            maxzoom: 19
+          }
+        },
+        layers: [
+          {
+            id: "osm",
+            type: "raster",
+            source: "osm"
+          }
+        ]
+      } as any,
       center: [agentLng, agentLat],
       zoom: 12,
+      maxZoom: 19,
     });
 
     mapRef.current = map;

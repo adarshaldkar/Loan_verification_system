@@ -7,7 +7,7 @@ import {
   FiGrid, FiUsers, FiUserCheck, FiBriefcase, FiUploadCloud,
   FiBarChart2, FiGitBranch, FiFileText, FiSettings, FiUser,
   FiLogOut, FiShield, FiChevronLeft, FiChevronRight,
-  FiBell, FiSearch, FiMenu, FiCheckCircle, FiAlertCircle, FiInfo,
+  FiBell, FiSearch, FiMenu, FiCheckCircle, FiAlertCircle, FiInfo, FiMapPin,
 } from "react-icons/fi";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,6 +29,7 @@ const navItems = [
   { label: "Dashboard",    href: "/app",             icon: FiGrid },
   { label: "Customers",    href: "/app/customers",   icon: FiUsers },
   { label: "Agents",       href: "/app/agents",      icon: FiUserCheck },
+  { label: "Live Tracking",href: "/app/tracking",    icon: FiMapPin },
   { label: "Admins",       href: "/app/admins",      icon: FiShield },
   { label: "Cases",        href: "/app/cases",       icon: FiBriefcase },
   { label: "Excel Upload", href: "/app/upload",      icon: FiUploadCloud },
@@ -155,6 +156,7 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
     { label: "Customers",    href: "/app/customers",   icon: FiUsers,       hint: "All customers" },
     { label: "Cases",        href: "/app/cases",       icon: FiBriefcase,   hint: "Verification cases" },
     { label: "Agents",       href: "/app/agents",      icon: FiUserCheck,   hint: "Field agents" },
+    { label: "Live Tracking",href: "/app/tracking",    icon: FiMapPin,      hint: "Track active agents" },
     { label: "Excel Upload", href: "/app/upload",      icon: FiUploadCloud, hint: "Import data" },
     { label: "Reports",      href: "/app/reports",     icon: FiBarChart2,   hint: "Generate reports" },
     { label: "Branches",     href: "/app/branches",    icon: FiGitBranch,   hint: "Branch offices" },
