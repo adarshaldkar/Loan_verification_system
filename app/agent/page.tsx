@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   FiBriefcase, FiCheckCircle, FiClock, FiAlertCircle, FiRefreshCw,
@@ -44,14 +44,16 @@ export default function AgentDashboard() {
   const router = useRouter();
   
   const [loading, setLoading] = useState(true);
-  useState(() => {
-    const timer = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(timer);
-  });
-
-  // State management for cases and filters
   const [cases, setCases] = useState<CaseItem[]>(initialCases);
   const [selectedFilter, setSelectedFilter] = useState<"All" | "Pending" | "In Progress" | "High Priority">("All");
+  const [activeKpi, setActiveKpi] = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [currentDate, setCurrentDate] = useState("May 27, 2026");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
 
   if (loading) {
     return (
@@ -117,9 +119,6 @@ export default function AgentDashboard() {
       </div>
     );
   }
-  const [activeKpi, setActiveKpi] = useState<string | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [currentDate, setCurrentDate] = useState("May 27, 2026");
 
   // Filter cases logic
   const getFilteredCases = () => {
