@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FiSearch, FiFilter, FiMapPin, FiNavigation, FiChevronRight } from "react-icons/fi";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect } from "react";
 
 /* ─── Mock Cases ─────────────────────────────────────────────────────────── */
 
@@ -51,6 +53,54 @@ export default function AssignedCasesPage() {
   const [search, setSearch]   = useState("");
   const [filter, setFilter]   = useState<string>("All");
   const [sortDist, setSortDist] = useState(false);
+  const [loading, setLoading]   = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-36" />
+          <Skeleton className="h-4 w-52" />
+        </div>
+
+        {/* Filter Badges Skeleton */}
+        <div className="flex gap-2 overflow-x-auto pb-2 shrink-0 scrollbar-none">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-20 rounded-full" />
+          ))}
+        </div>
+
+        {/* Search & Sort Row Skeleton */}
+        <div className="flex gap-2">
+          <Skeleton className="h-10 flex-1 rounded-xl" />
+          <Skeleton className="h-10 w-24 rounded-xl" />
+        </div>
+
+        {/* Cases List Skeleton */}
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
+              <div className="space-y-2 flex-1">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-5 w-24 rounded-full" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="h-4 w-full" />
+              </div>
+              <Skeleton className="h-8 w-8 rounded-full ml-4" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const filtered = allCases
     .filter((c) => {

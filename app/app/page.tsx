@@ -22,6 +22,7 @@ import { SectionCard } from "@/components/shared/section-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import { getAnalyticsApi, getDashboardApi } from "@/lib/api";
+import { Skeleton } from "@/components/ui/skeleton";
 
 /* ─── Static fallback activity icons map ─────────────────────────────────── */
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -138,6 +139,89 @@ export default function DashboardPage() {
     { name: "Completed",   value: completedCount, color: "#0D9488" },
     { name: "Rejected",    value: analytics?.caseBreakdown?.find((c: any) => c.status === "REJECTED")?.count ?? 0, color: "#BE123C" },
   ];
+
+  if (loadingStats) {
+    return (
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex justify-between items-center">
+          <div>
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64 mt-2" />
+          </div>
+          <Skeleton className="h-10 w-44" />
+        </div>
+
+        {/* KPI Cards Skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="card-flat p-4 space-y-3 bg-white border border-border rounded-xl">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-10 w-10 rounded-lg" />
+                <Skeleton className="h-4 w-12" />
+              </div>
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-8 w-16" />
+            </div>
+          ))}
+        </div>
+
+        {/* Charts Row Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 card-flat p-5 bg-white border border-border rounded-xl space-y-4">
+            <div className="flex justify-between items-center">
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-8 w-24" />
+            </div>
+            <Skeleton className="h-[280px] w-full" />
+          </div>
+          <div className="card-flat p-5 bg-white border border-border rounded-xl space-y-4">
+            <Skeleton className="h-6 w-32" />
+            <div className="flex justify-center py-4">
+              <Skeleton className="h-40 w-40 rounded-full" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-full" />
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom grid skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 card-flat p-5 bg-white border border-border rounded-xl space-y-4">
+            <Skeleton className="h-6 w-40" />
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex justify-between items-center py-2 border-b border-border last:border-0">
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="card-flat p-5 bg-white border border-border rounded-xl space-y-4">
+            <Skeleton className="h-6 w-40" />
+            <div className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 py-2">
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
