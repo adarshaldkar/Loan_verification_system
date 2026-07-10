@@ -2,27 +2,43 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FiShield, FiMail, FiLock, FiEye, FiEyeOff } from "react-icons/fi";
+import { FiShield, FiMail, FiLock, FiEye, FiEyeOff, FiAlertCircle } from "react-icons/fi";
 import { toast } from "sonner";
+import { agentLoginApi } from "@/lib/api";
 
 export default function AgentLoginPage() {
   const router = useRouter();
-  const [email, setEmail]       = useState("agent@lvms.com");
-  const [password, setPassword] = useState("agent123");
+  const [email, setEmail]       = useState("");
+  const [password, setPassword] = useState("");
   const [showPw, setShowPw]     = useState(false);
   const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState("");
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
     if (!email || !password) {
-      toast.error("Please enter email and password");
+      setError("Please enter email and password");
       return;
     }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-    toast.success("Welcome back, Agent!");
-    router.push("/agent");
+    try {
+      const res = await agentLoginApi(email, password);
+      const { user } = res.data;
+      // Verify the logged-in user is actually a FIELD_AGENT
+      if (user.role !== "FIELD_AGENT") {
+        setError("Access denied. This portal is for Field Agents only.");
+        setLoading(false);
+        return;
+      }
+      // Store minimal user info for UI (token is in HttpOnly cookie)
+      localStorage.setItem("lvms_agent", JSON.stringify(user));
+      toast.success(`Welcome back, ${user.firstName}!`);
+      router.push("/agent");
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Invalid email or password.");
+      setLoading(false);
+    }
   }
 
   return (
@@ -40,7 +56,15 @@ export default function AgentLoginPage() {
 
         {/* Form */}
         <form onSubmit={handleLogin} className="space-y-4">
-          
+
+          {/* Error Banner */}
+          {error && (
+            <div className="flex items-center gap-2.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs px-4 py-3 rounded-xl">
+              <FiAlertCircle className="w-4 h-4 shrink-0" />
+              {error}
+            </div>
+          )}
+
           {/* Email */}
           <div>
             <label className="block text-xs font-bold text-gray-600 mb-1.5">Email Address</label>

@@ -1,55 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FiBell, FiBriefcase, FiCheckCircle, FiAlertTriangle, FiInfo, FiRefreshCw,
 } from "react-icons/fi";
 import { cn } from "@/lib/utils";
+import { getAgentNotificationsApi } from "@/lib/api";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
-/* ─── Mock Notifications ─────────────────────────────────────────────────── */
-
+/* ─── Types ──────────────────────────────────────────────────────────────── */
 type NotifType = "ASSIGNMENT" | "APPROVED" | "REJECTED" | "REMINDER" | "INFO";
 
-const allNotifications = [
-  {
-    id: 1, type: "ASSIGNMENT" as NotifType,
-    title: "New Case Assigned",
-    message: "Case LV-2026-10821 (Priya Sharma — Business Verification) has been assigned to you.",
-    time: "10 min ago", unread: true,
-  },
-  {
-    id: 2, type: "APPROVED" as NotifType,
-    title: "Verification Approved",
-    message: "Your verification for Case LV-2026-10815 (Kavita Singh) has been approved. Case marked as Completed.",
-    time: "2 hrs ago", unread: true,
-  },
-  {
-    id: 3, type: "REMINDER" as NotifType,
-    title: "Overdue Case",
-    message: "Case LV-2026-10819 (Sandeep Yadav) is overdue by 1 day. Please complete the verification immediately.",
-    time: "5 hrs ago", unread: false,
-  },
-  {
-    id: 4, type: "REJECTED" as NotifType,
-    title: "Re-verification Required",
-    message: "Case LV-2026-10814 (Arvind Patel) was rejected. Reason: Business signboard photo is missing. Please re-visit and resubmit.",
-    time: "Yesterday", unread: false,
-  },
-  {
-    id: 5, type: "INFO" as NotifType,
-    title: "System Update",
-    message: "The LVMS app has been updated. GPS accuracy improved for verification forms.",
-    time: "2 days ago", unread: false,
-  },
-  {
-    id: 6, type: "APPROVED" as NotifType,
-    title: "Verification Approved",
-    message: "Case LV-2026-10810 (Neha Verma) has been approved. Excellent verification report!",
-    time: "3 days ago", unread: false,
-  },
-];
-
-const TYPE_CONFIG: Record<NotifType, { icon: React.ElementType; color: string; bg: string }> = {
+const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
   ASSIGNMENT: { icon: FiBriefcase,    color: "#1E3A5F", bg: "#EEF2FF" },
   APPROVED:   { icon: FiCheckCircle,  color: "#0D9488", bg: "#CCFBF1" },
   REJECTED:   { icon: FiAlertTriangle, color: "#DC2626", bg: "#FEE2E2" },
@@ -58,22 +21,46 @@ const TYPE_CONFIG: Record<NotifType, { icon: React.ElementType; color: string; b
 };
 
 /* ─── Notifications Page ─────────────────────────────────────────────────── */
-
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState(allNotifications);
+  const router = useRouter();
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"All" | "Unread">("All");
 
-  const unreadCount = notifications.filter((n) => n.unread).length;
+  useEffect(() => {
+    getAgentNotificationsApi()
+      .then((res) => {
+        setNotifications(res.data.data || []);
+      })
+      .catch((err) => {
+        toast.error("Failed to load notifications");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   function markAllRead() {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+    // In a real app, you'd call an API like `markAllNotificationsReadApi` here
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   }
 
-  function markRead(id: number) {
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, unread: false } : n));
+  function markRead(id: string) {
+    // In a real app, you'd call an API like `markNotificationReadApi(id)` here
+    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, isRead: true } : n));
   }
 
-  const filtered = notifications.filter((n) => filter === "All" || n.unread);
+  const filtered = notifications.filter((n) => filter === "All" || !n.isRead);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <svg className="w-8 h-8 animate-spin text-[#1E3A5F]" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeDasharray="40" strokeDashoffset="10" />
+        </svg>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 pb-8">
@@ -124,7 +111,7 @@ export default function NotificationsPage() {
       ) : (
         <div className="space-y-2.5">
           {filtered.map((n) => {
-            const cfg = TYPE_CONFIG[n.type];
+            const cfg = TYPE_CONFIG[n.type] || TYPE_CONFIG.INFO;
             const Icon = cfg.icon;
             return (
               <button
@@ -132,9 +119,9 @@ export default function NotificationsPage() {
                 onClick={() => markRead(n.id)}
                 className={cn(
                   "w-full bg-white rounded-2xl p-4 text-left shadow-sm transition-all active:scale-[0.99]",
-                  n.unread && "border-l-4"
+                  !n.isRead && "border-l-4"
                 )}
-                style={n.unread ? { borderColor: cfg.color } : {}}
+                style={!n.isRead ? { borderColor: cfg.color } : {}}
               >
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5" style={{ background: cfg.bg }}>
@@ -143,12 +130,12 @@ export default function NotificationsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <p className="text-[13px] font-semibold text-slate-900">{n.title}</p>
-                      {n.unread && (
+                      {!n.isRead && (
                         <span className="w-2 h-2 rounded-full shrink-0 mt-0.5" style={{ background: cfg.color }} />
                       )}
                     </div>
                     <p className="text-xs text-slate-500 leading-relaxed">{n.message}</p>
-                    <p className="text-[10px] text-slate-400 mt-1.5">{n.time}</p>
+                    <p className="text-[10px] text-slate-400 mt-1.5">{new Date(n.createdAt).toLocaleString()}</p>
                   </div>
                 </div>
               </button>

@@ -1,71 +1,80 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { FiSearch, FiFilter, FiMapPin, FiNavigation, FiChevronRight } from "react-icons/fi";
+import { FiSearch, FiMapPin, FiChevronRight, FiFilter } from "react-icons/fi";
 import { cn } from "@/lib/utils";
+import { getAgentCasesApi } from "@/lib/api";
+import { toast } from "sonner";
 
-/* ─── Mock Cases ─────────────────────────────────────────────────────────── */
-
-type CaseStatus = "ASSIGNED" | "TRAVELLING" | "AT_LOCATION" | "IN_PROGRESS" | "SUBMITTED" | "COMPLETED" | "RE_VERIFICATION";
+/* ─── Types ──────────────────────────────────────────────────────────────── */
+type CaseStatus = "ASSIGNED" | "IN_PROGRESS" | "SUBMITTED" | "COMPLETED" | "REJECTED" | "PENDING";
 type CaseType   = "RESIDENTIAL" | "BUSINESS";
-type Priority   = "High" | "Medium" | "Low";
 
 type AgentCase = {
   id: string;
   customer: string;
+  phone: string;
   type: CaseType;
   address: string;
-  priority: Priority;
-  distance: string;
+  loanType: string;
+  loanAmount: number;
   status: CaseStatus;
+  branch: string;
   assignedOn: string;
+  mediaCount: number;
 };
 
-const allCases: AgentCase[] = [
-  { id: "LV-2026-10821", customer: "Priya Sharma",   type: "RESIDENTIAL", address: "45 Park St, Dadar, Mumbai",         priority: "High",   distance: "3.2 km", status: "ASSIGNED",       assignedOn: "Today, 09:00 AM" },
-  { id: "LV-2026-10819", customer: "Sandeep Yadav",  type: "BUSINESS",    address: "78 Civil Lines, Connaught, Delhi",   priority: "High",   distance: "8.7 km", status: "IN_PROGRESS",    assignedOn: "Today, 08:30 AM" },
-  { id: "LV-2026-10817", customer: "Rahul Gupta",    type: "RESIDENTIAL", address: "23 Station Rd, Kothrud, Pune",       priority: "Medium", distance: "5.1 km", status: "SUBMITTED",      assignedOn: "Yesterday" },
-  { id: "LV-2026-10816", customer: "Kavita Singh",   type: "RESIDENTIAL", address: "56 Lake View, Adyar, Chennai",       priority: "Low",    distance: "12 km",  status: "COMPLETED",      assignedOn: "07 Jul 2026" },
-  { id: "LV-2026-10814", customer: "Arvind Patel",   type: "BUSINESS",    address: "89 Gandhi Nagar, CG Road, Ahmedabad",priority: "Medium", distance: "6.4 km", status: "RE_VERIFICATION", assignedOn: "06 Jul 2026" },
-  { id: "LV-2026-10813", customer: "Sunita Joshi",   type: "RESIDENTIAL", address: "34 Mall Rd, Vaishali Nagar, Jaipur", priority: "Low",    distance: "9.2 km", status: "ASSIGNED",       assignedOn: "06 Jul 2026" },
-  { id: "LV-2026-10811", customer: "Manoj Tiwari",   type: "BUSINESS",    address: "12 MIDC Area, Andheri East, Mumbai", priority: "High",   distance: "4.8 km", status: "TRAVELLING",     assignedOn: "05 Jul 2026" },
-  { id: "LV-2026-10809", customer: "Deepa Nair",     type: "RESIDENTIAL", address: "67 Anna Nagar, West, Chennai",       priority: "Medium", distance: "7.6 km", status: "ASSIGNED",       assignedOn: "05 Jul 2026" },
-];
-
-const STATUS_FILTERS = ["All", "ASSIGNED", "IN_PROGRESS", "SUBMITTED", "COMPLETED", "RE_VERIFICATION"] as const;
+const STATUS_FILTERS = ["All", "ASSIGNED", "IN_PROGRESS", "SUBMITTED", "COMPLETED", "REJECTED"] as const;
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
-  ASSIGNED:        { label: "Assigned",    color: "#1E3A5F", bg: "#EEF2FF" },
-  TRAVELLING:      { label: "Travelling",  color: "#7C3AED", bg: "#EDE9FE" },
-  AT_LOCATION:     { label: "At Location", color: "#0D9488", bg: "#CCFBF1" },
-  IN_PROGRESS:     { label: "In Progress", color: "#D97706", bg: "#FEF3C7" },
-  SUBMITTED:       { label: "Submitted",   color: "#2563EB", bg: "#DBEAFE" },
-  COMPLETED:       { label: "Completed",   color: "#0D9488", bg: "#CCFBF1" },
-  RE_VERIFICATION: { label: "Re-verify",   color: "#DC2626", bg: "#FEE2E2" },
+  ASSIGNED:    { label: "Assigned",    color: "#1E3A5F", bg: "#EEF2FF" },
+  IN_PROGRESS: { label: "In Progress", color: "#7C3AED", bg: "#EDE9FE" },
+  SUBMITTED:   { label: "Submitted",   color: "#0369A1", bg: "#E0F2FE" },
+  COMPLETED:   { label: "Completed",   color: "#15803D", bg: "#DCFCE7" },
+  REJECTED:    { label: "Rejected",    color: "#B91C1C", bg: "#FEE2E2" },
+  PENDING:     { label: "Pending",     color: "#B45309", bg: "#FEF3C7" },
 };
 
 /* ─── Assigned Cases Page ────────────────────────────────────────────────── */
 export default function AssignedCasesPage() {
   const router = useRouter();
+  const [cases, setCases]     = useState<AgentCase[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState("");
   const [filter, setFilter]   = useState<string>("All");
-  const [sortDist, setSortDist] = useState(false);
 
-  const filtered = allCases
-    .filter((c) => {
-      const matchSearch =
-        c.customer.toLowerCase().includes(search.toLowerCase()) ||
-        c.id.toLowerCase().includes(search.toLowerCase()) ||
-        c.address.toLowerCase().includes(search.toLowerCase());
-      const matchFilter = filter === "All" || c.status === filter;
-      return matchSearch && matchFilter;
-    })
-    .sort((a, b) =>
-      sortDist
-        ? parseFloat(a.distance) - parseFloat(b.distance)
-        : 0
+  useEffect(() => {
+    getAgentCasesApi()
+      .then((res) => setCases(res.data.data ?? []))
+      .catch(() => {
+        toast.error("Session expired. Please log in.");
+        router.push("/agent/login");
+      })
+      .finally(() => setLoading(false));
+  }, [router]);
+
+  const filtered = cases.filter((c) => {
+    const matchSearch =
+      c.customer.toLowerCase().includes(search.toLowerCase()) ||
+      c.id.toLowerCase().includes(search.toLowerCase()) ||
+      c.address.toLowerCase().includes(search.toLowerCase());
+    const matchFilter = filter === "All" || c.status === filter;
+    return matchSearch && matchFilter;
+  });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="flex flex-col items-center gap-3">
+          <svg className="w-8 h-8 animate-spin text-[#1E4DB7]" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="40" strokeDashoffset="10" />
+          </svg>
+          <p className="text-sm text-gray-500 font-medium">Loading cases...</p>
+        </div>
+      </div>
     );
+  }
 
   return (
     <div className="space-y-4 pb-8">
@@ -74,7 +83,7 @@ export default function AssignedCasesPage() {
         <h1 className="text-xl font-bold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
           Assigned Cases
         </h1>
-        <p className="text-sm text-slate-500 mt-0.5">{filtered.length} of {allCases.length} cases</p>
+        <p className="text-sm text-slate-500 mt-0.5">{filtered.length} of {cases.length} cases</p>
       </div>
 
       {/* Search */}
@@ -106,16 +115,6 @@ export default function AssignedCasesPage() {
             {f === "All" ? "All" : STATUS_STYLE[f]?.label ?? f}
           </button>
         ))}
-        <button
-          onClick={() => setSortDist(!sortDist)}
-          className={cn(
-            "shrink-0 text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-all",
-            sortDist ? "text-white" : "bg-white text-slate-500 border border-slate-200"
-          )}
-          style={sortDist ? { background: "#0D9488" } : {}}
-        >
-          <FiNavigation className="w-3 h-3" /> Nearest
-        </button>
       </div>
 
       {/* Cases List */}
@@ -165,18 +164,10 @@ export default function AssignedCasesPage() {
                     )}>
                       {c.type === "RESIDENTIAL" ? "Residential" : "Business"}
                     </span>
-                    <span className={cn(
-                      "text-[10px] font-semibold px-2 py-0.5 rounded-full",
-                      c.priority === "High" ? "bg-rose-50 text-rose-700" :
-                      c.priority === "Medium" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"
-                    )}>
-                      {c.priority}
-                    </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                      <FiNavigation className="w-3 h-3" />
-                      {c.distance}
+                    <div className="flex items-center gap-1 text-[11px] text-slate-400 font-medium">
+                       {c.assignedOn}
                     </div>
                     <FiChevronRight className="w-4 h-4 text-slate-300" />
                   </div>

@@ -1,40 +1,23 @@
 import { Router } from 'express';
 import { authenticateToken, requireRole } from '../middlewares/auth';
-import {
-  // Dashboard
-  getDashboard,
-  // Analytics
-  getAnalytics,
-  // Agents
-  getAgents,
-  toggleAgentStatus,
-  // Customers & Cases
-  getCustomers,
-  createCustomerAndCase,
-  getCases,
-  assignCase,
-  updateCaseStatus,
-  // Branches
-  getBranches,
-  createBranch,
-  // Reports
-  getReports,
-  generateReport,
-  // Audit
-  getAuditLogs,
-  // Profile & Settings
-  getProfile,
-  getSettings,
-  updateSettings,
-  bulkUploadCases,
-} from '../controllers/adminController';
+
+// ── New Domain-Specific Controllers ────────────────────────────────────────
+import { getDashboard, getAnalytics } from '../controllers/admin/dashboardController';
+import { getCustomers, createCustomerAndCase } from '../controllers/admin/customerController';
+import { getAgents, toggleAgentStatus } from '../controllers/admin/agentController';
+import { getCases, assignCase, updateCaseStatus } from '../controllers/admin/caseController';
+import { getBranches, createBranch } from '../controllers/admin/branchController';
+import { getReports, generateReport } from '../controllers/admin/reportController';
+import { getAuditLogs } from '../controllers/admin/auditLogController';
+import { getSettings, updateSettings } from '../controllers/admin/settingsController';
+import { getProfile } from '../controllers/admin/profileController';
+import { bulkUploadCases } from '../controllers/admin/uploadController';
 import { registerAgent } from '../controllers/authController';
 
 const router = Router();
 
-// All admin routes require a valid JWT
+// All admin routes require a valid JWT + ADMIN or MANAGER role
 router.use(authenticateToken);
-// All admin routes require ADMIN or MANAGER role
 router.use(requireRole(['ADMIN', 'MANAGER']));
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
@@ -75,3 +58,4 @@ router.put('/settings', updateSettings);
 router.post('/upload/bulk', bulkUploadCases);
 
 export default router;
+

@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import { use } from "react";
 import {
   FiMapPin, FiPhone, FiNavigation, FiCheckCircle, FiPlayCircle,
   FiUser, FiBriefcase, FiChevronLeft, FiAlertTriangle, FiMail,
@@ -10,82 +9,52 @@ import {
 } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { getAgentCaseByIdApi, updateAgentCaseStatusApi } from "@/lib/api";
 
-/* ─── Mock Case Data ─────────────────────────────────────────────────────── */
-
-type CaseStatus = "ASSIGNED" | "TRAVELLING" | "AT_LOCATION" | "IN_PROGRESS" | "SUBMITTED" | "COMPLETED" | "RE_VERIFICATION";
-
-const CASES: Record<string, {
-  id: string; customer: string; phone: string; email: string;
-  address: string; lat: number; lng: number;
-  loanType: string; loanAmount: string; verType: "RESIDENTIAL" | "BUSINESS";
-  branch: string; priority: string; assignedOn: string;
-  status: CaseStatus; agentNote?: string;
-}> = {
-  "LV-2026-10821": {
-    id: "LV-2026-10821", customer: "Priya Sharma",
-    phone: "+91 87654 32109", email: "priya.sharma@email.com",
-    address: "45, Park Street, Dadar West, Mumbai — 400028",
-    lat: 19.018255, lng: 72.847145,
-    loanType: "Business Loan", loanAmount: "₹12,00,000",
-    verType: "BUSINESS", branch: "Mumbai West",
-    priority: "High", assignedOn: "09 Jul 2026, 09:00 AM",
-    status: "ASSIGNED",
-  },
-  "LV-2026-10819": {
-    id: "LV-2026-10819", customer: "Sandeep Yadav",
-    phone: "+91 76543 21098", email: "sandeep.y@email.com",
-    address: "78, Civil Lines, Connaught Place, Delhi — 110001",
-    lat: 28.632450, lng: 77.219640,
-    loanType: "Home Loan", loanAmount: "₹45,00,000",
-    verType: "RESIDENTIAL", branch: "Delhi North",
-    priority: "High", assignedOn: "09 Jul 2026, 08:30 AM",
-    status: "IN_PROGRESS",
-  },
-  "LV-2026-10817": {
-    id: "LV-2026-10817", customer: "Rahul Gupta",
-    phone: "+91 54321 09876", email: "rahul.g@email.com",
-    address: "23, Station Road, Kothrud, Pune — 411038",
-    lat: 18.507800, lng: 73.807700,
-    loanType: "Personal Loan", loanAmount: "₹5,00,000",
-    verType: "RESIDENTIAL", branch: "Pune",
-    priority: "Medium", assignedOn: "08 Jul 2026",
-    status: "SUBMITTED",
-  },
-  "LV-2026-10814": {
-    id: "LV-2026-10814", customer: "Arvind Patel",
-    phone: "+91 32109 87654", email: "arvind.p@email.com",
-    address: "89, Gandhi Nagar, CG Road, Ahmedabad — 380009",
-    lat: 23.022505, lng: 72.571362,
-    loanType: "Business Loan", loanAmount: "₹8,50,000",
-    verType: "BUSINESS", branch: "Ahmedabad",
-    priority: "Medium", assignedOn: "06 Jul 2026",
-    status: "RE_VERIFICATION",
-    agentNote: "Admin rejected: Signboard photo missing. Please re-capture.",
-  },
-};
-
-/* ─── Status Config ──────────────────────────────────────────────────────── */
+type CaseStatus = "ASSIGNED" | "PENDING" | "TRAVELLING" | "AT_LOCATION" | "IN_PROGRESS" | "SUBMITTED" | "COMPLETED" | "REJECTED";
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
-  ASSIGNED:        { label: "Assigned",    color: "#1E3A5F", bg: "#EEF2FF" },
-  TRAVELLING:      { label: "Travelling",  color: "#7C3AED", bg: "#EDE9FE" },
-  AT_LOCATION:     { label: "At Location", color: "#0D9488", bg: "#CCFBF1" },
-  IN_PROGRESS:     { label: "In Progress", color: "#D97706", bg: "#FEF3C7" },
-  SUBMITTED:       { label: "Submitted",   color: "#2563EB", bg: "#DBEAFE" },
-  COMPLETED:       { label: "Completed",   color: "#0D9488", bg: "#CCFBF1" },
-  RE_VERIFICATION: { label: "Re-verify",   color: "#DC2626", bg: "#FEE2E2" },
+  ASSIGNED:    { label: "Assigned",    color: "#1E3A5F", bg: "#EEF2FF" },
+  PENDING:     { label: "Pending",     color: "#B45309", bg: "#FEF3C7" },
+  TRAVELLING:  { label: "Travelling",  color: "#7C3AED", bg: "#EDE9FE" },
+  AT_LOCATION: { label: "At Location", color: "#0D9488", bg: "#CCFBF1" },
+  IN_PROGRESS: { label: "In Progress", color: "#D97706", bg: "#FEF3C7" },
+  SUBMITTED:   { label: "Submitted",   color: "#2563EB", bg: "#DBEAFE" },
+  COMPLETED:   { label: "Completed",   color: "#15803D", bg: "#DCFCE7" },
+  REJECTED:    { label: "Rejected",    color: "#B91C1C", bg: "#FEE2E2" },
 };
-
-/* ─── Case Details Page ──────────────────────────────────────────────────── */
 
 export default function CaseDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id }  = use(params);
   const router  = useRouter();
-  const caseData = CASES[id];
+  
+  const [caseData, setCaseData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<CaseStatus>("ASSIGNED");
+  const [showMap, setShowMap] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const [status, setStatus]     = useState<CaseStatus>(caseData?.status ?? "ASSIGNED");
-  const [showMap, setShowMap]   = useState(false);
+  useEffect(() => {
+    getAgentCaseByIdApi(id)
+      .then((res) => {
+        setCaseData(res.data.data);
+        setStatus(res.data.data.status);
+      })
+      .catch((err) => {
+        toast.error("Failed to load case details");
+      })
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <svg className="w-8 h-8 animate-spin text-[#1E3A5F]" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeDasharray="40" strokeDashoffset="10" />
+        </svg>
+      </div>
+    );
+  }
 
   if (!caseData) {
     return (
@@ -99,15 +68,15 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const s = STATUS_STYLE[status];
+  const s = STATUS_STYLE[status] || STATUS_STYLE.ASSIGNED;
 
   // ── Action handlers ──
   function handleCallCustomer() {
-    window.open(`tel:${caseData.phone}`);
+    window.open(`tel:${caseData.customer.phone}`);
   }
 
   function handleStartNavigation() {
-    if (status === "ASSIGNED") {
+    if (status === "ASSIGNED" || status === "PENDING") {
       setStatus("TRAVELLING");
       setShowMap(true);
       toast.success("Navigation started. Case status: Travelling");
@@ -122,15 +91,32 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
     toast.success("Arrival confirmed! You can now start verification.");
   }
 
-  function handleStartVerification() {
-    setStatus("IN_PROGRESS");
-    router.push(`/agent/verify/${id}`);
+  async function handleStartVerification() {
+    // If the case is not yet IN_PROGRESS in DB, update it
+    if (caseData.status !== "IN_PROGRESS" && caseData.status !== "SUBMITTED" && caseData.status !== "COMPLETED") {
+      setIsUpdating(true);
+      try {
+        await updateAgentCaseStatusApi(id, "IN_PROGRESS");
+        setStatus("IN_PROGRESS");
+        router.push(`/agent/verify/${id}`);
+      } catch (err: any) {
+        toast.error(err?.response?.data?.message || "Failed to start verification");
+      } finally {
+        setIsUpdating(false);
+      }
+    } else {
+      router.push(`/agent/verify/${id}`);
+    }
   }
 
-  const canNavigate    = ["ASSIGNED", "TRAVELLING", "AT_LOCATION", "IN_PROGRESS", "SUBMITTED", "RE_VERIFICATION"].includes(status);
+  const canNavigate    = ["ASSIGNED", "PENDING", "TRAVELLING", "AT_LOCATION", "IN_PROGRESS", "SUBMITTED", "REJECTED"].includes(status);
   const canArrived     = status === "TRAVELLING";
-  const canVerify      = status === "AT_LOCATION" || status === "IN_PROGRESS" || status === "RE_VERIFICATION";
+  const canVerify      = status === "AT_LOCATION" || status === "IN_PROGRESS" || status === "REJECTED";
   const isReadOnly     = status === "SUBMITTED" || status === "COMPLETED";
+
+  // Dummy coordinates if GPS is null
+  const lat = caseData.gpsLatitude || 19.0760;
+  const lng = caseData.gpsLongitude || 72.8777;
 
   return (
     <div className="space-y-4 pb-24">
@@ -146,11 +132,11 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
           <div>
             <p className="text-[11px] font-mono text-slate-400">{caseData.id}</p>
             <h1 className="text-xl font-bold text-slate-900 mt-0.5" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-              {caseData.customer}
+              {caseData.customer.name}
             </h1>
           </div>
           <span
-            className="text-[11px] font-semibold px-2.5 py-1 rounded-full mt-1"
+            className="text-[11px] font-semibold px-2.5 py-1 rounded-full mt-1 whitespace-nowrap ml-2"
             style={{ color: s.color, background: s.bg }}
           >
             {s.label}
@@ -158,13 +144,13 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
         </div>
       </div>
 
-      {/* Re-verification alert */}
-      {status === "RE_VERIFICATION" && caseData.agentNote && (
+      {/* Rejected alert (acts like re-verification) */}
+      {status === "REJECTED" && (
         <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 flex items-start gap-3">
           <FiAlertTriangle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-semibold text-rose-700">Re-verification Required</p>
-            <p className="text-xs text-rose-600 mt-0.5">{caseData.agentNote}</p>
+            <p className="text-sm font-semibold text-rose-700">Re-verification Required (Rejected)</p>
+            <p className="text-xs text-rose-600 mt-0.5">This case was rejected. Please review and start verification again.</p>
           </div>
         </div>
       )}
@@ -177,10 +163,10 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
         </div>
         <div className="p-4 space-y-3 text-sm">
           {[
-            { label: "Full Name",  value: caseData.customer, icon: <FiUser className="w-3.5 h-3.5" /> },
-            { label: "Phone",      value: caseData.phone,    icon: <FiPhone className="w-3.5 h-3.5" /> },
-            { label: "Email",      value: caseData.email,    icon: <FiMail className="w-3.5 h-3.5" /> },
-            { label: "Address",    value: caseData.address,  icon: <FiMapPin className="w-3.5 h-3.5" /> },
+            { label: "Full Name",  value: caseData.customer.name, icon: <FiUser className="w-3.5 h-3.5" /> },
+            { label: "Phone",      value: caseData.customer.phone || 'N/A',    icon: <FiPhone className="w-3.5 h-3.5" /> },
+            { label: "Email",      value: caseData.customer.email || 'N/A',    icon: <FiMail className="w-3.5 h-3.5" /> },
+            { label: "Address",    value: caseData.customer.address,  icon: <FiMapPin className="w-3.5 h-3.5" /> },
           ].map(({ label, value, icon }) => (
             <div key={label} className="flex items-start gap-3">
               <span className="text-slate-400 mt-0.5">{icon}</span>
@@ -201,11 +187,11 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
         </div>
         <div className="grid grid-cols-2 gap-px bg-slate-100">
           {[
-            { label: "Loan Type",         value: caseData.loanType },
-            { label: "Loan Amount",       value: caseData.loanAmount },
-            { label: "Verification Type", value: caseData.verType === "RESIDENTIAL" ? "Residential" : "Business" },
-            { label: "Branch",            value: caseData.branch },
-            { label: "Priority",          value: caseData.priority },
+            { label: "Loan Type",         value: caseData.customer.loanType || 'N/A' },
+            { label: "Loan Amount",       value: caseData.customer.loanAmount ? `₹${caseData.customer.loanAmount.toLocaleString()}` : 'N/A' },
+            { label: "Verification Type", value: caseData.type === "RESIDENTIAL" ? "Residential" : "Business" },
+            { label: "Branch",            value: caseData.branch || 'Unassigned' },
+            { label: "Priority",          value: caseData.status === 'PENDING' ? 'High' : 'Medium' },
             { label: "Assigned On",       value: caseData.assignedOn },
           ].map(({ label, value }) => (
             <div key={label} className="bg-white p-3">
@@ -237,19 +223,19 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
               style={{ border: 0 }}
               loading="lazy"
               allowFullScreen
-              src={`https://www.google.com/maps?q=${caseData.lat},${caseData.lng}&z=15&output=embed`}
+              src={`https://www.google.com/maps?q=${lat},${lng}&z=15&output=embed`}
             />
           </div>
           <div className="px-4 py-3 flex items-center justify-between bg-slate-50">
             <div>
-              <p className="text-xs font-medium text-slate-700">{caseData.address}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Lat: {caseData.lat} · Lng: {caseData.lng}</p>
+              <p className="text-xs font-medium text-slate-700 truncate max-w-[200px]">{caseData.customer.address}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">Lat: {lat} · Lng: {lng}</p>
             </div>
             <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${caseData.lat},${caseData.lng}`}
+              href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg"
+              className="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg shrink-0"
               style={{ background: "#1E3A5F" }}
             >
               <FiNavigation className="w-3 h-3" /> Open Maps
@@ -277,7 +263,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
                 onClick={handleCallCustomer}
                 className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 border-[#1E3A5F] text-[#1E3A5F] hover:bg-blue-50 transition-colors active:scale-95"
               >
-                <FiPhone className="w-4 h-4" /> Call Customer
+                <FiPhone className="w-4 h-4" /> Call
               </button>
               <button
                 onClick={handleStartNavigation}
@@ -286,7 +272,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
                 style={{ background: "#7C3AED" }}
               >
                 <FiNavigation className="w-4 h-4" />
-                {status === "TRAVELLING" ? "View Route" : "Start Navigation"}
+                {status === "TRAVELLING" ? "View Route" : "Navigate"}
               </button>
             </div>
 
@@ -304,19 +290,25 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
             {/* Start Verification */}
             <button
               onClick={handleStartVerification}
-              disabled={!canVerify}
+              disabled={!canVerify || isUpdating}
               className={cn(
                 "w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-bold text-white transition-all active:scale-95",
-                !canVerify && "opacity-40 cursor-not-allowed"
+                (!canVerify || isUpdating) && "opacity-40 cursor-not-allowed"
               )}
               style={{ background: canVerify ? "#1E3A5F" : "#94A3B8" }}
             >
-              <FiPlayCircle className="w-4.5 h-4.5" />
-              {status === "RE_VERIFICATION" ? "Re-start Verification" : "Start Verification"}
-              {canVerify && <FiArrowRight className="w-4 h-4 ml-1" />}
+              {isUpdating ? (
+                <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeDasharray="40" strokeDashoffset="10" />
+                </svg>
+              ) : (
+                <FiPlayCircle className="w-4.5 h-4.5" />
+              )}
+              {status === "REJECTED" ? "Re-start Verification" : "Start Verification"}
+              {canVerify && !isUpdating && <FiArrowRight className="w-4 h-4 ml-1" />}
             </button>
 
-            {!canVerify && status === "ASSIGNED" && (
+            {!canVerify && (status === "ASSIGNED" || status === "PENDING") && (
               <p className="text-center text-[11px] text-slate-400">
                 ⚠️ Navigate to the location first, then confirm arrival to unlock verification
               </p>

@@ -1,19 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { use } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import {
   FiCheckSquare, FiUser, FiHome, FiBriefcase, FiMapPin, FiCamera, FiPlus,
-  FiCalendar, FiEye, FiCheckCircle, FiInfo, FiTrash2, FiClock, FiChevronLeft
+  FiClock, FiChevronLeft, FiCheckCircle, FiTrash2, FiInfo
 } from "react-icons/fi";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import LocationPickerMap from "@/components/shared/LocationPickerMap";
+import { getAgentCaseByIdApi, submitVerificationApi } from "@/lib/api";
 
 /* ─── Zod Schemas ─── */
-
 const residentialSchema = z.object({
   applicantName: z.string().min(2, "Applicant name must be at least 2 characters"),
   mobileNumber: z.string().regex(/^\+?[0-9]{10,12}$/, "Invalid mobile number (10-12 digits)"),
@@ -66,27 +64,7 @@ const businessSchema = z.object({
 type ResidentialFormType = z.infer<typeof residentialSchema>;
 type BusinessFormType = z.infer<typeof businessSchema>;
 
-/* ─── Mock Cases Database ─── */
-const CASE_DETAILS: Record<string, {
-  id: string;
-  name: string;
-  phone: string;
-  type: "RESIDENTIAL" | "BUSINESS";
-  address: string;
-  houseNo: string;
-  streetArea: string;
-  cityTown: string;
-  district: string;
-  pincode: string;
-}> = {
-  "CASE-2026-0891": { id: "CASE-2026-0891", name: "Ramesh Kumar", phone: "9876543210", type: "RESIDENTIAL", address: "123, 4th Cross Street, Anna Nagar, Trichy - 620018", houseNo: "123", streetArea: "4th Cross Street, Anna Nagar", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620018" },
-  "CASE-2026-0892": { id: "CASE-2026-0892", name: "Lakshmi Devi", phone: "9988776655", type: "BUSINESS", address: "56, Bharathi Nagar, Woraiyur, Trichy - 620003", houseNo: "56", streetArea: "Bharathi Nagar, Woraiyur", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620003" },
-  "CASE-2026-0893": { id: "CASE-2026-0893", name: "Vijay Enterprises", phone: "9876509876", type: "BUSINESS", address: "18, Lawspet Road, Lawspet, Pondicherry - 605008", houseNo: "18", streetArea: "Lawspet Road, Lawspet", cityTown: "Pondicherry", district: "Pondicherry", pincode: "605008" },
-  "CASE-2026-0894": { id: "CASE-2026-0894", name: "Suresh Babu", phone: "8877665544", type: "RESIDENTIAL", address: "9, East Street, Srirangam, Trichy - 620006", houseNo: "9", streetArea: "East Street, Srirangam", cityTown: "Trichy", district: "Tiruchirappalli", pincode: "620006" },
-  "CASE-2026-0895": { id: "CASE-2026-0895", name: "Karthik Traders", phone: "7766554433", type: "BUSINESS", address: "77, Main Road, Thanjavur - 613001", houseNo: "77", streetArea: "Main Road", cityTown: "Thanjavur", district: "Tiruchirappalli", pincode: "613001" },
-};
-
-const DISTRICT_OPTIONS = ["Tiruchirappalli", "Chennai", "Coimbatore", "Pondicherry", "Madurai", "Salem"];
+const DISTRICT_OPTIONS = ["Tiruchirappalli", "Chennai", "Coimbatore", "Pondicherry", "Madurai", "Salem", "Mumbai", "Delhi", "Pune", "Ahmedabad"];
 const RESIDENCE_TYPES = ["Apartment / Flat", "Independent House", "Row House", "Villa", "Chawl / Slum"];
 const OWNERSHIP_STATUSES = ["Owned", "Rented", "Leased", "Family Owned"];
 const ADDRESS_MATCH_OPTIONS = ["Yes - Matches Exactly", "Partial Match", "No - Different Address"];
@@ -110,84 +88,91 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
   const resolvedParams = use(params);
   const router = useRouter();
   const caseId = resolvedParams.id;
-  const currentCase = CASE_DETAILS[caseId] || {
-    id: caseId,
-    name: "Vijay Enterprises",
-    phone: "9876543210",
-    type: "BUSINESS",
-    address: "18, Lawspet Road, Lawspet, Pondicherry - 605008",
-    houseNo: "18",
-    streetArea: "Lawspet Road, Lawspet",
-    cityTown: "Pondicherry",
-    district: "Pondicherry",
-    pincode: "605008",
-  };
+  
+  const [currentCase, setCurrentCase] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   const [photos, setPhotos] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [lat, setLat] = useState(12.9716);
   const [lng, setLng] = useState(77.5946);
 
-  // Form states prefilled where possible from case data
-  const [resForm, setResForm] = useState<Partial<ResidentialFormType>>({
-    applicantName: currentCase.name,
-    mobileNumber: currentCase.phone,
-    dateOfBirth: "",
-    aadhaarNumber: "",
-    houseNo: currentCase.houseNo,
-    streetArea: currentCase.streetArea,
-    cityTown: currentCase.cityTown,
-    district: currentCase.district || "Tiruchirappalli",
-    pincode: currentCase.pincode,
-    residenceType: "Apartment / Flat",
-    ownershipStatus: "Owned",
-    livingSince: "",
-    familyMembers: 1,
-    monthlyRent: 0,
-    contactNeighbor: "",
-    addressFoundMatch: "Yes - Matches Exactly",
-    neighborConfirm: "Confirmed",
-    electricityConnection: "Regular Connection",
-    waterConnection: "Corporation Water",
-    residenceCondition: "Excellent",
-    remarks: "",
-  });
+  const [resForm, setResForm] = useState<Partial<ResidentialFormType>>({});
+  const [busForm, setBusForm] = useState<Partial<BusinessFormType>>({});
 
-  const [busForm, setBusForm] = useState<Partial<BusinessFormType>>({
-    companyName: currentCase.name,
-    businessType: "Proprietorship",
-    natureOfBusiness: "",
-    yearsInBusiness: 1,
-    noOfEmployees: 1,
-    monthlyIncome: 10000,
-    doorNo: currentCase.houseNo,
-    streetArea: currentCase.streetArea,
-    landmark: "",
-    cityTown: currentCase.cityTown,
-    district: currentCase.district || "Tiruchirappalli",
-    pincode: currentCase.pincode,
-    businessFoundAtLocation: "Yes - Active Shop/Office",
-    businessOperational: "Yes - Fully Operational",
-    businessOwnedByApplicant: "Yes - Owner",
-    businessPremisesType: "Commercial Shop",
-    stockInventoryAvailable: "Moderate / Adequate",
-    gstLicenseAvailable: "Yes - Valid License",
-    signboardAvailable: "Yes - Board Displayed",
-    customerPresence: "Yes - Met Client",
-    documentsVerified: "Yes - All Documents Valid",
-    remarks: "",
-  });
+  useEffect(() => {
+    getAgentCaseByIdApi(caseId)
+      .then((res) => {
+        const c = res.data.data;
+        setCurrentCase(c);
+        if (c.gpsLatitude) setLat(c.gpsLatitude);
+        if (c.gpsLongitude) setLng(c.gpsLongitude);
 
-  // Photo handlers
+        // Pre-fill form from DB
+        if (c.type === "RESIDENTIAL") {
+          setResForm({
+            applicantName: c.customer.name || "",
+            mobileNumber: c.customer.phone || "",
+            dateOfBirth: "",
+            aadhaarNumber: "",
+            houseNo: c.customer.address?.split(',')[0] || "",
+            streetArea: c.customer.address || "",
+            cityTown: "",
+            district: "Tiruchirappalli",
+            pincode: "",
+            residenceType: "Apartment / Flat",
+            ownershipStatus: "Owned",
+            livingSince: "",
+            familyMembers: 1,
+            monthlyRent: 0,
+            contactNeighbor: "",
+            addressFoundMatch: "Yes - Matches Exactly",
+            neighborConfirm: "Confirmed",
+            electricityConnection: "Regular Connection",
+            waterConnection: "Corporation Water",
+            residenceCondition: "Excellent",
+            remarks: "",
+          });
+        } else {
+          setBusForm({
+            companyName: c.customer.businessName || c.customer.name || "",
+            businessType: "Proprietorship",
+            natureOfBusiness: "",
+            yearsInBusiness: 1,
+            noOfEmployees: 1,
+            monthlyIncome: 10000,
+            doorNo: c.customer.address?.split(',')[0] || "",
+            streetArea: c.customer.address || "",
+            landmark: "",
+            cityTown: "",
+            district: "Tiruchirappalli",
+            pincode: "",
+            businessFoundAtLocation: "Yes - Active Shop/Office",
+            businessOperational: "Yes - Fully Operational",
+            businessOwnedByApplicant: "Yes - Owner",
+            businessPremisesType: "Commercial Shop",
+            stockInventoryAvailable: "Moderate / Adequate",
+            gstLicenseAvailable: "Yes - Valid License",
+            signboardAvailable: "Yes - Board Displayed",
+            customerPresence: "Yes - Met Client",
+            documentsVerified: "Yes - All Documents Valid",
+            remarks: "",
+          });
+        }
+      })
+      .catch(() => toast.error("Failed to load case data"))
+      .finally(() => setLoading(false));
+  }, [caseId]);
+
   const handleAddPhoto = () => {
     if (photos.length >= 5) {
       toast.error("Maximum 5 photos allowed");
       return;
     }
-    const mockCoordinates = "12.9716° N, 77.5946° E";
     const timestamp = new Date().toLocaleString();
-    toast.success(`Photo Captured at ${mockCoordinates} · ${timestamp}`);
+    toast.success(`Photo Captured at ${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E`);
     setPhotos((p) => [...p, `Photo #${p.length + 1} (Geo-tagged)`]);
   };
 
@@ -196,8 +181,7 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
     toast.info("Photo removed");
   };
 
-  // Submit handlers
-  const handleResSubmit = (e: React.FormEvent) => {
+  const handleResSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
     
@@ -211,17 +195,26 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
       toast.error("Please fix verification errors");
       return;
     }
+    if (photos.length === 0) return toast.error("Capture at least 1 photo as evidence!");
 
-    if (photos.length === 0) {
-      toast.error("Capture at least 1 photo as evidence!");
-      return;
+    setIsSubmitting(true);
+    try {
+      await submitVerificationApi(caseId, {
+        remarks: resForm.remarks,
+        gpsLatitude: lat,
+        gpsLongitude: lng,
+        profileData: resForm
+      });
+      setSubmitted(true);
+      toast.success("Residential Verification report submitted!");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Submission failed");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSubmitted(true);
-    toast.success("Residential Verification report submitted!");
   };
 
-  const handleBusSubmit = (e: React.FormEvent) => {
+  const handleBusSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
 
@@ -235,14 +228,23 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
       toast.error("Please fix verification errors");
       return;
     }
+    if (photos.length === 0) return toast.error("Capture at least 1 photo as evidence!");
 
-    if (photos.length === 0) {
-      toast.error("Capture at least 1 photo as evidence!");
-      return;
+    setIsSubmitting(true);
+    try {
+      await submitVerificationApi(caseId, {
+        remarks: busForm.remarks,
+        gpsLatitude: lat,
+        gpsLongitude: lng,
+        profileData: busForm
+      });
+      setSubmitted(true);
+      toast.success("Business Verification report submitted!");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Submission failed");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSubmitted(true);
-    toast.success("Business Verification report submitted!");
   };
 
   const getResInputSetter = (key: keyof ResidentialFormType) => (e: any) => {
@@ -253,6 +255,18 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
     setBusForm((prev) => ({ ...prev, [key]: e.target.value }));
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <svg className="w-8 h-8 animate-spin text-[#1E4DB7]" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="40" strokeDashoffset="10" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (!currentCase) return <div>Case not found</div>;
+
   if (submitted) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center space-y-5 bg-white border border-gray-100 shadow-sm rounded-3xl p-6">
@@ -261,7 +275,7 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
         </div>
         <h2 className="text-xl font-bold text-gray-900">Verification Report Submitted!</h2>
         <p className="text-sm text-gray-500 max-w-sm">
-          Report for <strong>{currentCase.name}</strong> ({caseId}) has been successfully compiled and sent for administrative audit.
+          Report for <strong>{currentCase.customer.name}</strong> ({caseId}) has been successfully compiled and sent for administrative audit.
         </p>
         <button
           onClick={() => router.push("/agent")}
@@ -457,10 +471,17 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
 
               <button
                 type="submit"
-                className="w-full text-white py-3 rounded-2xl text-sm font-bold shadow-sm transition-all hover:opacity-95 flex items-center justify-center gap-2"
+                disabled={isSubmitting}
+                className="w-full text-white py-3 rounded-2xl text-sm font-bold shadow-sm transition-all hover:opacity-95 flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{ background: "#1E4DB7" }}
               >
-                <FiCheckSquare className="w-5 h-5" />
+                {isSubmitting ? (
+                  <svg className="animate-spin w-5 h-5 text-white" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeDasharray="40" strokeDashoffset="10" />
+                  </svg>
+                ) : (
+                  <FiCheckSquare className="w-5 h-5" />
+                )}
                 <span>Submit Residential Verification</span>
               </button>
 
@@ -636,10 +657,17 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
 
               <button
                 type="submit"
-                className="w-full text-white py-3 rounded-2xl text-sm font-bold shadow-sm transition-all hover:opacity-95 flex items-center justify-center gap-2"
+                disabled={isSubmitting}
+                className="w-full text-white py-3 rounded-2xl text-sm font-bold shadow-sm transition-all hover:opacity-95 flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{ background: "#10B981" }}
               >
-                <FiCheckSquare className="w-5 h-5" />
+                {isSubmitting ? (
+                  <svg className="animate-spin w-5 h-5 text-white" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeDasharray="40" strokeDashoffset="10" />
+                  </svg>
+                ) : (
+                  <FiCheckSquare className="w-5 h-5" />
+                )}
                 <span>Submit Business Verification</span>
               </button>
 
@@ -707,14 +735,6 @@ export default function CaseVerificationFormPage({ params }: { params: Promise<{
                 <div>
                   <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Current Coordinates</p>
                   <p className="text-gray-900 mt-0.5">{lat.toFixed(6)}° N, {lng.toFixed(6)}° E</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2.5 py-2.5 px-3 bg-gray-50 border border-gray-100 rounded-xl">
-                <FiClock className="w-4 h-4 text-[#1E4DB7] shrink-0" />
-                <div>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Current Timestamp</p>
-                  <p className="text-gray-900 mt-0.5">27 May 2026, 10:30 AM</p>
                 </div>
               </div>
             </div>

@@ -1,20 +1,25 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-interface AuthRequest extends Request {
+export interface AuthRequest extends Request {
   user?: any;
 }
 
 export const authenticateToken = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Format: Bearer TOKEN
+  // Read token from cookies instead of headers
+  const token = req.cookies?.token;
 
   if (!token) {
-    return res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
+    return res.status(401).json({ success: false, message: 'Access denied. No token provided in cookies.' });
   }
 
   try {
-    const secret = process.env.JWT_SECRET || 'super_secret_jwt_key_loan_verify_2026';
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      console.error('CRITICAL: JWT_SECRET is not defined in environment variables.');
+      process.exit(1); // Crash if no secret (fixing the hardcoded fallback vulnerability)
+    }
+
     const decoded = jwt.verify(token, secret);
     req.user = decoded;
     next();
@@ -31,3 +36,4 @@ export const requireRole = (roles: string[]) => {
     next();
   };
 };
+
