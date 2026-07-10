@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import prisma from '../config/db';
 
 export const apiError = (res: Response, message: string, status = 500, error?: any) =>
   res.status(status).json({
@@ -31,4 +32,25 @@ export function resolveAgentName(agent: { firstName: string; lastName: string } 
 
 export function resolveCaseStatus(status: string) {
   return toTitleCase(status.replace('_', ' '));
+}
+
+// Helper to create audit log with adminId — uses 'as any' because Prisma client
+// may not have the adminId field type yet until it is regenerated after db push
+export async function createAuditLog(data: {
+  actor: string;
+  action: string;
+  entity: string;
+  ip: string;
+  adminId?: string;
+}) {
+  return (prisma.auditLog as any).create({
+    data: {
+      actor: data.actor,
+      action: data.action,
+      entity: data.entity,
+      timestamp: new Date().toISOString(),
+      ip: data.ip,
+      adminId: data.adminId,
+    },
+  });
 }

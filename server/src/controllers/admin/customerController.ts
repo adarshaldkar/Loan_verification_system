@@ -1,10 +1,14 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import prisma from '../../config/db';
-import { parseFullName, resolveCaseStatus, formatDateTime, apiError } from '../../utils/helpers';
+import { AuthRequest } from '../../middlewares/auth';
+import { parseFullName, resolveCaseStatus, formatDateTime, apiError, createAuditLog } from '../../utils/helpers';
 
-export const getCustomers = async (req: Request, res: Response) => {
+export const getCustomers = async (req: AuthRequest, res: Response) => {
   try {
-    const customers = await prisma.customer.findMany({
+    const adminId = req.user?.id;
+
+    const customers = await (prisma.customer as any).findMany({
+      where: { adminId },
       include: {
         verificationCases: {
           orderBy: { createdAt: 'desc' },
@@ -14,7 +18,7 @@ export const getCustomers = async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    const data = customers.map((customer) => {
+    const data = customers.map((customer: any) => {
       const latestCase = customer.verificationCases[0];
       return {
         id: customer.applicationId,
@@ -34,11 +38,14 @@ export const getCustomers = async (req: Request, res: Response) => {
   }
 };
 
-export const createCustomerAndCase = async (req: Request, res: Response) => {
+export const createCustomerAndCase = async (req: AuthRequest, res: Response) => {
   try {
+    const adminId = req.user?.id;
+    if (!adminId) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
     const { firstName, lastName, email, phone, address, loanAmount, businessName, type, loanType, branch } = req.body;
 
-    const customer = await prisma.customer.create({
+    const customer = await (prisma.customer as any).create({
       data: {
         applicationId: `APP-${Date.now()}`,
         firstName,
@@ -50,25 +57,25 @@ export const createCustomerAndCase = async (req: Request, res: Response) => {
         businessName,
         loanType: loanType || 'Home Loan',
         branch,
+        adminId,
         verificationCases: {
           create: {
             type: type || 'RESIDENTIAL',
             status: 'PENDING',
             branch,
+            adminId,
           },
         },
       },
       include: { verificationCases: true },
     });
 
-    await prisma.auditLog.create({
-      data: {
-        actor: 'Admin',
-        action: 'Created customer and case',
-        entity: `Customer ${parseFullName(firstName, lastName)} (${customer.applicationId})`,
-        timestamp: new Date().toISOString(),
-        ip: req.ip || 'system',
-      },
+    await createAuditLog({
+      actor: `Admin (${adminId})`,
+      action: 'Created customer and case',
+      entity: `Customer ${parseFullName(firstName, lastName)} (${customer.applicationId})`,
+      ip: req.ip || 'system',
+      adminId,
     });
 
     return res.status(201).json({ success: true, message: 'Customer and pending case created successfully', data: customer });

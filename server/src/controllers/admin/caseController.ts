@@ -1,12 +1,18 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../../middlewares/auth';
 import prisma from '../../config/db';
-import { parseFullName, resolveCaseStatus, resolveAgentName, formatDateTime, apiError } from '../../utils/helpers';
+import { parseFullName, resolveCaseStatus, resolveAgentName, formatDateTime, apiError, createAuditLog } from '../../utils/helpers';
 
-export const getCases = async (req: Request, res: Response) => {
+export const getCases = async (req: AuthRequest, res: Response) => {
   try {
+    const adminId = req.user?.id;
     const { status } = req.query;
+
+    const whereClause: any = { adminId };
+    if (status) whereClause.status = status as string;
+
     const cases = await prisma.verificationCase.findMany({
-      where: status ? { status: status as string } : undefined,
+      where: whereClause,
       include: {
         customer: true,
         agent: { select: { firstName: true, lastName: true, branch: true } },
@@ -32,26 +38,31 @@ export const getCases = async (req: Request, res: Response) => {
   }
 };
 
-export const assignCase = async (req: Request, res: Response) => {
+export const assignCase = async (req: AuthRequest, res: Response) => {
   try {
+    const adminId = req.user?.id;
     const caseId = req.params.caseId as string;
     const agentId = req.body.agentId as string;
-    const agent = await prisma.user.findUnique({ where: { id: agentId, role: 'FIELD_AGENT' } });
-    if (!agent) return res.status(404).json({ success: false, message: 'Field Agent not found' });
+
+    const [existingCase, agent] = await Promise.all([
+      (prisma.verificationCase as any).findFirst({ where: { id: caseId, adminId } }),
+      (prisma.user as any).findFirst({ where: { id: agentId, role: 'FIELD_AGENT', adminId } }),
+    ]);
+
+    if (!existingCase) return res.status(404).json({ success: false, message: 'Case not found' });
+    if (!agent) return res.status(404).json({ success: false, message: 'Field Agent not found under your account' });
 
     const updatedCase = await prisma.verificationCase.update({
       where: { id: caseId },
       data: { agentId, status: 'ASSIGNED' },
     });
 
-    await prisma.auditLog.create({
-      data: {
-        actor: 'Admin',
-        action: 'Assigned case to agent',
-        entity: `Case ${caseId} → ${parseFullName(agent.firstName, agent.lastName)}`,
-        timestamp: new Date().toISOString(),
-        ip: req.ip || 'system',
-      },
+    await createAuditLog({
+      actor: `Admin (${adminId})`,
+      action: 'Assigned case to agent',
+      entity: `Case ${caseId} → ${parseFullName(agent.firstName, agent.lastName)}`,
+      ip: req.ip || 'system',
+      adminId,
     });
 
     return res.status(200).json({ success: true, message: 'Case assigned successfully', data: updatedCase });
@@ -60,13 +71,18 @@ export const assignCase = async (req: Request, res: Response) => {
   }
 };
 
-export const updateCaseStatus = async (req: Request, res: Response) => {
+export const updateCaseStatus = async (req: AuthRequest, res: Response) => {
   try {
+    const adminId = req.user?.id;
     const caseId = req.params.caseId as string;
     const { status } = req.body;
-    if (!['COMPLETED', 'REJECTED'].includes(status)) {
+
+    if (!['COMPLETED', 'REJECTED', 'PENDING', 'IN_PROGRESS'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status update' });
     }
+
+    const existing = await (prisma.verificationCase as any).findFirst({ where: { id: caseId, adminId } });
+    if (!existing) return res.status(404).json({ success: false, message: 'Case not found' });
 
     const updatedCase = await prisma.verificationCase.update({
       where: { id: caseId },
@@ -79,11 +95,13 @@ export const updateCaseStatus = async (req: Request, res: Response) => {
   }
 };
 
-export const getCaseById = async (req: Request, res: Response) => {
+export const getCaseById = async (req: AuthRequest, res: Response) => {
   try {
+    const adminId = req.user?.id;
     const caseId = req.params.caseId as string;
-    const caseData = await prisma.verificationCase.findUnique({
-      where: { id: caseId },
+
+    const caseData = await (prisma.verificationCase as any).findFirst({
+      where: { id: caseId, adminId },
       include: {
         customer: true,
         agent: { select: { firstName: true, lastName: true, branch: true } },
@@ -106,7 +124,7 @@ export const getCaseById = async (req: Request, res: Response) => {
       gps: { lat: `${caseData.gpsLatitude || '0'}° N`, lng: `${caseData.gpsLongitude || '0'}° E` },
       profileData: caseData.profileData ? JSON.parse(caseData.profileData) : null,
       remarks: caseData.remarks || 'No remarks provided.',
-      media: caseData.media.map(m => ({ id: m.id, url: m.url, type: m.type })),
+      media: caseData.media.map((m: any) => ({ id: m.id, url: m.url, type: m.type })),
     };
 
     return res.status(200).json({ success: true, data });

@@ -95,6 +95,18 @@ export default function DashboardPage() {
   const [liveLineData, setLiveLineData] = useState<any[]>(lineData);
   const [livePieData, setLivePieData] = useState<any[] | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [adminName, setAdminName] = useState('Admin');
+
+  useEffect(() => {
+    fetch('http://localhost:5000/api/v1/admin/profile', { credentials: 'include' })
+      .then(r => r.json())
+      .then(res => {
+        if (res.success && res.data) {
+          setAdminName(res.data.firstName || res.data.name?.split(' ')[0] || 'Admin');
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     async function loadDashboard() {
@@ -228,7 +240,7 @@ export default function DashboardPage() {
       {/* Header */}
       <PageHeader
         title="Dashboard"
-        description="Welcome back, Rohit! Here's what's happening today."
+        description={`Welcome back, ${adminName}! Here's what's happening today.`}
         action={
           <Popover open={calOpen} onOpenChange={setCalOpen}>
             <PopoverTrigger className="flex items-center gap-2 border border-[#E2E8F0] rounded-lg px-3 py-2 text-sm text-slate-600 bg-white hover:border-slate-300 transition-colors outline-none">

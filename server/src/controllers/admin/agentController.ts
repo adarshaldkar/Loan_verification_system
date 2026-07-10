@@ -1,17 +1,20 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import prisma from '../../config/db';
+import { AuthRequest } from '../../middlewares/auth';
 import { parseFullName, apiError } from '../../utils/helpers';
 
-export const getAgents = async (req: Request, res: Response) => {
+export const getAgents = async (req: AuthRequest, res: Response) => {
   try {
-    const agents = await prisma.user.findMany({
-      where: { role: 'FIELD_AGENT' },
+    const adminId = req.user?.id;
+
+    const agents = await (prisma.user as any).findMany({
+      where: { role: 'FIELD_AGENT', adminId },
       include: { assignedCases: true },
       orderBy: { createdAt: 'asc' },
     });
 
-    const data = agents.map((agent) => {
-      const assignedCases = agent.assignedCases;
+    const data = agents.map((agent: any) => {
+      const assignedCases: any[] = agent.assignedCases;
       const completedCases = assignedCases.filter((item) => item.status === 'COMPLETED').length;
       const activeCases = assignedCases.filter((item) => item.status === 'ASSIGNED' || item.status === 'IN_PROGRESS').length;
       const rejectedCases = assignedCases.filter((item) => item.status === 'REJECTED').length;
@@ -19,10 +22,10 @@ export const getAgents = async (req: Request, res: Response) => {
       const successRate = totalResolved === 0 ? 0 : Math.round((completedCases / totalResolved) * 100);
       const completedDurations = assignedCases
         .filter((item) => item.status === 'COMPLETED' && item.completedAt)
-        .map((item) => Math.max(1, Math.round((new Date(item.completedAt as Date).getTime() - new Date(item.createdAt).getTime()) / 86400000)));
+        .map((item) => Math.max(1, Math.round((new Date(item.completedAt).getTime() - new Date(item.createdAt).getTime()) / 86400000)));
       const avgTurnaround = completedDurations.length
-        ? `${(completedDurations.reduce((sum, value) => sum + value, 0) / completedDurations.length).toFixed(1)} days`
-        : '1.5 days';
+        ? `${(completedDurations.reduce((sum: number, value: number) => sum + value, 0) / completedDurations.length).toFixed(1)} days`
+        : '—';
 
       return {
         id: agent.id,
@@ -43,10 +46,12 @@ export const getAgents = async (req: Request, res: Response) => {
   }
 };
 
-export const toggleAgentStatus = async (req: Request, res: Response) => {
+export const toggleAgentStatus = async (req: AuthRequest, res: Response) => {
   try {
+    const adminId = req.user?.id;
     const agentId = req.params.agentId as string;
-    const agent = await prisma.user.findUnique({ where: { id: agentId } });
+
+    const agent = await (prisma.user as any).findFirst({ where: { id: agentId, adminId } });
     if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
 
     const updated = await prisma.user.update({

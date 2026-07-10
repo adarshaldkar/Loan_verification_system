@@ -20,7 +20,14 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  assignedCases VerificationCase[]
+  // Multi-tenant: FIELD_AGENT belongs to an ADMIN
+  adminId String?
+  admin   User?   @relation("AgentAdmin", fields: [adminId], references: [id])
+  agents  User[]  @relation("AgentAdmin")
+
+  assignedCases     VerificationCase[] @relation("AgentCases")
+  createdCustomers  Customer[]
+  createdCases      VerificationCase[] @relation("AdminCases")
 }
 
 model Customer {
@@ -38,6 +45,10 @@ model Customer {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // Multi-tenant: which admin created this customer
+  adminId String?
+  admin   User?   @relation(fields: [adminId], references: [id])
+
   verificationCases VerificationCase[]
 }
 
@@ -52,7 +63,11 @@ model VerificationCase {
   customer   Customer @relation(fields: [customerId], references: [id])
 
   agentId String?
-  agent   User?   @relation(fields: [agentId], references: [id])
+  agent   User?   @relation("AgentCases", fields: [agentId], references: [id])
+
+  // Multi-tenant: which admin owns this case
+  adminId String?
+  admin   User?   @relation("AdminCases", fields: [adminId], references: [id])
 
   // Data filled by agent
   gpsLatitude  Float?
@@ -71,12 +86,15 @@ model VerificationCase {
 
 model Branch {
   id        String   @id @default(uuid())
-  name      String   @unique
+  name      String
   city      String
   manager   String
   phone     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Multi-tenant: which admin owns this branch
+  adminId String?
 }
 
 model Report {
@@ -89,6 +107,7 @@ model Report {
   dateRange   String?
   format      String?
   createdAt   DateTime @default(now())
+  adminId     String?
 }
 
 model AuditLog {
@@ -99,6 +118,7 @@ model AuditLog {
   timestamp String
   ip        String
   createdAt DateTime @default(now())
+  adminId   String?
 }
 
 model SystemSetting {
@@ -111,6 +131,7 @@ model SystemSetting {
   notifyNewUpload    Boolean  @default(false)
   notifyCaseComplete Boolean  @default(false)
   updatedAt          DateTime @updatedAt
+  adminId            String?  @unique
 }
 
 model UploadBatch {
@@ -122,6 +143,7 @@ model UploadBatch {
   status    String
   createdBy String
   createdAt DateTime @default(now())
+  adminId   String?
 }
 
 model Media {

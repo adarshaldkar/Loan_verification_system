@@ -1,10 +1,13 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import prisma from '../../config/db';
 import { AuthRequest } from '../../middlewares/auth';
-import { apiError } from '../../utils/helpers';
+import { apiError, createAuditLog } from '../../utils/helpers';
 
 export const bulkUploadCases = async (req: AuthRequest, res: Response) => {
   try {
+    const adminId = req.user?.id;
+    if (!adminId) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
     const { rows } = req.body;
 
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
@@ -19,7 +22,7 @@ export const bulkUploadCases = async (req: AuthRequest, res: Response) => {
       const [firstName, ...lastNameParts] = row.name.split(' ');
       const lastName = lastNameParts.join(' ') || '';
 
-      const customer = await prisma.customer.create({
+      const customer = await (prisma.customer as any).create({
         data: {
           applicationId: `APP-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
           firstName,
@@ -28,28 +31,28 @@ export const bulkUploadCases = async (req: AuthRequest, res: Response) => {
           address: String(row.address),
           loanAmount: Number(row.loanAmount) || 0,
           loanType: row.loanType || 'Personal',
+          adminId,
         },
       });
 
-      await prisma.verificationCase.create({
+      await (prisma.verificationCase as any).create({
         data: {
           customerId: customer.id,
           status: 'PENDING',
-          type: 'ADDRESS',
+          type: row.type || 'RESIDENTIAL',
+          adminId,
         },
       });
 
       successCount++;
     }
 
-    await prisma.auditLog.create({
-      data: {
-        action: `Bulk uploaded ${successCount} cases from Excel`,
-        actor: 'Admin',
-        entity: 'Upload Module',
-        ip: req.ip || '127.0.0.1',
-        timestamp: new Date().toISOString(),
-      },
+    await createAuditLog({
+      action: `Bulk uploaded ${successCount} cases from Excel`,
+      actor: `Admin (${adminId})`,
+      entity: 'Upload Module',
+      ip: req.ip || '127.0.0.1',
+      adminId,
     });
 
     return res.status(200).json({

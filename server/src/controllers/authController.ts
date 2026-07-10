@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
+import { AuthRequest } from '../middlewares/auth';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -9,9 +10,13 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-export const registerAgent = async (req: Request, res: Response) => {
+// Called from Admin Panel → registers a FIELD_AGENT under that admin
+export const registerAgent = async (req: AuthRequest, res: Response) => {
   try {
-    const { email, password, firstName, lastName, branch } = req.body;
+    const adminId = req.user?.id;
+    if (!adminId) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const { email, password, firstName, lastName, phone, branch } = req.body;
     
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
@@ -21,14 +26,16 @@ export const registerAgent = async (req: Request, res: Response) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const user = await prisma.user.create({
+    const user = await (prisma.user as any).create({
       data: {
         email,
         password: hashedPassword,
         firstName,
         lastName,
+        phone,
         branch,
-        role: 'FIELD_AGENT'
+        role: 'FIELD_AGENT',
+        adminId,  // 🔑 Link agent to the creating admin
       }
     });
 
@@ -47,20 +54,26 @@ export const loginUser = async (req: Request, res: Response) => {
       return res.status(400).json({ success: false, message: 'Invalid credentials' });
     }
 
+    if (!user.isActive) {
+      return res.status(403).json({ success: false, message: 'Your account has been deactivated. Please contact your administrator.' });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ success: false, message: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ id: user.id, role: user.role, branch: user.branch }, JWT_SECRET, {
-      expiresIn: '7d'
-    });
+    const token = jwt.sign(
+      { id: user.id, role: user.role, branch: user.branch, adminId: (user as any).adminId },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
 
     // Set JWT in HttpOnly cookie
     res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax', // Lax needed for cross-port localhost dev
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
@@ -73,7 +86,8 @@ export const loginUser = async (req: Request, res: Response) => {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
-        branch: user.branch
+        branch: user.branch,
+        adminId: (user as any).adminId,
       }
     });
   } catch (error: any) {
@@ -89,4 +103,3 @@ export const logoutUser = (req: Request, res: Response) => {
   });
   res.status(200).json({ success: true, message: 'Logged out successfully' });
 };
-

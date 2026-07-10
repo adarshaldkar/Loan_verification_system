@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FiGrid, FiUsers, FiUserCheck, FiBriefcase, FiUploadCloud,
   FiBarChart2, FiGitBranch, FiFileText, FiSettings, FiUser,
@@ -129,7 +129,23 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [adminProfile, setAdminProfile] = useState<{ name: string; email: string; initials: string } | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    fetch('http://localhost:5000/api/v1/admin/profile', { credentials: 'include' })
+      .then(r => r.json())
+      .then(res => {
+        if (res.success && res.data) {
+          const firstName = res.data.firstName || '';
+          const lastName = res.data.lastName || '';
+          const name = res.data.name || `${firstName} ${lastName}`.trim() || 'Admin';
+          const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || 'AD';
+          setAdminProfile({ name, email: res.data.email || '', initials });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Admin notifications are not yet fully wired to the backend
   const notifications: any[] = [];
@@ -291,13 +307,13 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg hover:bg-slate-100 transition-colors outline-none">
             <Avatar className="w-8 h-8">
-              <AvatarImage src="" alt="Rohit Admin" />
+              <AvatarImage src="" alt={adminProfile?.name || 'Admin'} />
               <AvatarFallback className="text-xs font-semibold" style={{ background: "#E8EFF8", color: "#1E3A5F" }}>
-                RA
+                {adminProfile?.initials || 'AD'}
               </AvatarFallback>
             </Avatar>
             <div className="hidden md:block text-left">
-              <p className="text-[13px] font-semibold text-slate-900 leading-tight">Rohit Admin</p>
+              <p className="text-[13px] font-semibold text-slate-900 leading-tight">{adminProfile?.name || 'Admin'}</p>
               <p className="text-[11px] text-slate-400 leading-tight">Admin</p>
             </div>
             <FiChevronRight className="w-4 h-4 text-slate-400 hidden md:block" />
@@ -306,7 +322,7 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-xs text-slate-500 font-normal pb-1">
                 Signed in as
-                <span className="block font-semibold text-slate-900">admin@lvms.com</span>
+                <span className="block font-semibold text-slate-900">{adminProfile?.email || 'admin@lvms.com'}</span>
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

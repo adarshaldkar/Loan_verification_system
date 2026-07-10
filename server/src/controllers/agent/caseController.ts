@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import prisma from '../../config/db';
 import { AuthRequest } from '../../middlewares/auth';
-import { parseFullName, formatDateTime, apiError } from '../../utils/helpers';
+import { parseFullName, formatDateTime, apiError, createAuditLog } from '../../utils/helpers';
 
 export const getAgentCases = async (req: AuthRequest, res: Response) => {
   try {
@@ -105,14 +105,12 @@ export const updateAgentCaseStatus = async (req: AuthRequest, res: Response) => 
       },
     });
 
-    await prisma.auditLog.create({
-      data: {
-        actor: `Agent (${agentId})`,
-        action: `Case status updated to ${status}`,
-        entity: `Case ${id}`,
-        timestamp: new Date().toISOString(),
-        ip: req.ip || 'system',
-      },
+    await createAuditLog({
+      actor: `Agent (${agentId})`,
+      action: `Case status updated to ${status}`,
+      entity: `Case ${id}`,
+      ip: req.ip || 'system',
+      adminId: req.user?.adminId,
     });
 
     return res.status(200).json({ success: true, message: `Case status updated to ${status}`, data: updated });
@@ -144,14 +142,12 @@ export const submitVerification = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    await prisma.auditLog.create({
-      data: {
-        actor: `Agent (${agentId})`,
-        action: 'Verification submitted',
-        entity: `Case ${id} — Customer: ${existing.customerId}`,
-        timestamp: new Date().toISOString(),
-        ip: req.ip || 'system',
-      },
+    await createAuditLog({
+      actor: `Agent (${agentId})`,
+      action: 'Verification submitted',
+      entity: `Case ${id} — Customer: ${existing.customerId}`,
+      ip: req.ip || 'system',
+      adminId: req.user?.adminId,
     });
 
     return res.status(200).json({ success: true, message: 'Verification submitted successfully', data: updated });
