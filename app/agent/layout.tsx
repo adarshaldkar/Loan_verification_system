@@ -10,6 +10,8 @@ import {
 } from "react-icons/fi";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { agentLogoutApi } from "@/lib/api";
+import { toast } from "sonner";
 
 const AGENT = { name: "Arun Kumar", id: "AGT-1024", initials: "AK" };
 
@@ -275,9 +277,16 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
                 NO
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
+                  try {
+                    await agentLogoutApi();
+                  } catch (e) {
+                    console.error("Error calling logout api:", e);
+                  }
+                  localStorage.removeItem("lvms_agent");
                   setShowLogoutDialog(false);
                   router.push("/agent/login");
+                  toast.success("Successfully logged out");
                 }}
                 className="flex-1 py-2.5 rounded-xl text-white text-xs font-semibold hover:opacity-90 transition-opacity"
                 style={{ background: "#EF4444" }}
