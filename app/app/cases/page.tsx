@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { FiSearch, FiFilter, FiEye, FiUserPlus, FiFile, FiRefreshCw } from "react-icons/fi";
+import { FiSearch, FiFilter, FiEye, FiUserPlus, FiFile, FiRefreshCw, FiCheck } from "react-icons/fi";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -110,6 +110,24 @@ export default function CasesPage() {
     }
   };
 
+  const getAgentDisplayName = (caseId: string, caseAgentId: string | null, originalAgentName: string) => {
+    const selectedId = pendingAssignments[caseId] || caseAgentId || "unassigned";
+    if (selectedId === "unassigned") return "Unassigned";
+
+    // Find in currently loaded agents
+    const agentObj = agents.find((a) => a.id === selectedId);
+    if (agentObj) return agentObj.name;
+
+    // Fallback to pre-fetched name if we are resolving the original assigned agent
+    if (selectedId === caseAgentId) {
+      return originalAgentName && originalAgentName !== "Not Assigned" && originalAgentName !== "Unassigned"
+        ? originalAgentName
+        : "Unassigned";
+    }
+
+    return selectedId; // Fallback to ID if no name is available
+  };
+
   const filtered = casesList.filter((c) => {
     const matchSearch =
       c.id.toLowerCase().includes(search.toLowerCase()) ||
@@ -124,12 +142,33 @@ export default function CasesPage() {
         title="Cases"
         description="Manage and assign all verification cases."
         action={
-          <Link href="/app/upload">
-            <Button className="bg-[--color-brand-900] hover:bg-[--color-brand-800] text-white gap-2">
-              <FiUserPlus className="w-4 h-4" />
-              Upload & Bulk Assign
-            </Button>
-          </Link>
+          <div className="flex gap-3">
+            {Object.keys(pendingAssignments).length > 0 && (
+              <Button
+                onClick={handleSaveAllAssignments}
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-500 text-white gap-2 font-semibold shadow-md"
+              >
+                {saving ? (
+                  <>
+                    <FiRefreshCw className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <FiCheck className="w-4 h-4" />
+                    Save Assignments ({Object.keys(pendingAssignments).length})
+                  </>
+                )}
+              </Button>
+            )}
+            <Link href="/app/upload">
+              <Button className="bg-[--color-brand-900] hover:bg-[--color-brand-800] text-white gap-2">
+                <FiUserPlus className="w-4 h-4" />
+                Upload & Bulk Assign
+              </Button>
+            </Link>
+          </div>
         }
       />
 
@@ -203,6 +242,7 @@ export default function CasesPage() {
               ) : (
                 filtered.map((c) => {
                   const hasUnsavedChange = pendingAssignments[c.id] !== undefined && pendingAssignments[c.id] !== (c.agentId || "unassigned");
+                  const displayName = getAgentDisplayName(c.id, c.agentId, c.agent);
 
                   return (
                     <tr
@@ -229,13 +269,13 @@ export default function CasesPage() {
                         >
                           <SelectTrigger
                             className={cn(
-                              "h-8 text-xs w-[170px] bg-white dark:bg-slate-900 border transition-all",
+                              "h-8 text-xs w-[180px] bg-white dark:bg-slate-900 border transition-all justify-between text-left",
                               hasUnsavedChange
                                 ? "border-blue-500 ring-1 ring-blue-500/35 bg-blue-50/10 dark:bg-blue-950/20 font-semibold text-blue-600 dark:text-blue-400"
                                 : "border-slate-200 dark:border-slate-800"
                             )}
                           >
-                            <SelectValue placeholder="Assign Agent..." />
+                            <span className="truncate">{displayName}</span>
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="unassigned" className="text-xs text-slate-400">
