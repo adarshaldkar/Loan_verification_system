@@ -3,22 +3,17 @@ import rateLimit from 'express-rate-limit';
 import RedisStore from 'rate-limit-redis';
 import redisClient from '../config/redis';
 
-// Determine if we should use RedisStore or fallback to in-memory store
-const isRealRedis = redisClient.constructor.name === 'Redis';
-
-const limiterStore = isRealRedis
-  ? new RedisStore({
-      sendCommand: async (...args: string[]) => {
-        return redisClient.call(args[0], ...args.slice(1));
-      },
-    })
-  : undefined;
+const createLimiterStore = () => new RedisStore({
+  sendCommand: async (...args: string[]) => {
+    return redisClient.call(args[0], ...args.slice(1));
+  },
+});
 
 // 1. Global Rate Limiter (1000 requests per 15 minutes)
 export const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
-  store: limiterStore,
+  store: createLimiterStore(),
   message: {
     success: false,
     message: 'Too many requests from this IP, please try again after 15 minutes',
@@ -31,7 +26,7 @@ export const globalLimiter = rateLimit({
 export const authLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
   max: 10,
-  store: limiterStore,
+  store: createLimiterStore(),
   message: {
     success: false,
     message: 'Too many login attempts. Access blocked for 5 minutes.',
@@ -44,7 +39,7 @@ export const authLimiter = rateLimit({
 export const pingLimiter = rateLimit({
   windowMs: 3 * 1000,
   max: 1,
-  store: limiterStore,
+  store: createLimiterStore(),
   keyGenerator: (req: any) => {
     // Rate-limit by agent ID if logged in, otherwise default to IP
     return req.user?.id || req.ip;
@@ -104,7 +99,7 @@ export const trackSecurityFailures = (req: Request, res: Response, next: NextFun
 export const forgotPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 3,
-  store: limiterStore,
+  store: createLimiterStore(),
   message: {
     success: false,
     message: 'Too many reset requests, please try again later',

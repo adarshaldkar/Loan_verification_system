@@ -49,6 +49,40 @@ class MockRedis {
     return 0;
   }
 
+  // Support rate-limit-redis command patterns
+  async call(command: string, ...args: string[]): Promise<any> {
+    const cmd = command.toLowerCase();
+    
+    if (cmd === 'script' && args[0]?.toLowerCase() === 'exists') {
+      return [0]; // script doesn't exist yet
+    }
+    
+    if (cmd === 'script' && args[0]?.toLowerCase() === 'load') {
+      return 'mock-rate-limit-sha'; // mock script SHA
+    }
+    
+    if (cmd === 'evalsha' || cmd === 'eval') {
+      // rate-limit-redis script expects a response array: [currentHits, resetTimeMs]
+      const key = args[2] || 'rate-limit-key';
+      const limit = 1000;
+      const windowMs = 15 * 60 * 1000;
+      
+      const count = await this.incr(key);
+      if (count === 1) {
+        await this.expire(key, windowMs / 1000);
+      }
+      return [count, Date.now() + windowMs];
+    }
+
+    if (cmd === 'get') return this.get(args[0]);
+    if (cmd === 'set') return this.set(args[0], args[1], ...args.slice(2));
+    if (cmd === 'del') return this.del(args[0]);
+    if (cmd === 'incr') return this.incr(args[0]);
+    if (cmd === 'expire') return this.expire(args[0], parseInt(args[1], 10));
+    
+    return null;
+  }
+
   private checkTTL(key: string) {
     const expireAt = this.ttls.get(key);
     if (expireAt && Date.now() > expireAt) {
@@ -137,22 +171,15 @@ class RedisClientWrapper {
     }
   }
 
-  // Method to allow calling arbitrary raw commands (needed for rate-limit-redis compatibility)
   async call(command: string, ...args: string[]): Promise<any> {
     try {
       if (this.isMock) {
-        const cmd = command.toLowerCase();
-        if (cmd === 'get') return this.client.get(args[0]);
-        if (cmd === 'set') return this.client.set(args[0], args[1], ...args.slice(2));
-        if (cmd === 'del') return this.client.del(args[0]);
-        if (cmd === 'incr') return this.client.incr(args[0]);
-        if (cmd === 'expire') return this.client.expire(args[0], parseInt(args[1], 10));
-        return null;
+        return this.client.call(command, ...args);
       }
       return await this.client.call(command, ...args);
     } catch (err) {
       this.switchToMock();
-      return this.call(command, ...args);
+      return this.client.call(command, ...args);
     }
   }
 }
