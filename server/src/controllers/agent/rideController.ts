@@ -56,12 +56,6 @@ export const logLocationPing = async (req: AuthRequest, res: Response) => {
     // Verify ride
     const ride = await prisma.agentRide.findUnique({ where: { id: rideId }, include: { locations: { orderBy: { timestamp: 'desc' }, take: 1 } } });
     if (!ride || ride.agentId !== agentId || ride.status !== 'STARTED') {
-      console.log(`[LOG_PING_DEBUG] Mismatch/Invalid:
-        rideId=${rideId}
-        agentId=${agentId}
-        rideFound=${!!ride}
-        rideAgentId=${ride?.agentId}
-        rideStatus=${ride?.status}`);
       return res.status(403).json({ success: false, message: 'Invalid or inactive ride' });
     }
 
