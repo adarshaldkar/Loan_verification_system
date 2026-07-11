@@ -64,11 +64,11 @@ export default function CasesPage() {
   const handleAssignAgent = async (caseId: string, agentId: string) => {
     if (!agentId) return;
     try {
-      await assignCaseApi(caseId, agentId);
-      toast.success("Agent assigned successfully");
+      const res = await assignCaseApi(caseId, agentId);
+      toast.success(res.data.message || "Agent assigned successfully");
       fetchCases();
-    } catch (err) {
-      toast.error("Failed to assign agent");
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to assign agent");
     }
   };
 

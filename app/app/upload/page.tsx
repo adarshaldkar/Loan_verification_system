@@ -210,11 +210,11 @@ export default function UploadPage() {
 
     setAssigning(true);
     try {
-      await assignBulkCasesApi(batchProgress.caseIds, selectedAgentId);
-      toast.success("Successfully assigned all cases to agent!");
+      const res = await assignBulkCasesApi(batchProgress.caseIds, selectedAgentId);
+      toast.success(res.data.message || "Successfully assigned all cases to agent!");
       router.push("/app/cases");
     } catch (err: any) {
-      toast.error("Failed to bulk assign cases.");
+      toast.error(err.response?.data?.message || "Failed to bulk assign cases.");
     } finally {
       setAssigning(false);
     }
