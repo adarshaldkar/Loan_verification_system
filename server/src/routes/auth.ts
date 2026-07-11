@@ -1,24 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import rateLimit from 'express-rate-limit';
+import { authLimiter, forgotPasswordLimiter } from '../middlewares/security';
 import { registerAgent, loginUser, logoutUser, forgotPassword, verifyResetOtp, resetPassword } from '../controllers/authController';
 import { authenticateToken, requireRole } from '../middlewares/auth';
 import { validate } from '../middlewares/validate';
 
 const router = Router();
-
-// Strict Rate Limiter for Login (max 5 requests per 15 mins)
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: { success: false, message: 'Too many login attempts from this IP, please try again after 15 minutes' }
-});
-
-const forgotPasswordLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 3,
-  message: { success: false, message: 'Too many reset requests, please try again later' }
-});
 
 // Zod Schemas
 const loginSchema = z.object({
@@ -39,7 +26,7 @@ const registerSchema = z.object({
 });
 
 // Public Routes
-router.post('/login', loginLimiter, validate(loginSchema), loginUser);
+router.post('/login', authLimiter, validate(loginSchema), loginUser);
 router.post('/logout', logoutUser); // Added logout to clear cookies
 router.post('/forgot-password', forgotPasswordLimiter, validate(forgotPasswordSchema), forgotPassword);
 router.post('/verify-otp', verifyResetOtp);

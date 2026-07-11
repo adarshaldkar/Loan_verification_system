@@ -3,8 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
-import rateLimit from 'express-rate-limit';
 import routes from './routes';
+import { globalLimiter, ipBlacklistHandler, trackSecurityFailures } from './middlewares/security';
 
 // Load environment variables FIRST
 dotenv.config();
@@ -12,14 +12,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Global Rate Limiter (1000 requests per 15 minutes)
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
-  message: { success: false, message: 'Too many requests from this IP, please try again after 15 minutes' }
-});
+// Trust proxy for rate limiting support (e.g. Loopback/DDoS protection)
+app.set('trust proxy', 1);
 
 // Security & Parsing Middlewares
+app.use(ipBlacklistHandler); // Block blacklisted IPs immediately
+app.use(trackSecurityFailures); // Track security failures to detect DDoS/scanning
 app.use(helmet());
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000',
@@ -27,7 +25,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
+app.use(cookieParser(process.env.COOKIE_SECRET || 'lvms-default-secure-secret-key'));
 app.use(globalLimiter);
 
 // API Routes (all routes prefixed with /api/v1)

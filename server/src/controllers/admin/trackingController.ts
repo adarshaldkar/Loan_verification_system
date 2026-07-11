@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../../config/db';
 import { AuthRequest } from '../../middlewares/auth';
 import { apiError } from '../../utils/helpers';
+import redisClient from '../../config/redis';
 
 export const getActiveRides = async (req: AuthRequest, res: Response) => {
   try {
@@ -24,7 +25,32 @@ export const getActiveRides = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    return res.status(200).json({ success: true, data: activeRides });
+    // Merge in the latest real-time coordinates cached in Redis (sub-second accuracy)
+    const activeRidesWithLatest = await Promise.all(
+      activeRides.map(async (ride) => {
+        try {
+          const latestLocStr = await redisClient.get(`ride:latest:${ride.id}`);
+          if (latestLocStr) {
+            const cachedLoc = JSON.parse(latestLocStr);
+            ride.locations = [
+              {
+                id: `cached-${ride.id}`,
+                rideId: ride.id,
+                latitude: cachedLoc.latitude,
+                longitude: cachedLoc.longitude,
+                speed: cachedLoc.speed,
+                timestamp: new Date(cachedLoc.timestamp),
+              },
+            ];
+          }
+        } catch (err) {
+          // Fail-safe fallback to DB coordinates
+        }
+        return ride;
+      })
+    );
+
+    return res.status(200).json({ success: true, data: activeRidesWithLatest });
   } catch (error: any) {
     return apiError(res, 'Failed to get active rides', 500, error);
   }
