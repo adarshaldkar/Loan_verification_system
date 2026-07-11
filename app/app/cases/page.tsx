@@ -158,7 +158,7 @@ export default function CasesPage() {
         description="Manage and assign all verification cases."
         action={
           <Link href="/app/upload">
-            <Button className="bg-[--color-brand-900] hover:bg-[--color-brand-800] text-white gap-2">
+            <Button className="bg-[#1E3A5F] hover:bg-[#1E3A5F]/90 text-white gap-2 font-semibold shadow-sm">
               <FiUserPlus className="w-4 h-4" />
               Upload & Bulk Assign
             </Button>
@@ -347,23 +347,23 @@ export default function CasesPage() {
 
             <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
 
-            <div className="flex gap-1">
+            <div className="flex gap-1.5 items-center">
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 px-3 text-xs"
+                className="h-8 px-3 text-xs bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((prev) => prev - 1)}
               >
                 Previous
               </Button>
-              <Button variant="outline" size="sm" className="h-7 px-3 text-xs bg-[--color-brand-900] text-white border-[--color-brand-900]">
-                {currentPage} of {totalPages}
-              </Button>
+              <span className="text-xs font-semibold px-2 text-slate-700 dark:text-slate-300">
+                Page {currentPage} of {totalPages}
+              </span>
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7 px-3 text-xs"
+                className="h-8 px-3 text-xs bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold"
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage((prev) => prev + 1)}
               >
