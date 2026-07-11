@@ -54,7 +54,7 @@ export default function RootLayout({
       <body className="h-full antialiased" suppressHydrationWarning>
         <TooltipProvider>
           {children}
-          <Toaster richColors position="top-right" />
+          <Toaster position="top-right" />
         </TooltipProvider>
       </body>
     </html>

@@ -477,8 +477,12 @@ export default function UploadPage() {
                 Assign all {batchProgress?.validRows} cases to one agent
               </div>
               <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
-                <SelectTrigger className="w-full bg-white">
-                  <SelectValue placeholder="Select an agent..." />
+                <SelectTrigger className="w-full bg-white justify-between">
+                  <span>
+                    {selectedAgentId
+                      ? (agents.find(a => a.id === selectedAgentId)?.name || selectedAgentId)
+                      : "Select an agent..."}
+                  </span>
                 </SelectTrigger>
                 <SelectContent>
                   {agents.map(a => (

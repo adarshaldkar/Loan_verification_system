@@ -27,6 +27,8 @@ type Case = {
   overdue: boolean;
 };
 
+const ITEMS_PER_PAGE = 10;
+
 export default function CasesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -34,6 +36,9 @@ export default function CasesPage() {
   const [casesList, setCasesList] = useState<Case[]>([]);
   const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Pending unsaved assignments: caseId -> agentId
   const [pendingAssignments, setPendingAssignments] = useState<Record<string, string>>({});
@@ -65,6 +70,11 @@ export default function CasesPage() {
       setAgents(activeAgents);
     }).catch(() => {});
   }, [fetchCases]);
+
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter, typeFilter]);
 
   const handleSelectPendingAgent = (caseId: string, agentId: string) => {
     const originalCase = casesList.find((c) => c.id === caseId);
@@ -135,6 +145,11 @@ export default function CasesPage() {
     const matchType = typeFilter === "All" || c.type === typeFilter;
     return matchSearch && matchType;
   });
+
+  // Apply client-side pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const currentCases = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   return (
     <div className="space-y-6 pb-6">
@@ -212,14 +227,14 @@ export default function CasesPage() {
                     <td className="px-5 py-4"><Skeleton className="h-7 w-7 rounded-md" /></td>
                   </tr>
                 ))
-              ) : filtered.length === 0 ? (
+              ) : currentCases.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-16 text-center text-slate-400 text-sm">
                     No cases found matching your filters.
                   </td>
                 </tr>
               ) : (
-                filtered.map((c) => {
+                currentCases.map((c) => {
                   const hasUnsavedChange = pendingAssignments[c.id] !== undefined && pendingAssignments[c.id] !== (c.agentId || "unassigned");
                   const displayName = getAgentDisplayName(c.id, c.agentId, c.agent);
 
@@ -291,7 +306,7 @@ export default function CasesPage() {
         {/* Footer Container with Always Present Submit Actions */}
         <div className="px-5 py-3.5 border-t border-border flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500 bg-slate-50/50 dark:bg-slate-900/10">
           <span>
-            Showing {filtered.length} of {casesList.length} cases
+            Showing {filtered.length > 0 ? startIndex + 1 : 0} - {Math.min(startIndex + ITEMS_PER_PAGE, filtered.length)} of {filtered.length} cases
             {filtered.some((c) => c.overdue) && (
               <span className="ml-3 text-amber-700 font-medium font-semibold">
                 ⚠ {filtered.filter((c) => c.overdue).length} overdue
@@ -333,9 +348,27 @@ export default function CasesPage() {
             <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
 
             <div className="flex gap-1">
-              <Button variant="outline" size="sm" className="h-7 px-3 text-xs" disabled>Previous</Button>
-              <Button variant="outline" size="sm" className="h-7 px-3 text-xs bg-[--color-brand-900] text-white border-[--color-brand-900]">1</Button>
-              <Button variant="outline" size="sm" className="h-7 px-3 text-xs">Next</Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-3 text-xs"
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage((prev) => prev - 1)}
+              >
+                Previous
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 px-3 text-xs bg-[--color-brand-900] text-white border-[--color-brand-900]">
+                {currentPage} of {totalPages}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-3 text-xs"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((prev) => prev + 1)}
+              >
+                Next
+              </Button>
             </div>
           </div>
         </div>
