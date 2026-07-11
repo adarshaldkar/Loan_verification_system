@@ -88,7 +88,7 @@ export default function AgentProfilePage() {
     return (
       <div className="space-y-4 pb-8">
         <Skeleton className="h-6 w-32" />
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-4">
+        <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-gray-100 dark:border-slate-800 space-y-4">
           <div className="flex items-center gap-4 animate-pulse">
             <Skeleton className="w-16 h-16 rounded-full shrink-0" />
             <div className="space-y-2 flex-1">
@@ -99,7 +99,7 @@ export default function AgentProfilePage() {
         </div>
         <div className="grid grid-cols-2 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-white p-4 rounded-2xl border border-gray-100 space-y-2">
+            <div key={i} className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 space-y-2">
               <Skeleton className="h-4 w-20" />
               <Skeleton className="h-6 w-12" />
             </div>
@@ -110,7 +110,7 @@ export default function AgentProfilePage() {
   }
 
   if (!agent) {
-    return <div className="p-8 text-center text-gray-500">Profile could not be loaded</div>;
+    return <div className="p-8 text-center text-gray-500 dark:text-slate-400">Profile could not be loaded</div>;
   }
 
   // Use initials for Avatar
@@ -158,7 +158,7 @@ export default function AgentProfilePage() {
       </div>
 
       {/* Contact Info */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
           <FiUser className="w-4 h-4 text-slate-400" />
           <h3 className="text-[13px] font-semibold text-slate-900">Personal Information</h3>
@@ -247,10 +247,10 @@ export default function AgentProfilePage() {
       {showPasswordModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={() => setShowPasswordModal(false)} />
-          <div className="relative bg-white rounded-3xl p-6 w-full max-w-sm border border-gray-100 shadow-xl space-y-4">
+          <div className="relative bg-white dark:bg-slate-950 rounded-3xl p-6 w-full max-w-sm border border-gray-100 dark:border-slate-800 shadow-xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="font-bold text-gray-900 text-sm">Change Account Password</h3>
-              <button onClick={() => setShowPasswordModal(false)} className="text-gray-400 hover:text-gray-600">
+              <h3 className="font-bold text-gray-900 dark:text-slate-100 text-sm">Change Account Password</h3>
+              <button onClick={() => setShowPasswordModal(false)} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-400">
                 <FiX className="w-4 h-4" />
               </button>
             </div>

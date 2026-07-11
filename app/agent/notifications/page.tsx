@@ -74,7 +74,7 @@ export default function NotificationsPage() {
         {/* List skeleton */}
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-start gap-3">
+            <div key={i} className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 flex items-start gap-3">
               <Skeleton className="h-8 w-8 rounded-xl shrink-0" />
               <div className="space-y-2 flex-1">
                 <Skeleton className="h-4 w-32" />
@@ -129,7 +129,7 @@ export default function NotificationsPage() {
             onClick={() => setFilter(f)}
             className={cn(
               "text-xs font-medium px-3 py-1.5 rounded-full transition-all",
-              filter === f ? "text-white" : "bg-white text-slate-500 border border-slate-200"
+              filter === f ? "text-white" : "bg-white dark:bg-slate-950 text-slate-500 border border-slate-200"
             )}
             style={filter === f ? { background: "#1E3A5F" } : {}}
           >
@@ -140,7 +140,7 @@ export default function NotificationsPage() {
 
       {/* Notification List */}
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
+        <div className="bg-white dark:bg-slate-950 rounded-2xl p-10 text-center shadow-sm">
           <FiBell className="w-8 h-8 text-slate-300 mx-auto mb-2" />
           <p className="text-sm text-slate-400">No {filter === "Unread" ? "unread " : ""}notifications</p>
         </div>
@@ -160,7 +160,7 @@ export default function NotificationsPage() {
                   }
                 }}
                 className={cn(
-                  "w-full bg-white rounded-2xl p-4 text-left shadow-sm transition-all active:scale-[0.99] border hover:border-slate-200",
+                  "w-full bg-white dark:bg-slate-950 rounded-2xl p-4 text-left shadow-sm transition-all active:scale-[0.99] border hover:border-slate-200",
                   n.unread && "border-l-4"
                 )}
                 style={n.unread ? { borderColor: cfg.color } : {}}

@@ -28,6 +28,12 @@ export default api;
 // ─── Auth ─────────────────────────────────────────────────────────────────
 export const loginApi = (email: string, password: string) =>
   api.post("/auth/login", { email, password });
+export const forgotPasswordApi = (email: string) =>
+  api.post("/auth/forgot-password", { email });
+export const verifyResetOtpApi = (email: string, otp: string) =>
+  api.post("/auth/verify-otp", { email, otp });
+export const resetPasswordApi = (email: string, otp: string, newPassword: string) =>
+  api.post("/auth/reset-password", { email, otp, newPassword });
 
 // ─── Dashboard ────────────────────────────────────────────────────────────
 export const getDashboardApi = () => api.get("/admin/dashboard");

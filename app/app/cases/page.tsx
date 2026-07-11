@@ -132,7 +132,7 @@ export default function CasesPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-slate-50">
+              <tr className="border-b border-border bg-slate-50 dark:bg-slate-900/50">
                 {["Case ID", "Customer", "Type", "Status", "Assigned Agent", "Branch", "SLA Due", ""].map((h) => (
                   <th key={h} className="px-5 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
                     {h}
@@ -165,8 +165,8 @@ export default function CasesPage() {
                   <tr
                     key={c.id}
                     className={cn(
-                      "hover:bg-slate-50 transition-colors",
-                      c.overdue && "bg-amber-50 hover:bg-amber-100"
+                      "hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors",
+                      c.overdue && "bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-900/40"
                     )}
                   >
                     <td className="px-5 py-3.5">
@@ -175,13 +175,13 @@ export default function CasesPage() {
                         {c.id.slice(0, 8)}...
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 font-medium text-slate-900">{c.customer}</td>
+                    <td className="px-5 py-3.5 font-medium text-slate-900 dark:text-slate-200">{c.customer}</td>
                     <td className="px-5 py-3.5 text-slate-500">{c.type}</td>
                     <td className="px-5 py-3.5"><StatusBadge status={c.status} /></td>
                     <td className="px-5 py-3.5">
                       {c.agent === "Not Assigned" || c.agent === "Unassigned" ? (
                         <Select onValueChange={(val) => handleAssignAgent(c.id, val)}>
-                          <SelectTrigger className="h-8 text-xs w-[160px] bg-white border-dashed border-slate-300">
+                          <SelectTrigger className="h-8 text-xs w-[160px] bg-white dark:bg-slate-900 border-dashed border-slate-300 dark:border-slate-700">
                             <SelectValue placeholder="Assign Agent..." />
                           </SelectTrigger>
                           <SelectContent>
@@ -194,9 +194,9 @@ export default function CasesPage() {
                         </Select>
                       ) : (
                         <div className="flex items-center gap-2">
-                          <span className="text-slate-700 font-medium truncate max-w-[100px]" title={c.agent}>{c.agent}</span>
+                          <span className="text-slate-700 dark:text-slate-300 font-medium truncate max-w-[100px]" title={c.agent}>{c.agent}</span>
                           <Select onValueChange={(val) => handleAssignAgent(c.id, val)}>
-                            <SelectTrigger className="h-6 w-6 p-0 border border-slate-200 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-md">
+                            <SelectTrigger className="h-6 w-6 p-0 border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-400 hover:text-blue-600 rounded-md">
                               <span className="sr-only">Reassign</span>
                             </SelectTrigger>
                             <SelectContent>
@@ -211,7 +211,7 @@ export default function CasesPage() {
                       )}
                     </td>
                     <td className="px-5 py-3.5 text-slate-500">{c.branch}</td>
-                    <td className={cn("px-5 py-3.5 text-xs whitespace-nowrap", c.overdue ? "text-amber-700 font-semibold" : "text-slate-400")}>
+                    <td className={cn("px-5 py-3.5 text-xs whitespace-nowrap", c.overdue ? "text-amber-700 dark:text-amber-500 font-semibold" : "text-slate-400 dark:text-slate-500")}>
                       {c.overdue && "⚠ "}
                       {c.slaDue}
                     </td>

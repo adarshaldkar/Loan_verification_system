@@ -145,7 +145,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
         </div>
 
         {/* Action card skeleton */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-4">
+        <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-gray-100 dark:border-slate-800 space-y-4">
           <div className="flex justify-between items-center">
             <Skeleton className="h-5 w-24" />
             <Skeleton className="h-8 w-24 rounded-full" />
@@ -154,7 +154,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
         </div>
 
         {/* Client details block skeleton */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-4">
+        <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-gray-100 dark:border-slate-800 space-y-4">
           <Skeleton className="h-6 w-40" />
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -244,7 +244,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Main card */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+      <div className="bg-white dark:bg-slate-950 rounded-2xl p-5 shadow-sm space-y-4">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-[11px] font-mono text-slate-400">{caseData.id}</p>
@@ -273,7 +273,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
       )}
 
       {/* Customer Info */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
           <FiUser className="w-4 h-4 text-slate-400" />
           <h2 className="text-[13px] font-semibold text-slate-900">Customer Information</h2>
@@ -297,7 +297,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
       </div>
 
       {/* Loan & Case Info */}
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
           <FiBriefcase className="w-4 h-4 text-slate-400" />
           <h2 className="text-[13px] font-semibold text-slate-900">Loan & Case Details</h2>
@@ -309,7 +309,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
             { label: "Priority",          value: caseData.priority },
             { label: "Assigned On",       value: caseData.assignedOn },
           ].map(({ label, value }) => (
-            <div key={label} className="bg-white p-4">
+            <div key={label} className="bg-white dark:bg-slate-950 p-4">
               <p className="text-[10px] text-slate-400 mb-0.5">{label}</p>
               <p className="text-slate-800 font-semibold text-[13px]">{value}</p>
             </div>
@@ -319,7 +319,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
 
       {/* Navigation Card */}
       {showMap && (
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+        <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-sm overflow-hidden border border-slate-100">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FiMapPin className="w-4 h-4 text-purple-500" />
@@ -360,7 +360,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
       )}
 
       {/* Sticky Action Buttons */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-4 py-3 z-40 shadow-lg lg:max-w-3xl lg:mx-auto">
+      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-slate-950 border-t border-slate-100 px-4 py-3 z-40 shadow-lg lg:max-w-3xl lg:mx-auto">
         {isReadOnly ? (
           <div className="text-center py-2">
             <span

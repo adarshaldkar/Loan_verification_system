@@ -59,19 +59,19 @@ function SidebarContent({
       {/* Logo */}
       <div
         className={cn(
-          "flex items-center gap-3 px-4 py-5 border-b border-border shrink-0",
+          "flex items-center gap-3 px-4 py-5 border-b border-border dark:border-slate-800 shrink-0",
           collapsed && "justify-center px-2"
         )}
       >
-        <div className="w-9 h-9 rounded-xl bg-[#1E3A5F] flex items-center justify-center shrink-0">
+        <div className="w-9 h-9 rounded-xl bg-[#1E3A5F] dark:bg-slate-800 flex items-center justify-center shrink-0">
           <FiShield className="text-white w-5 h-5" />
         </div>
         {!collapsed && (
           <div className="overflow-hidden">
-            <p className="text-[13px] font-bold text-slate-900 leading-tight" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
+            <p className="text-[13px] font-bold text-slate-900 dark:text-slate-100 leading-tight" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
               LVMS
             </p>
-            <p className="text-[10px] text-slate-400 leading-tight">Loan Verification</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">Loan Verification</p>
           </div>
         )}
       </div>
@@ -92,14 +92,14 @@ function SidebarContent({
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors duration-150",
                 collapsed ? "justify-center" : "",
                 isActive
-                  ? "bg-blue-50 text-[#1E3A5F] font-semibold"
-                  : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-blue-50 dark:bg-slate-800 text-[#1E3A5F] dark:text-blue-400 font-semibold"
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
               )}
             >
               <Icon
                 className={cn(
                   "w-5 h-5 shrink-0",
-                  isActive ? "text-[#1E3A5F]" : "text-slate-400"
+                  isActive ? "text-[#1E3A5F] dark:text-blue-400" : "text-slate-400 dark:text-slate-500"
                 )}
               />
               {!collapsed && label}
@@ -115,7 +115,7 @@ function SidebarContent({
         <button
           onClick={onLogout}
           className={cn(
-            "flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm text-rose-600 hover:bg-rose-50 transition-colors duration-150",
+            "flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-sm text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors duration-150",
             collapsed && "justify-center"
           )}
         >
@@ -244,11 +244,11 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
         </DialogContent>
       </Dialog>
 
-      <header className="sticky top-0 z-40 h-14 border-b border-border bg-white/90 backdrop-blur-sm flex items-center px-4 gap-4">
+      <header className="sticky top-0 z-40 h-14 border-b border-border dark:border-slate-800 bg-white/90 dark:bg-slate-950/90 backdrop-blur-sm flex items-center px-4 gap-4">
         {/* Mobile hamburger */}
         <button
           onClick={onMenuClick}
-          className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
+          className="lg:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
           aria-label="Open navigation"
         >
           <FiMenu className="w-5 h-5" />
@@ -257,11 +257,11 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
         {/* Search trigger */}
         <button
           onClick={() => setSearchOpen(true)}
-          className="flex-1 max-w-md hidden sm:flex items-center gap-2 h-9 px-3 rounded-lg border border-[#E2E8F0] bg-slate-50 text-slate-400 text-sm hover:border-slate-300 hover:bg-white transition-colors text-left"
+          className="flex-1 max-w-md hidden sm:flex items-center gap-2 h-9 px-3 rounded-lg border border-[#E2E8F0] dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-400 text-sm hover:border-slate-300 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-colors text-left"
         >
           <FiSearch className="w-4 h-4 shrink-0" />
           <span>Search anything...</span>
-          <span className="ml-auto flex items-center gap-0.5 text-[11px] text-slate-300 border border-slate-200 rounded px-1 py-0.5">
+          <span className="ml-auto flex items-center gap-0.5 text-[11px] text-slate-300 dark:text-slate-500 border border-slate-200 dark:border-slate-700 rounded px-1 py-0.5">
             ⌘K
           </span>
         </button>
@@ -269,7 +269,7 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
       <div className="ml-auto flex items-center gap-2">
         <button
           onClick={toggleTheme}
-          className="relative inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors outline-none"
+          className="relative inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors outline-none"
           aria-label="Toggle dark mode"
         >
           {theme === "dark" ? <FiSun className="w-5 h-5" /> : <FiMoon className="w-5 h-5" />}
@@ -277,7 +277,7 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
         {/* Notifications dropdown */}
         <DropdownMenu open={notifOpen} onOpenChange={setNotifOpen}>
           <DropdownMenuTrigger
-            className="relative inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors outline-none"
+            className="relative inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors outline-none"
             aria-label="Notifications"
           >
             <FiBell className="w-5 h-5" />
@@ -338,7 +338,7 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
 
         {/* Profile */}
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg hover:bg-slate-100 transition-colors outline-none">
+          <DropdownMenuTrigger className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors outline-none">
             <Avatar className="w-8 h-8">
               <AvatarImage src="" alt={adminProfile?.name || 'Admin'} />
               <AvatarFallback className="text-xs font-semibold" style={{ background: "#E8EFF8", color: "#1E3A5F" }}>
@@ -346,7 +346,7 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
               </AvatarFallback>
             </Avatar>
             <div className="hidden md:block text-left">
-              <p className="text-[13px] font-semibold text-slate-900 leading-tight">{adminProfile?.name || 'Admin'}</p>
+              <p className="text-[13px] font-semibold text-slate-900 dark:text-slate-100 leading-tight">{adminProfile?.name || 'Admin'}</p>
               <p className="text-[11px] text-slate-400 leading-tight">Admin</p>
             </div>
             <FiChevronRight className="w-4 h-4 text-slate-400 hidden md:block" />
@@ -404,11 +404,11 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
+    <div className="flex h-screen overflow-hidden bg-[#F8FAFC] dark:bg-slate-900">
       {/* ── Desktop Sidebar ── */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col border-r border-[#E2E8F0] bg-white transition-all duration-200 ease-in-out relative",
+          "hidden lg:flex flex-col border-r border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-950 transition-all duration-200 ease-in-out relative",
           collapsed ? "w-16" : "w-60"
         )}
       >
@@ -418,7 +418,7 @@ export default function AdminLayout({
         <button
           onClick={() => setCollapsed(!collapsed)}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute -right-3 top-6 w-6 h-6 rounded-full border border-[#E2E8F0] bg-white flex items-center justify-center text-slate-400 hover:text-slate-600 hover:border-slate-300 shadow-sm transition-colors z-10"
+          className="absolute -right-3 top-6 w-6 h-6 rounded-full border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-slate-500 shadow-sm transition-colors z-10"
         >
           {collapsed ? (
             <FiChevronRight className="w-3 h-3" />
@@ -447,7 +447,7 @@ export default function AdminLayout({
         </main>
 
         {/* Footer */}
-        <footer className="border-t border-[#E2E8F0] bg-white px-6 py-3 flex items-center justify-between text-xs text-slate-400 shrink-0">
+        <footer className="border-t border-[#E2E8F0] dark:border-slate-800 bg-white dark:bg-slate-950 px-6 py-3 flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 shrink-0">
           <span>© 2026 Loan Verification Management System. All rights reserved.</span>
           <span>Version 1.0.0</span>
         </footer>

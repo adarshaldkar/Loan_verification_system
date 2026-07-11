@@ -33,10 +33,10 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 };
 
 const STATIC_ACTIVITY = [
-  { icon: "success", bg: "bg-teal-50",  title: "Verification completed",  desc: "System is ready",   time: "Just now" },
-  { icon: "info",    bg: "bg-blue-50",  title: "New case pending",         desc: "No cases yet",      time: "—" },
-  { icon: "upload",  bg: "bg-blue-50",  title: "System initialized",       desc: "Database synced",   time: "—" },
-  { icon: "activity",bg: "bg-amber-50",  title: "Admin logged in",          desc: "Welcome back!",     time: "Just now" },
+  { icon: "success", bg: "bg-teal-50 dark:bg-slate-800",  title: "Verification completed",  desc: "System is ready",   time: "Just now" },
+  { icon: "info",    bg: "bg-blue-50 dark:bg-slate-800",  title: "New case pending",         desc: "No cases yet",      time: "—" },
+  { icon: "upload",  bg: "bg-blue-50 dark:bg-slate-800",  title: "System initialized",       desc: "Database synced",   time: "—" },
+  { icon: "activity",bg: "bg-amber-50 dark:bg-slate-800",  title: "Admin logged in",          desc: "Welcome back!",     time: "Just now" },
 ];
 
 /* ─── Static chart seed data (visual only) ───────────────────────────────── */
@@ -137,12 +137,12 @@ export default function DashboardPage() {
   const completedCount = analytics?.caseBreakdown?.find((c: any) => c.status === "COMPLETED")?.count ?? 0;
 
   const kpiData = [
-    { label: "Total Customers", value: analytics?.totalCustomers ?? 0,  icon: <FiUsers />,        iconBg: "bg-blue-50",    trend: 15.3 },
-    { label: "Total Cases",     value: totalCases,                       icon: <FiBriefcase />,    iconBg: "bg-purple-50",  trend: 12.1 },
-    { label: "Pending Cases",   value: pendingCount,                     icon: <FiClock />,        iconBg: "bg-amber-50",   trend: 8.5  },
-    { label: "Completed Cases", value: completedCount,                   icon: <FiCheckCircle />,  iconBg: "bg-teal-50",    trend: 18.7 },
-    { label: "Active Agents",   value: analytics?.totalAgents ?? 0,     icon: <FiUserCheck />,    iconBg: "bg-indigo-50",  trend: 9.4  },
-    { label: "Branches",        value: analytics?.totalBranches ?? 0,                     icon: <FiGitBranch />,    iconBg: "bg-slate-100",  trend: 0    },
+    { label: "Total Customers", value: analytics?.totalCustomers ?? 0,  icon: <FiUsers />,        iconBg: "bg-blue-50 dark:bg-slate-800",    trend: 15.3 },
+    { label: "Total Cases",     value: totalCases,                       icon: <FiBriefcase />,    iconBg: "bg-purple-50 dark:bg-slate-800",  trend: 12.1 },
+    { label: "Pending Cases",   value: pendingCount,                     icon: <FiClock />,        iconBg: "bg-amber-50 dark:bg-slate-800",   trend: 8.5  },
+    { label: "Completed Cases", value: completedCount,                   icon: <FiCheckCircle />,  iconBg: "bg-teal-50 dark:bg-slate-800",    trend: 18.7 },
+    { label: "Active Agents",   value: analytics?.totalAgents ?? 0,     icon: <FiUserCheck />,    iconBg: "bg-indigo-50 dark:bg-slate-800",  trend: 9.4  },
+    { label: "Branches",        value: analytics?.totalBranches ?? 0,                     icon: <FiGitBranch />,    iconBg: "bg-slate-100 dark:bg-slate-800",  trend: 0    },
   ];
 
   const pieData = [

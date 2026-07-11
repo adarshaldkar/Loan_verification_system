@@ -42,16 +42,16 @@ export default function AgentLoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F4F6FB] p-4 text-slate-800" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-      <div className="w-full max-w-md bg-white rounded-3xl p-8 border border-gray-100 shadow-sm space-y-6">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F4F6FB] dark:bg-slate-900 p-4 text-slate-800" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
+      <div className="w-full max-w-md bg-white dark:bg-slate-950 rounded-3xl p-8 border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
         
         {/* Logo */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#1E4DB7] text-white shadow-md shadow-blue-500/10">
             <FiShield className="w-7 h-7" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900">LVMS</h1>
-          <p className="text-xs text-gray-400 font-semibold">Field Verification Agent Portal</p>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">LVMS</h1>
+          <p className="text-xs text-gray-400 dark:text-slate-500 font-semibold">Field Verification Agent Portal</p>
         </div>
 
         {/* Form */}
@@ -67,15 +67,15 @@ export default function AgentLoginPage() {
 
           {/* Email */}
           <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1.5">Email Address</label>
+            <label className="block text-xs font-bold text-gray-600 dark:text-slate-400 mb-1.5">Email Address</label>
             <div className="relative">
-              <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400" />
+              <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400 dark:text-slate-500" />
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="agent@lvms.com"
-                className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1E4DB7]/15 focus:border-[#1E4DB7] transition-all"
+                className="w-full bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1E4DB7]/15 focus:border-[#1E4DB7] transition-all"
                 required
               />
             </div>
@@ -83,21 +83,21 @@ export default function AgentLoginPage() {
 
           {/* Password */}
           <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1.5">Password</label>
+            <label className="block text-xs font-bold text-gray-600 dark:text-slate-400 mb-1.5">Password</label>
             <div className="relative">
-              <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400" />
+              <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400 dark:text-slate-500" />
               <input
                 type={showPw ? "text" : "password"}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password"
-                className="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-10 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#1E4DB7]/15 focus:border-[#1E4DB7] transition-all"
+                className="w-full bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl pl-10 pr-10 py-2.5 text-sm text-gray-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1E4DB7]/15 focus:border-[#1E4DB7] transition-all"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPw(!showPw)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-400 transition-colors"
               >
                 {showPw ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
               </button>
@@ -123,14 +123,14 @@ export default function AgentLoginPage() {
 
         </form>
 
-        <p className="text-center text-[11px] text-gray-400">
+        <p className="text-center text-[11px] text-gray-400 dark:text-slate-500">
           Contact your administrator if you forgot your credentials
         </p>
 
       </div>
 
       {/* Footer copyright info */}
-      <p className="text-center text-[10px] text-gray-400 font-semibold mt-4">
+      <p className="text-center text-[10px] text-gray-400 dark:text-slate-500 font-semibold mt-4">
         © 2026 Loan Verification Management System. All rights reserved.
       </p>
     </div>

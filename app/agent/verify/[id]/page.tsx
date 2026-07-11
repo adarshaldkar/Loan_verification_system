@@ -331,7 +331,7 @@ export default function CaseVerificationFormPage({
             <Skeleton className="h-4 w-32" />
           </div>
         </div>
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-4">
+        <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-gray-100 dark:border-slate-800 space-y-4">
           <Skeleton className="h-6 w-36" />
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-10 w-full rounded-xl" />
@@ -360,13 +360,13 @@ export default function CaseVerificationFormPage({
     <div className="space-y-6 pb-12 text-slate-800">
       <button
         onClick={() => router.push(`/agent/cases/${caseId}`)}
-        className="flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-900"
+        className="flex items-center gap-1 text-sm font-semibold text-gray-500 dark:text-slate-400 hover:text-gray-900 dark:text-slate-100"
       >
         <FiChevronLeft className="w-4 h-4" />
         <span>Back to Case Details</span>
       </button>
 
-      <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center justify-between overflow-x-auto gap-4">
+      <div className="bg-white dark:bg-slate-950 rounded-2xl p-4 border border-gray-100 dark:border-slate-800 shadow-sm flex items-center justify-between overflow-x-auto gap-4">
         {stepLabels.map((label, idx) => {
           const step = idx + 1;
           return (
@@ -378,12 +378,12 @@ export default function CaseVerificationFormPage({
                     ? "text-white bg-[#1E4DB7]"
                     : currentStep > step
                       ? "text-white bg-emerald-500"
-                      : "text-gray-400 bg-gray-100",
+                      : "text-gray-400 dark:text-slate-500 bg-gray-100 dark:bg-slate-800",
                 )}
               >
                 {step}
               </span>
-              <span className={cn("text-xs", currentStep === step ? "text-gray-900" : "text-gray-400")}>
+              <span className={cn("text-xs", currentStep === step ? "text-gray-900 dark:text-slate-100" : "text-gray-400 dark:text-slate-500")}>
                 {label}
               </span>
             </div>
@@ -392,7 +392,7 @@ export default function CaseVerificationFormPage({
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        <div className="xl:col-span-8 bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
+        <div className="xl:col-span-8 bg-white dark:bg-slate-950 rounded-3xl p-6 border border-gray-100 dark:border-slate-800 shadow-sm">
           {['APPROVED', 'COMPLETED', 'REJECTED'].includes(currentCase.status) && (
             <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-xl flex items-start gap-3">
               <FiInfo className="w-5 h-5 shrink-0 mt-0.5" />
@@ -405,13 +405,13 @@ export default function CaseVerificationFormPage({
           <form onSubmit={handleSubmit} className={cn("space-y-6", ['APPROVED', 'COMPLETED', 'REJECTED'].includes(currentCase.status) && "pointer-events-none opacity-60")}>
             {currentStep === 1 && (
               <div className="space-y-4">
-                <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+                <div className="flex items-center gap-3 pb-3 border-b border-gray-100 dark:border-slate-800">
                   <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
                     <FiUser className="w-5 h-5" />
                   </div>
                   <div>
                     <h2 className="text-lg font-bold">Verify Customer Presence</h2>
-                    <p className="text-xs text-gray-400">Initial verification checks</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Initial verification checks</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -434,7 +434,7 @@ export default function CaseVerificationFormPage({
             {currentStep === 2 && (
               <div className="space-y-4">
                 <h2 className="text-lg font-bold">Capture GPS</h2>
-                <div className="h-64 rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="h-64 rounded-2xl border border-gray-100 dark:border-slate-800 overflow-hidden">
                   <LocationPickerMap
                     lat={lat}
                     lng={lng}
@@ -444,7 +444,7 @@ export default function CaseVerificationFormPage({
                     }}
                   />
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-gray-500 dark:text-slate-400">
                   {lat.toFixed(6)}, {lng.toFixed(6)}
                 </div>
                 <button
@@ -464,11 +464,11 @@ export default function CaseVerificationFormPage({
             {currentStep === 3 && (
               <div className="space-y-4">
                 <h2 className="text-lg font-bold">Capture Evidence Photos</h2>
-                <label className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 py-6 rounded-2xl cursor-pointer">
+                <label className="w-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 dark:border-slate-800 py-6 rounded-2xl cursor-pointer">
                   <div className="w-10 h-10 rounded-full bg-blue-50 text-[#1E4DB7] flex items-center justify-center">
                     <FiPlus className="w-5 h-5" />
                   </div>
-                  <p className="text-xs text-gray-600">Upload up to 5 photos</p>
+                  <p className="text-xs text-gray-600 dark:text-slate-400">Upload up to 5 photos</p>
                   <input
                     type="file"
                     accept="image/*"
@@ -485,11 +485,11 @@ export default function CaseVerificationFormPage({
                 ) : (
                   <div className="space-y-2">
                     {photos.map((photo, idx) => (
-                      <div key={`${photo.url}-${idx}`} className="flex items-center justify-between p-2.5 bg-gray-50 border rounded-xl">
+                      <div key={`${photo.url}-${idx}`} className="flex items-center justify-between p-2.5 bg-gray-50 dark:bg-slate-900 border rounded-xl">
                         <a href={photo.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
                           {photo.name}
                         </a>
-                        <button type="button" onClick={() => handleRemovePhoto(idx)} className="text-gray-400 hover:text-rose-500">
+                        <button type="button" onClick={() => handleRemovePhoto(idx)} className="text-gray-400 dark:text-slate-500 hover:text-rose-500">
                           <FiTrash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -562,10 +562,10 @@ export default function CaseVerificationFormPage({
               <div className="space-y-4">
                 <h2 className="text-lg font-bold">Submit Verification</h2>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between p-2 bg-gray-50 rounded-lg"><span>Case</span><span>{currentCase.id}</span></div>
-                  <div className="flex justify-between p-2 bg-gray-50 rounded-lg"><span>Type</span><span>{currentCase.type}</span></div>
-                  <div className="flex justify-between p-2 bg-gray-50 rounded-lg"><span>GPS</span><span>{gpsLocked ? "Locked" : "Not locked"}</span></div>
-                  <div className="flex justify-between p-2 bg-gray-50 rounded-lg"><span>Photos</span><span>{photos.length}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-50 dark:bg-slate-900 rounded-lg"><span>Case</span><span>{currentCase.id}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-50 dark:bg-slate-900 rounded-lg"><span>Type</span><span>{currentCase.type}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-50 dark:bg-slate-900 rounded-lg"><span>GPS</span><span>{gpsLocked ? "Locked" : "Not locked"}</span></div>
+                  <div className="flex justify-between p-2 bg-gray-50 dark:bg-slate-900 rounded-lg"><span>Photos</span><span>{photos.length}</span></div>
                 </div>
               </div>
             )}
@@ -601,32 +601,32 @@ export default function CaseVerificationFormPage({
         </div>
 
         <div className="xl:col-span-4 space-y-6">
-          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-3">
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-950 rounded-3xl p-5 border border-gray-100 dark:border-slate-800 shadow-sm space-y-3">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
               <FiBriefcase className="w-4 h-4 text-[#1E4DB7]" />
               Case Context
             </h3>
             <div className="space-y-2 text-xs">
-              <div className="flex justify-between"><span className="text-gray-500">Applicant</span><span className="font-semibold">{currentCase.name}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Phone</span><span>{currentCase.phone || "-"}</span></div>
-              <div className="flex justify-between"><span className="text-gray-500">Branch</span><span>{currentCase.branch}</span></div>
-              <p className="text-gray-500 pt-2">Address: {currentCase.address || "-"}</p>
+              <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Applicant</span><span className="font-semibold">{currentCase.name}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Phone</span><span>{currentCase.phone || "-"}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500 dark:text-slate-400">Branch</span><span>{currentCase.branch}</span></div>
+              <p className="text-gray-500 dark:text-slate-400 pt-2">Address: {currentCase.address || "-"}</p>
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm space-y-4">
-            <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-950 rounded-3xl p-5 border border-gray-100 dark:border-slate-800 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
               <FiMapPin className="w-4 h-4 text-[#1E4DB7]" />
               Location
             </h3>
-            <div className="text-xs text-gray-600">
+            <div className="text-xs text-gray-600 dark:text-slate-400">
               <p>{lat.toFixed(6)}, {lng.toFixed(6)}</p>
               <p className="mt-1 flex items-center gap-1">
                 <FiClock className="w-3 h-3" />
                 {gpsTime || "GPS not locked"}
               </p>
             </div>
-            <div className="text-xs text-gray-600 flex items-center gap-1">
+            <div className="text-xs text-gray-600 dark:text-slate-400 flex items-center gap-1">
               <FiCamera className="w-3 h-3" />
               {photos.length} evidence file(s)
             </div>

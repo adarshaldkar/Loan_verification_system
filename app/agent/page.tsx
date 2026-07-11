@@ -277,7 +277,7 @@ export default function AgentDashboard() {
         {/* KPIs Grid Skeleton */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100 space-y-3">
+            <div key={i} className="bg-white dark:bg-slate-950 rounded-2xl p-4 border border-gray-100 dark:border-slate-800 space-y-3">
               <Skeleton className="h-10 w-10 rounded-xl" />
               <Skeleton className="h-4 w-16" />
               <Skeleton className="h-8 w-12" />
@@ -286,7 +286,7 @@ export default function AgentDashboard() {
         </div>
 
         {/* Quick Actions Skeleton */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-100 space-y-4">
+        <div className="bg-white dark:bg-slate-950 p-5 rounded-2xl border border-gray-100 dark:border-slate-800 space-y-4">
           <Skeleton className="h-6 w-36" />
           <div className="grid grid-cols-4 gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -306,7 +306,7 @@ export default function AgentDashboard() {
           </div>
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
+              <div key={i} className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 flex items-center justify-between">
                 <div className="space-y-2 flex-1">
                   <div className="flex items-center gap-2">
                     <Skeleton className="h-5 w-24 rounded-full" />
@@ -526,25 +526,25 @@ export default function AgentDashboard() {
       {/* ── Header ── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             Welcome back, {dashboardData?.agent?.name || "Arun Kumar"}! 👋
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Here's your verification overview for today.</p>
+          <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Here's your verification overview for today.</p>
         </div>
         
         {/* Date Selector Dropdown */}
         <div className="relative">
           <button
             onClick={() => setShowDatePicker(!showDatePicker)}
-            className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 shadow-sm hover:bg-gray-50 dark:bg-slate-900 transition-colors"
           >
-            <FiCalendar className="w-4 h-4 text-gray-400" />
+            <FiCalendar className="w-4 h-4 text-gray-400 dark:text-slate-500" />
             <span>{currentDate}</span>
-            <FiChevronDown className="w-4 h-4 text-gray-400" />
+            <FiChevronDown className="w-4 h-4 text-gray-400 dark:text-slate-500" />
           </button>
           
           {showDatePicker && (
-            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-50 py-1.5">
+            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-950 border border-gray-100 dark:border-slate-800 rounded-xl shadow-lg z-50 py-1.5">
               {Array.from({ length: 3 }).map((_, i) => {
                 const d = new Date();
                 d.setDate(d.getDate() + i);
@@ -558,8 +558,8 @@ export default function AgentDashboard() {
                       toast.success(`Date changed to ${str}`);
                     }}
                     className={cn(
-                      "w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors",
-                      currentDate === str ? "text-[#1E4DB7] font-semibold" : "text-gray-600"
+                      "w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:bg-slate-900 transition-colors",
+                      currentDate === str ? "text-[#1E4DB7] font-semibold" : "text-gray-600 dark:text-slate-400"
                     )}
                   >
                     {str}
@@ -577,15 +577,15 @@ export default function AgentDashboard() {
         <button
           onClick={() => handleKpiClick("Assigned")}
           className={cn(
-            "bg-white rounded-2xl p-4 text-left border transition-all shadow-sm hover:shadow-md",
-            activeKpi === "Assigned" ? "border-[#1E4DB7] ring-1 ring-[#1E4DB7]" : "border-gray-100"
+            "bg-white dark:bg-slate-950 rounded-2xl p-4 text-left border transition-all shadow-sm hover:shadow-md",
+            activeKpi === "Assigned" ? "border-[#1E4DB7] ring-1 ring-[#1E4DB7]" : "border-gray-100 dark:border-slate-800"
           )}
         >
           <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-blue-50 text-blue-600 mb-3">
             <FiBriefcase className="w-5 h-5" />
           </div>
-          <p className="text-xs font-semibold text-gray-500">Assigned Cases</p>
-          <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData?.kpis?.pending ?? 0}</p>
+          <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">Assigned Cases</p>
+          <p className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 mt-1">{dashboardData?.kpis?.pending ?? 0}</p>
           <div className="flex items-center gap-1 mt-2 text-xs font-medium text-emerald-600">
             <FiTrendingUp className="w-3.5 h-3.5" />
             <span>Active assigned</span>
@@ -596,15 +596,15 @@ export default function AgentDashboard() {
         <button
           onClick={() => handleKpiClick("In Progress")}
           className={cn(
-            "bg-white rounded-2xl p-4 text-left border transition-all shadow-sm hover:shadow-md",
-            activeKpi === "In Progress" ? "border-[#1E4DB7] ring-1 ring-[#1E4DB7]" : "border-gray-100"
+            "bg-white dark:bg-slate-950 rounded-2xl p-4 text-left border transition-all shadow-sm hover:shadow-md",
+            activeKpi === "In Progress" ? "border-[#1E4DB7] ring-1 ring-[#1E4DB7]" : "border-gray-100 dark:border-slate-800"
           )}
         >
           <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-50 text-amber-600 mb-3">
             <FiClock className="w-5 h-5" />
           </div>
-          <p className="text-xs font-semibold text-gray-500">In Progress</p>
-          <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData?.kpis?.inProgress ?? 0}</p>
+          <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">In Progress</p>
+          <p className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 mt-1">{dashboardData?.kpis?.inProgress ?? 0}</p>
           <div className="flex items-center gap-1 mt-2 text-xs font-medium text-amber-600">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
             <span>Under review</span>
@@ -615,15 +615,15 @@ export default function AgentDashboard() {
         <button
           onClick={() => handleKpiClick("Completed")}
           className={cn(
-            "bg-white rounded-2xl p-4 text-left border transition-all shadow-sm hover:shadow-md",
-            activeKpi === "Completed" ? "border-[#1E4DB7] ring-1 ring-[#1E4DB7]" : "border-gray-100"
+            "bg-white dark:bg-slate-950 rounded-2xl p-4 text-left border transition-all shadow-sm hover:shadow-md",
+            activeKpi === "Completed" ? "border-[#1E4DB7] ring-1 ring-[#1E4DB7]" : "border-gray-100 dark:border-slate-800"
           )}
         >
           <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-600 mb-3">
             <FiCheckCircle className="w-5 h-5" />
           </div>
-          <p className="text-xs font-semibold text-gray-500">Completed</p>
-          <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData?.kpis?.completed ?? 0}</p>
+          <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">Completed</p>
+          <p className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 mt-1">{dashboardData?.kpis?.completed ?? 0}</p>
           <div className="flex items-center gap-1 mt-2 text-xs font-medium text-emerald-600">
             <FiTrendingUp className="w-3.5 h-3.5" />
             <span>Total verified</span>
@@ -634,28 +634,28 @@ export default function AgentDashboard() {
         <button
           onClick={() => handleKpiClick("Rejected")}
           className={cn(
-            "bg-white rounded-2xl p-4 text-left border transition-all shadow-sm hover:shadow-md",
-            activeKpi === "Rejected" ? "border-[#1E4DB7] ring-1 ring-[#1E4DB7]" : "border-gray-100"
+            "bg-white dark:bg-slate-950 rounded-2xl p-4 text-left border transition-all shadow-sm hover:shadow-md",
+            activeKpi === "Rejected" ? "border-[#1E4DB7] ring-1 ring-[#1E4DB7]" : "border-gray-100 dark:border-slate-800"
           )}
         >
           <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-rose-50 text-rose-600 mb-3">
             <FiAlertCircle className="w-5 h-5" />
           </div>
-          <p className="text-xs font-semibold text-gray-500">Rejected</p>
-          <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData?.kpis?.rejected ?? 0}</p>
+          <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">Rejected</p>
+          <p className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 mt-1">{dashboardData?.kpis?.rejected ?? 0}</p>
           <div className="flex items-center gap-1 mt-2 text-xs font-medium text-rose-600 hover:underline">
             <span>Declined/failed</span>
           </div>
         </button>
 
         {/* 5. Avg Time */}
-        <div className="bg-white rounded-2xl p-4 text-left border border-gray-100 shadow-sm col-span-2 lg:col-span-1">
+        <div className="bg-white dark:bg-slate-950 rounded-2xl p-4 text-left border border-gray-100 dark:border-slate-800 shadow-sm col-span-2 lg:col-span-1">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-purple-50 text-purple-600 mb-3">
             <FiClock className="w-5 h-5" />
           </div>
-          <p className="text-xs font-semibold text-gray-500">Avg. Time</p>
-          <p className="text-3xl font-extrabold text-gray-900 mt-1">{dashboardData?.kpis?.avgTime || '—'}</p>
-          <div className="flex items-center gap-1 mt-2 text-xs font-medium text-gray-400">
+          <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">Avg. Time</p>
+          <p className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 mt-1">{dashboardData?.kpis?.avgTime || '—'}</p>
+          <div className="flex items-center gap-1 mt-2 text-xs font-medium text-gray-400 dark:text-slate-500">
             <span>Per verification</span>
           </div>
         </div>
@@ -665,10 +665,10 @@ export default function AgentDashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         
         {/* Column 1: Assigned Cases */}
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-950 rounded-2xl p-5 border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[16px] font-bold text-gray-900">Assigned Cases</h2>
+              <h2 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Assigned Cases</h2>
               <Link href="/agent/cases" className="text-xs font-semibold text-[#1E4DB7] hover:underline">
                 View all
               </Link>
@@ -692,7 +692,7 @@ export default function AgentDashboard() {
                     "shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all",
                     selectedFilter === pill.label && !activeKpi
                       ? "text-white"
-                      : "bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100"
+                      : "bg-gray-50 dark:bg-slate-900 text-gray-500 dark:text-slate-400 border-gray-100 dark:border-slate-800 hover:bg-gray-100 dark:bg-slate-800"
                   )}
                   style={selectedFilter === pill.label && !activeKpi ? { background: "#1E4DB7", borderColor: "#1E4DB7" } : {}}
                 >
@@ -704,7 +704,7 @@ export default function AgentDashboard() {
             {/* Case List */}
             <div className="space-y-4">
               {getFilteredCases().length === 0 ? (
-                <div className="text-center py-6 text-gray-400 text-xs">
+                <div className="text-center py-6 text-gray-400 dark:text-slate-500 text-xs">
                   No cases found under this filter
                 </div>
               ) : (
@@ -714,22 +714,22 @@ export default function AgentDashboard() {
                     <div
                       key={c.id}
                       onClick={() => router.push(`/agent/cases/${c.id}`)}
-                      className="flex items-start justify-between gap-3 p-3.5 rounded-xl border border-gray-50 bg-[#FAFBFD] hover:bg-gray-50 cursor-pointer transition-all"
+                      className="flex items-start justify-between gap-3 p-3.5 rounded-xl border border-gray-50 bg-[#FAFBFD] hover:bg-gray-50 dark:bg-slate-900 cursor-pointer transition-all"
                     >
                       <div className="space-y-1.5 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className={cn(
                             "text-[9px] font-bold px-2 py-0.5 rounded-full uppercase",
                             p === "High" ? "bg-rose-100 text-rose-700" :
-                            p === "Medium" ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-600"
+                            p === "Medium" ? "bg-amber-100 text-amber-700" : "bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-400"
                           )}>
                             {p}
                           </span>
-                          <span className="text-[11px] font-mono text-gray-400 font-semibold">{c.id}</span>
+                          <span className="text-[11px] font-mono text-gray-400 dark:text-slate-500 font-semibold">{c.id}</span>
                         </div>
-                        <h4 className="text-[14px] font-bold text-gray-900 leading-snug">{c.customer}</h4>
-                        <p className="text-[12px] text-gray-400 truncate leading-snug">{c.address}</p>
-                        <p className="text-[11px] font-medium text-gray-500">
+                        <h4 className="text-[14px] font-bold text-gray-900 dark:text-slate-100 leading-snug">{c.customer}</h4>
+                        <p className="text-[12px] text-gray-400 dark:text-slate-500 truncate leading-snug">{c.address}</p>
+                        <p className="text-[11px] font-medium text-gray-500 dark:text-slate-400">
                           {c.type === 'RESIDENTIAL' || c.type === 'ADDRESS' ? 'Residential Verification' : 'Business Verification'}
                         </p>
                       </div>
@@ -756,13 +756,13 @@ export default function AgentDashboard() {
         </div>
 
         {/* Column 2: Today's Schedule */}
-        <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex flex-col justify-between">
+        <div className="bg-white dark:bg-slate-950 rounded-2xl p-5 border border-gray-100 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[16px] font-bold text-gray-900">Today's Schedule</h2>
+              <h2 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Today's Schedule</h2>
               <button 
                 onClick={triggerMultiRouteNavigation} 
-                className="text-xs font-semibold text-[#1E4DB7] hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed" 
+                className="text-xs font-semibold text-[#1E4DB7] hover:underline disabled:text-gray-400 dark:text-slate-500 disabled:no-underline disabled:cursor-not-allowed" 
                 disabled={destinations.length === 0}
               >
                 View route
@@ -777,7 +777,7 @@ export default function AgentDashboard() {
             {/* Schedule List */}
             <div className="space-y-3">
               {!dashboardData?.todaySchedule || dashboardData.todaySchedule.length === 0 ? (
-                <div className="text-center py-8 text-gray-400 text-xs">
+                <div className="text-center py-8 text-gray-400 dark:text-slate-500 text-xs">
                   No active verifications scheduled for today.
                 </div>
               ) : (
@@ -791,12 +791,12 @@ export default function AgentDashboard() {
                         s.num === 3 ? "bg-blue-600" : "bg-slate-500"
                       )}>{s.num}</div>
                       <div>
-                        <p className="text-xs font-bold text-gray-900">{s.name}</p>
-                        <p className="text-[10px] text-gray-400">{s.type}</p>
+                        <p className="text-xs font-bold text-gray-900 dark:text-slate-100">{s.name}</p>
+                        <p className="text-[10px] text-gray-400 dark:text-slate-500">{s.type}</p>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-[10px] font-semibold text-gray-500">{s.time}</p>
+                      <p className="text-[10px] font-semibold text-gray-500 dark:text-slate-400">{s.time}</p>
                       <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full inline-block mt-0.5", s.bg)}>
                         {s.status}
                       </span>
@@ -823,9 +823,9 @@ export default function AgentDashboard() {
           {(() => {
             const currentActiveCase = liveCases.find((c: any) => ["ASSIGNED", "PENDING", "IN_PROGRESS"].includes(c.status)) || liveCases[0];
             return (
-              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-4">
+              <div className="bg-white dark:bg-slate-950 rounded-2xl p-5 border border-gray-100 dark:border-slate-800 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-[16px] font-bold text-gray-900">Current Case</h2>
+                  <h2 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Current Case</h2>
                   {currentActiveCase && (
                     <Link href={`/agent/cases/${currentActiveCase.id}`} className="text-xs font-semibold text-[#1E4DB7] hover:underline">
                       View details
@@ -836,20 +836,20 @@ export default function AgentDashboard() {
                 {currentActiveCase ? (
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-mono font-semibold text-gray-400">{currentActiveCase.id}</span>
+                      <span className="text-[11px] font-mono font-semibold text-gray-400 dark:text-slate-500">{currentActiveCase.id}</span>
                       <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">{currentActiveCase.status}</span>
                     </div>
-                    <h3 className="text-[15px] font-bold text-gray-900">{currentActiveCase.customer}</h3>
-                    <p className="text-[11px] font-semibold text-gray-400">{currentActiveCase.type === 'BUSINESS' ? 'Business' : 'Residential'} Verification</p>
+                    <h3 className="text-[15px] font-bold text-gray-900 dark:text-slate-100">{currentActiveCase.customer}</h3>
+                    <p className="text-[11px] font-semibold text-gray-400 dark:text-slate-500">{currentActiveCase.type === 'BUSINESS' ? 'Business' : 'Residential'} Verification</p>
                     
-                    <div className="flex items-start gap-1.5 bg-gray-50 p-2.5 rounded-xl">
-                      <FiMapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                      <p className="text-xs text-gray-500 leading-snug">{currentActiveCase.address}</p>
+                    <div className="flex items-start gap-1.5 bg-gray-50 dark:bg-slate-900 p-2.5 rounded-xl">
+                      <FiMapPin className="w-4 h-4 text-gray-400 dark:text-slate-500 shrink-0 mt-0.5" />
+                      <p className="text-xs text-gray-500 dark:text-slate-400 leading-snug">{currentActiveCase.address}</p>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-4">
-                    <p className="text-sm text-gray-400">No active cases assigned</p>
+                    <p className="text-sm text-gray-400 dark:text-slate-500">No active cases assigned</p>
                   </div>
                 )}
 
@@ -866,9 +866,9 @@ export default function AgentDashboard() {
           })()}
 
           {/* Card 2: Verification Progress */}
-          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-4">
+          <div className="bg-white dark:bg-slate-950 rounded-2xl p-5 border border-gray-100 dark:border-slate-800 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-[16px] font-bold text-gray-900">Verification Progress</h2>
+              <h2 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Verification Progress</h2>
               <Link href="/agent/cases" className="text-xs font-semibold text-[#1E4DB7] hover:underline">
                 View all
               </Link>
@@ -891,52 +891,52 @@ export default function AgentDashboard() {
                         <circle cx="48" cy="48" r="38" className="text-teal-500" strokeWidth="7" strokeDasharray={238} strokeDashoffset={238 - (238 * completedPercent) / 100} strokeLinecap="round" stroke="currentColor" fill="transparent" />
                       </svg>
                       <div className="absolute text-center">
-                        <span className="text-[16px] font-black text-gray-900">{completedPercent}%</span>
-                        <p className="text-[9px] text-gray-400 font-semibold leading-tight">Completed</p>
+                        <span className="text-[16px] font-black text-gray-900 dark:text-slate-100">{completedPercent}%</span>
+                        <p className="text-[9px] text-gray-400 dark:text-slate-500 font-semibold leading-tight">Completed</p>
                       </div>
                     </div>
 
                     {/* Legend matching reference image */}
-                    <div className="space-y-1.5 flex-1 text-xs font-semibold text-gray-600">
+                    <div className="space-y-1.5 flex-1 text-xs font-semibold text-gray-600 dark:text-slate-400">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
                           <span>Completed</span>
                         </div>
-                        <span className="text-gray-900">{completed}</span>
+                        <span className="text-gray-900 dark:text-slate-100">{completed}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
                           <span>In Progress</span>
                         </div>
-                        <span className="text-gray-900">{inProgress}</span>
+                        <span className="text-gray-900 dark:text-slate-100">{inProgress}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                           <span>Pending</span>
                         </div>
-                        <span className="text-gray-900">{pending}</span>
+                        <span className="text-gray-900 dark:text-slate-100">{pending}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
                           <span>Rejected</span>
                         </div>
-                        <span className="text-gray-900">{rejected}</span>
+                        <span className="text-gray-900 dark:text-slate-100">{rejected}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 border-t border-gray-50 pt-3 text-center">
                     <div>
-                      <p className="text-[10px] text-gray-400 font-semibold">Total Cases</p>
-                      <p className="text-sm font-bold text-gray-900 mt-0.5">{total}</p>
+                      <p className="text-[10px] text-gray-400 dark:text-slate-500 font-semibold">Total Cases</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-slate-100 mt-0.5">{total}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] text-gray-400 font-semibold">This Month</p>
-                      <p className="text-sm font-bold text-gray-900 mt-0.5">{total}</p>
+                      <p className="text-[10px] text-gray-400 dark:text-slate-500 font-semibold">This Month</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-slate-100 mt-0.5">{total}</p>
                     </div>
                   </div>
                 </>
@@ -945,55 +945,55 @@ export default function AgentDashboard() {
           </div>
 
           {/* Card 3: Quick Actions */}
-          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-4">
-            <h2 className="text-[16px] font-bold text-gray-900">Quick Actions</h2>
+          <div className="bg-white dark:bg-slate-950 rounded-2xl p-5 border border-gray-100 dark:border-slate-800 shadow-sm space-y-4">
+            <h2 className="text-[16px] font-bold text-gray-900 dark:text-slate-100">Quick Actions</h2>
             
             <div className="grid grid-cols-2 gap-2.5">
               <button
                 onClick={triggerCamera}
-                className="flex items-center gap-2 px-3 py-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-all text-left group active:scale-95"
+                className="flex items-center gap-2 px-3 py-3 border border-gray-100 dark:border-slate-800 rounded-xl hover:bg-gray-50 dark:bg-slate-900 transition-all text-left group active:scale-95"
               >
                 <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-[#1E4DB7] shrink-0">
                   <FiCamera className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-gray-900 leading-tight">Capture Photo</p>
+                  <p className="text-[11px] font-bold text-gray-900 dark:text-slate-100 leading-tight">Capture Photo</p>
                 </div>
               </button>
 
               <button
                 onClick={triggerAddRemark}
-                className="flex items-center gap-2 px-3 py-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-all text-left group active:scale-95"
+                className="flex items-center gap-2 px-3 py-3 border border-gray-100 dark:border-slate-800 rounded-xl hover:bg-gray-50 dark:bg-slate-900 transition-all text-left group active:scale-95"
               >
                 <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-[#1E4DB7] shrink-0">
                   <FiMessageSquare className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-gray-900 leading-tight">Add Remark</p>
+                  <p className="text-[11px] font-bold text-gray-900 dark:text-slate-100 leading-tight">Add Remark</p>
                 </div>
               </button>
 
               <button
                 onClick={triggerCall}
-                className="flex items-center gap-2 px-3 py-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-all text-left group active:scale-95"
+                className="flex items-center gap-2 px-3 py-3 border border-gray-100 dark:border-slate-800 rounded-xl hover:bg-gray-50 dark:bg-slate-900 transition-all text-left group active:scale-95"
               >
                 <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-[#1E4DB7] shrink-0">
                   <FiPhone className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-gray-900 leading-tight">Call Customer</p>
+                  <p className="text-[11px] font-bold text-gray-900 dark:text-slate-100 leading-tight">Call Customer</p>
                 </div>
               </button>
 
               <button
                 onClick={triggerUpload}
-                className="flex items-center gap-2 px-3 py-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-all text-left group active:scale-95"
+                className="flex items-center gap-2 px-3 py-3 border border-gray-100 dark:border-slate-800 rounded-xl hover:bg-gray-50 dark:bg-slate-900 transition-all text-left group active:scale-95"
               >
                 <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-[#1E4DB7] shrink-0">
                   <FiUpload className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-[11px] font-bold text-gray-900 leading-tight">Upload Document</p>
+                  <p className="text-[11px] font-bold text-gray-900 dark:text-slate-100 leading-tight">Upload Document</p>
                 </div>
               </button>
             </div>

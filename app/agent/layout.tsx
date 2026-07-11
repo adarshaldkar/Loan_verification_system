@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import {
   FiGrid, FiBriefcase, FiCheckSquare, FiBell, FiUser, FiLogOut,
   FiShield, FiMenu, FiX, FiRefreshCw, FiWifi, FiWifiOff,
-  FiMapPin, FiChevronDown, FiUploadCloud,
+  FiMapPin, FiChevronDown, FiUploadCloud, FiMoon, FiSun
 } from "react-icons/fi";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -57,22 +57,22 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
   const router   = useRouter();
 
   return (
-    <div className="flex flex-col h-full bg-white border-r border-gray-100">
+    <div className="flex flex-col h-full bg-white dark:bg-slate-950 border-r border-gray-100 dark:border-slate-800">
       {/* Logo */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-800">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "#1E4DB7" }}>
             <FiShield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="text-[14px] font-bold text-gray-900 leading-tight" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
+            <p className="text-[14px] font-bold text-gray-900 dark:text-slate-100 leading-tight" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
               LVMS
             </p>
-            <p className="text-[10px] text-gray-400">Agent Panel</p>
+            <p className="text-[10px] text-gray-400 dark:text-slate-500">Agent Panel</p>
           </div>
         </div>
         {onClose && (
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 lg:hidden">
+          <button onClick={onClose} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-400 lg:hidden">
             <FiX className="w-5 h-5" />
           </button>
         )}
@@ -82,7 +82,7 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
       <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
         {navSections.map((section) => (
           <div key={section.title}>
-            <p className="text-[10px] font-semibold text-gray-400 px-3 mb-1.5 tracking-widest">{section.title}</p>
+            <p className="text-[10px] font-semibold text-gray-400 dark:text-slate-500 px-3 mb-1.5 tracking-widest">{section.title}</p>
             <div className="space-y-0.5">
               {section.items.map(({ label, href, icon: Icon, badge, danger }) => {
                 const isActive = href === "/agent" ? pathname === "/agent" : pathname.startsWith(href);
@@ -107,7 +107,7 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
                       "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
                       isActive
                         ? "text-white shadow-sm"
-                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                        : "text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:bg-slate-900 hover:text-gray-900 dark:text-slate-100"
                     )}
                     style={isActive ? { background: "#1E4DB7" } : {}}
                   >
@@ -128,14 +128,14 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
       </nav>
 
       {/* Bottom status */}
-      <div className="px-4 py-3 border-t border-gray-100">
+      <div className="px-4 py-3 border-t border-gray-100 dark:border-slate-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-xs text-gray-500">Online</span>
+            <span className="text-xs text-gray-500 dark:text-slate-400">Online</span>
           </div>
-          <span className="text-[10px] text-gray-400">Last sync: 2 mins ago</span>
-          <button className="text-gray-400 hover:text-gray-600">
+          <span className="text-[10px] text-gray-400 dark:text-slate-500">Last sync: 2 mins ago</span>
+          <button className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-400">
             <FiRefreshCw className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -150,12 +150,18 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
   const [gps, setGps]         = useState(true);
   const [agent, setAgent]     = useState({ name: "Loading...", id: "---", initials: "" });
 
+  const [theme, setTheme] = useState("light");
+
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("lvms_agent");
-      if (stored) {
+      const storedTheme = localStorage.getItem("theme") || "light";
+      setTheme(storedTheme);
+      if (storedTheme === "dark") document.documentElement.classList.add("dark");
+
+      const storedAgent = localStorage.getItem("lvms_agent");
+      if (storedAgent) {
         try {
-          const user = JSON.parse(stored);
+          const user = JSON.parse(storedAgent);
           setAgent({
             name: `${user.firstName} ${user.lastName}`,
             id: user.id.slice(0, 8).toUpperCase(),
@@ -166,12 +172,23 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
     }
   }, []);
 
+  const toggleTheme = () => {
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-gray-100 h-14 flex items-center px-4 gap-3">
-      <button onClick={onMenu} className="text-gray-500 hover:text-gray-800 lg:hidden">
+    <header className="sticky top-0 z-40 bg-white dark:bg-slate-950 border-b border-gray-100 dark:border-slate-800 h-14 flex items-center px-4 gap-3">
+      <button onClick={onMenu} className="text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:text-slate-200 lg:hidden">
         <FiMenu className="w-5 h-5" />
       </button>
-      <button onClick={onMenu} className="hidden lg:block text-gray-500 hover:text-gray-800">
+      <button onClick={onMenu} className="hidden lg:block text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:text-slate-200">
         <FiMenu className="w-5 h-5" />
       </button>
 
@@ -182,7 +199,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
         onClick={() => setOffline(!offline)}
         className={cn(
           "flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all",
-          offline ? "border-amber-300 bg-amber-50 text-amber-700" : "border-gray-200 bg-gray-50 text-gray-600"
+          offline ? "border-amber-300 bg-amber-50 text-amber-700" : "border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-900 text-gray-600 dark:text-slate-400"
         )}
       >
         {offline ? <FiWifiOff className="w-3.5 h-3.5" /> : <FiUploadCloud className="w-3.5 h-3.5" />}
@@ -194,7 +211,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
         onClick={() => setGps(!gps)}
         className={cn(
           "flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all",
-          gps ? "border-green-300 bg-green-50 text-green-700" : "border-gray-200 text-gray-500"
+          gps ? "border-green-300 bg-green-50 text-green-700" : "border-gray-200 dark:border-slate-800 text-gray-500 dark:text-slate-400"
         )}
       >
         <span className={cn("w-2 h-2 rounded-full", gps ? "bg-green-500" : "bg-gray-400")} />
@@ -202,24 +219,33 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
         GPS {gps ? "Enabled" : "Disabled"}
       </button>
 
+      {/* Theme Toggle */}
+      <button
+        onClick={toggleTheme}
+        className="relative inline-flex items-center justify-center p-2 text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:text-slate-200 transition-colors outline-none"
+        aria-label="Toggle dark mode"
+      >
+        {theme === "dark" ? <FiSun className="w-5 h-5" /> : <FiMoon className="w-5 h-5" />}
+      </button>
+
       {/* Bell */}
-      <Link href="/agent/notifications" className="relative p-2 text-gray-500 hover:text-gray-800">
+      <Link href="/agent/notifications" className="relative p-2 text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:text-slate-200">
         <FiBell className="w-5 h-5" />
         <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">2</span>
       </Link>
 
       {/* Avatar */}
-      <Link href="/agent/profile" className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 rounded-xl px-2 py-1.5 transition-all">
+      <Link href="/agent/profile" className="flex items-center gap-2.5 cursor-pointer hover:bg-gray-50 dark:bg-slate-900 rounded-xl px-2 py-1.5 transition-all">
         <Avatar className="w-8 h-8">
           <AvatarFallback className="text-xs font-bold text-white" style={{ background: "#1E4DB7" }}>
             {agent.initials}
           </AvatarFallback>
         </Avatar>
         <div className="hidden sm:block">
-          <p className="text-[12px] font-semibold text-gray-900 leading-tight">{agent.name}</p>
-          <p className="text-[10px] text-gray-400">Agent ID: {agent.id}</p>
+          <p className="text-[12px] font-semibold text-gray-900 dark:text-slate-100 leading-tight">{agent.name}</p>
+          <p className="text-[10px] text-gray-400 dark:text-slate-500">Agent ID: {agent.id}</p>
         </div>
-        <FiChevronDown className="w-3.5 h-3.5 text-gray-400" />
+        <FiChevronDown className="w-3.5 h-3.5 text-gray-400 dark:text-slate-500" />
       </Link>
     </header>
   );
@@ -241,15 +267,15 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
   const isLoginPage = pathname === "/agent/login";
 
   if (isLoginPage) {
-    return <div className="min-h-screen bg-[#F4F6FB]">{children}</div>;
+    return <div className="min-h-screen bg-[#F4F6FB] dark:bg-slate-900">{children}</div>;
   }
 
   return (
-    <div className="min-h-screen bg-[#F4F6FB] flex">
+    <div className="min-h-screen bg-[#F4F6FB] dark:bg-slate-900 flex">
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col shrink-0 sticky top-0 h-screen shadow-sm transition-all duration-300 ease-in-out bg-white border-r border-gray-100",
+          "hidden lg:flex flex-col shrink-0 sticky top-0 h-screen shadow-sm transition-all duration-300 ease-in-out bg-white dark:bg-slate-950 border-r border-gray-100 dark:border-slate-800",
           sidebarOpen ? "w-56" : "w-0 overflow-hidden border-r-0"
         )}
       >
@@ -278,13 +304,13 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
       {showLogoutDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/45 backdrop-blur-sm" onClick={() => setShowLogoutDialog(false)} />
-          <div className="relative bg-white rounded-3xl p-6 w-full max-w-sm border border-gray-100 shadow-xl text-center space-y-4">
+          <div className="relative bg-white dark:bg-slate-950 rounded-3xl p-6 w-full max-w-sm border border-gray-100 dark:border-slate-800 shadow-xl text-center space-y-4">
             <div className="w-14 h-14 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto">
               <FiLogOut className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-gray-900">Confirm Logout</h3>
-              <p className="text-xs text-gray-500 mt-1">Are you sure you want to log out of your session?</p>
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100">Confirm Logout</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Are you sure you want to log out of your session?</p>
             </div>
             <div className="flex gap-3 mt-4">
               <button

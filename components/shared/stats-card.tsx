@@ -36,7 +36,7 @@ export function StatsCard({
         <p className="text-sm font-medium text-slate-500">{label}</p>
         <div
           className={cn(
-            "w-10 h-10 rounded-xl flex items-center justify-center text-[--color-brand-900] text-lg",
+            "w-10 h-10 rounded-xl flex items-center justify-center text-[--color-brand-900] dark:text-slate-200 text-lg",
             iconBg
           )}
         >

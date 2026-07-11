@@ -19,6 +19,8 @@ model User {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  resetPasswordOtp        String?
+  resetPasswordOtpExpires DateTime?
 
   // Multi-tenant: FIELD_AGENT belongs to an ADMIN
   adminId String?

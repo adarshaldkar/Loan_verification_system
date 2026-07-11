@@ -114,9 +114,9 @@ export default function TrackingPage() {
     <div className="h-[calc(100vh-8rem)] flex flex-col md:flex-row gap-6">
       
       {/* Sidebar: Active Rides */}
-      <div className="w-full md:w-1/3 flex flex-col bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden h-full">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-slate-50">
-          <h2 className="font-bold text-slate-800 flex items-center gap-2">
+      <div className="w-full md:w-1/3 flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm overflow-hidden h-full">
+        <div className="p-5 border-b border-gray-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950">
+          <h2 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
             <FiActivity className="text-emerald-500" />
             Live Agent Tracking
           </h2>
@@ -132,7 +132,7 @@ export default function TrackingPage() {
                <Skeleton className="h-20 w-full rounded-xl" />
              </div>
           ) : activeRides.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
+            <div className="text-center py-12 text-slate-400 dark:text-slate-500">
               <FiMapPin className="mx-auto h-8 w-8 mb-2 opacity-20" />
               <p className="text-sm">No agents are currently driving.</p>
             </div>
@@ -144,13 +144,13 @@ export default function TrackingPage() {
                 className={cn(
                   "p-4 rounded-xl border transition-all cursor-pointer",
                   selectedRideId === ride.id 
-                    ? "border-emerald-500 bg-emerald-50 shadow-md ring-2 ring-emerald-500/20" 
-                    : "border-gray-200 hover:border-emerald-300 hover:bg-slate-50"
+                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 shadow-md ring-2 ring-emerald-500/20" 
+                    : "border-gray-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-600 hover:bg-slate-50 dark:hover:bg-slate-800/50"
                 )}
               >
                 <div className="flex justify-between items-start mb-2">
-                  <div className="font-bold text-slate-800">{ride.agent.firstName} {ride.agent.lastName}</div>
-                  <div className="text-xs font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                  <div className="font-bold text-slate-800 dark:text-slate-200">{ride.agent.firstName} {ride.agent.lastName}</div>
+                  <div className="text-xs font-mono bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded">
                     {ride.totalDistance.toFixed(2)} km
                   </div>
                 </div>
@@ -171,7 +171,7 @@ export default function TrackingPage() {
       </div>
 
       {/* Map Area using mapcn.dev */}
-      <div className="w-full md:w-2/3 bg-slate-100 rounded-2xl border border-gray-200 overflow-hidden relative min-h-[400px] h-full">
+      <div className="w-full md:w-2/3 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 overflow-hidden relative min-h-[400px] h-full">
         
         <Map 
           ref={mapRef} 
@@ -227,7 +227,7 @@ export default function TrackingPage() {
         </Map>
         
         {/* Floating Legend overlay */}
-        <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur p-3 rounded-xl shadow-lg border border-gray-100 text-xs text-slate-600 z-10">
+        <div className="absolute bottom-4 left-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur p-3 rounded-xl shadow-lg border border-gray-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 z-10">
           <div className="flex items-center gap-2 mb-1">
             <div className="w-3 h-3 rounded-full bg-emerald-500 border border-white"></div>
             <span>Live Agent Location</span>

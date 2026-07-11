@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { FiShield, FiMail, FiLock, FiEye, FiEyeOff, FiLogIn, FiAlertCircle } from "react-icons/fi";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -141,13 +142,13 @@ export default function LoginPage() {
                 />
                 <span className="text-xs text-slate-600">Remember me</span>
               </label>
-              <button
-                type="button"
+              <Link
+                href="/forgot-password"
                 className="text-xs font-medium hover:underline"
                 style={{ color: "#1E3A5F" }}
               >
                 Forgot password?
-              </button>
+              </Link>
             </div>
 
             {/* Submit */}

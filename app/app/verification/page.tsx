@@ -322,6 +322,46 @@ Generated At   : ${new Date().toLocaleString("en-IN")}
         @keyframes shimmer { 0%{background-position:200%} 100%{background-position:-200%} }
         .empty-state { text-align:center; padding:64px 32px; color:#94a3b8; }
         .empty-state svg { margin:0 auto 16px; display:block; }
+        /* ── Dark Mode Overrides ── */
+        .dark .vp-wrap { background: #0F172A; }
+        .dark .vp-header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 60%, #334155 100%); border-bottom: 1px solid #1e293b; }
+        .dark .search-box, .dark .filter-btn, .dark .stat-card, .dark .table-card { background: #1E293B; border-color: #334155; }
+        .dark .search-box input { color: #f1f5f9; }
+        .dark .filter-btn { color: #94a3b8; }
+        .dark .filter-btn.active, .dark .filter-btn:hover { background: #334155; color: #60A5FA; border-color: #60A5FA; }
+        .dark .stat-card .stat-num { color: #f1f5f9; }
+        .dark .stat-card .stat-lbl { color: #94a3b8; }
+        .dark .table-header { background: #0F172A; border-color: #334155; color: #94a3b8; }
+        .dark .table-row { border-color: #334155; }
+        .dark .table-row:hover { background: #334155; }
+        .dark .row-name { color: #f1f5f9; }
+        .dark .row-sub { color: #64748b; }
+        .dark .row-text { color: #cbd5e1; }
+        .dark .icon-btn { border-color: #334155; color: #94a3b8; }
+        .dark .icon-btn:hover { background: #334155; color: #60A5FA; border-color: #60A5FA; }
+        .dark .detail-panel { background: #0F172A; }
+        .dark .panel-head { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); }
+        .dark .info-card, .dark .field-item, .dark .no-photo { background: #1E293B; border-color: #334155; }
+        .dark .info-card h5, .dark .section-heading { color: #94a3b8; }
+        .dark .info-row .label, .dark .field-label { color: #64748b; }
+        .dark .info-row .value, .dark .field-value { color: #f1f5f9; }
+        .dark .tabs { border-color: #334155; }
+        .dark .tab-btn { color: #64748b; }
+        .dark .tab-btn.active { color: #60A5FA; border-color: #60A5FA; }
+        .dark .tab-btn:hover:not(.active) { color: #f1f5f9; background: #1E293B; }
+        .dark .geo-card { background: #1E293B; border-color: #334155; }
+        .dark .geo-coord-box { background: #0F172A; border-color: #334155; }
+        .dark .geo-coord-box span { color: #64748b; }
+        .dark .geo-coord-box strong { color: #f1f5f9; }
+        .dark .geo-link { background: #3B82F6; }
+        .dark .geo-link:hover { background: #2563EB; }
+        .dark .photo-item { border-color: #334155; }
+        .dark .review-panel { background: #1E293B; border-color: #334155; }
+        .dark .review-panel h4 { color: #f1f5f9; }
+        .dark .decision-card { background: #0F172A; border-color: #334155; color: #94a3b8; }
+        .dark .decision-card:hover { border-color: #60A5FA; color: #60A5FA; }
+        .dark .remarks-box { background: #0F172A; border-color: #334155; color: #f1f5f9; }
+        .dark .empty-state { color: #64748b; }
       `}</style>
 
       <div className="vp-wrap">

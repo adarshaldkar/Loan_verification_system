@@ -107,7 +107,7 @@ export default function AssignedCasesPage() {
         {/* Cases List Skeleton */}
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-white p-4 rounded-2xl border border-gray-100 flex items-center justify-between">
+            <div key={i} className="bg-white dark:bg-slate-950 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 flex items-center justify-between">
               <div className="space-y-2 flex-1">
                 <div className="flex items-center gap-2">
                   <Skeleton className="h-5 w-24 rounded-full" />
@@ -164,7 +164,7 @@ export default function AssignedCasesPage() {
         </div>
         <button
           onClick={fetchCases}
-          className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-slate-800 transition-colors shadow-sm"
+          className="p-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 text-slate-500 hover:text-slate-800 transition-colors shadow-sm"
           title="Refresh"
         >
           <FiRefreshCw className="w-4 h-4" />
@@ -179,7 +179,7 @@ export default function AssignedCasesPage() {
           placeholder="Search by name, case ID, or address…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] transition-all shadow-sm"
+          className="w-full bg-white dark:bg-slate-950 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]/20 focus:border-[#1E3A5F] transition-all shadow-sm"
         />
       </div>
 
@@ -193,7 +193,7 @@ export default function AssignedCasesPage() {
               "shrink-0 text-xs font-medium px-3 py-1.5 rounded-full transition-all",
               filter === f
                 ? "text-white shadow-sm"
-                : "bg-white text-slate-500 border border-slate-200"
+                : "bg-white dark:bg-slate-950 text-slate-500 border border-slate-200"
             )}
             style={filter === f ? { background: "#1E3A5F" } : {}}
           >
@@ -205,7 +205,7 @@ export default function AssignedCasesPage() {
       {/* Cases List */}
       <div className="space-y-3">
         {filtered.length === 0 ? (
-          <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
+          <div className="bg-white dark:bg-slate-950 rounded-2xl p-10 text-center shadow-sm">
             <FiFilter className="w-8 h-8 text-slate-300 mx-auto mb-2" />
             <p className="text-sm text-slate-400">No cases found</p>
             {cases.length === 0 && (
@@ -219,7 +219,7 @@ export default function AssignedCasesPage() {
               <button
                 key={c.id}
                 onClick={() => router.push(`/agent/cases/${c.id}`)}
-                className="w-full bg-white rounded-2xl p-4 text-left shadow-sm hover:shadow-md transition-all active:scale-[0.99] border border-transparent hover:border-slate-100"
+                className="w-full bg-white dark:bg-slate-950 rounded-2xl p-4 text-left shadow-sm hover:shadow-md transition-all active:scale-[0.99] border border-transparent hover:border-slate-100"
               >
                 {/* Top row */}
                 <div className="flex items-start justify-between mb-2">
