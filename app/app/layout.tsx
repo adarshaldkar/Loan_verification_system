@@ -38,7 +38,6 @@ const navItems = [
   { label: "Reports",      href: "/app/reports",     icon: FiBarChart2 },
   { label: "Branches",     href: "/app/branches",    icon: FiGitBranch },
   { label: "Audit Logs",   href: "/app/audit-logs",  icon: FiFileText },
-  { label: "Settings",     href: "/app/settings",    icon: FiSettings },
   { label: "Profile",      href: "/app/profile",     icon: FiUser },
   { label: "Approved",     href: "/app/approved",    icon: FiCheckCircle },
 ];
@@ -184,7 +183,6 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
     { label: "Reports",      href: "/app/reports",     icon: FiBarChart2,   hint: "Generate reports" },
     { label: "Branches",     href: "/app/branches",    icon: FiGitBranch,   hint: "Branch offices" },
     { label: "Audit Logs",   href: "/app/audit-logs",  icon: FiFileText,    hint: "Activity trail" },
-    { label: "Settings",     href: "/app/settings",    icon: FiSettings,    hint: "System settings" },
     { label: "Profile",      href: "/app/profile",     icon: FiUser,        hint: "My account" },
     { label: "Approved",     href: "/app/approved",    icon: FiCheckCircle, hint: "Approved documents" },
   ];
@@ -363,10 +361,6 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
               <DropdownMenuItem onClick={() => router.push("/app/profile")}>
                 <FiUser className="mr-2 w-4 h-4 text-slate-400" />
                 Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push("/app/settings")}>
-                <FiSettings className="mr-2 w-4 h-4 text-slate-400" />
-                Settings
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
