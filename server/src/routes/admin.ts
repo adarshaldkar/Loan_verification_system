@@ -5,7 +5,7 @@ import { authenticateToken, requireRole } from '../middlewares/auth';
 import { getDashboard, getAnalytics } from '../controllers/admin/dashboardController';
 import { getCustomers, createCustomerAndCase } from '../controllers/admin/customerController';
 import { getAgents, toggleAgentStatus, updateAgent } from '../controllers/admin/agentController';
-import { getCases, assignCase, assignBulkCases, updateCaseStatus, getCaseById } from '../controllers/admin/caseController';
+import { getCases, assignCase, assignBulkCases, batchAssignCases, updateCaseStatus, getCaseById } from '../controllers/admin/caseController';
 import { getCompletedCases, getVerificationDetail, reviewCase } from '../controllers/admin/verificationController';
 import { getBranches, createBranch } from '../controllers/admin/branchController';
 import { getReports, generateReport, getReportMetrics } from '../controllers/admin/reportController';
@@ -40,6 +40,7 @@ router.post('/customers', createCustomerAndCase);
 router.get('/cases', getCases);
 router.get('/cases/:caseId', getCaseById);
 router.put('/cases/bulk-assign', assignBulkCases);
+router.put('/cases/batch-assign', batchAssignCases);
 router.put('/cases/:caseId/assign', assignCase);
 router.put('/cases/:caseId/status', updateCaseStatus);
 

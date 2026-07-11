@@ -27,6 +27,7 @@ export const getCases = async (req: AuthRequest, res: Response) => {
       type: item.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
       status: resolveCaseStatus(item.status),
       agent: resolveAgentName(item.agent ?? null),
+      agentId: item.agentId,
       branch: item.branch ?? item.agent?.branch ?? item.customer.branch ?? 'Unassigned',
       slaDue: formatDateTime(item.createdAt),
       overdue: item.status !== 'COMPLETED' && item.status !== 'REJECTED',
@@ -180,5 +181,69 @@ export const assignBulkCases = async (req: AuthRequest, res: Response) => {
     return res.status(200).json({ success: true, message: `Successfully assigned cases for ${customerNames} to ${parseFullName(agent.firstName, agent.lastName)}` });
   } catch (error: any) {
     return apiError(res, 'Failed to assign cases', 500, error);
+  }
+};
+
+export const batchAssignCases = async (req: AuthRequest, res: Response) => {
+  try {
+    const adminId = req.user?.id;
+    const { assignments } = req.body;
+
+    if (!assignments || typeof assignments !== 'object' || Object.keys(assignments).length === 0) {
+      return res.status(400).json({ success: false, message: 'No assignments provided' });
+    }
+
+    const caseIds = Object.keys(assignments);
+    const agentIds = Array.from(new Set(Object.values(assignments))) as string[];
+
+    const [agents, casesData] = await Promise.all([
+      prisma.user.findMany({
+        where: { id: { in: agentIds }, role: 'FIELD_AGENT', adminId }
+      }),
+      prisma.verificationCase.findMany({
+        where: { id: { in: caseIds }, adminId },
+        include: { customer: true }
+      })
+    ]);
+
+    const agentMap = new Map(agents.map(a => [a.id, a]));
+    const caseMap = new Map(casesData.map(c => [c.id, c]));
+
+    const updates = caseIds.map(async (caseId) => {
+      const agentId = assignments[caseId];
+      if (!agentMap.has(agentId) || !caseMap.has(caseId)) return null;
+
+      return prisma.verificationCase.update({
+        where: { id: caseId },
+        data: { agentId, status: 'ASSIGNED' }
+      });
+    });
+
+    await Promise.all(updates);
+
+    const logDetails = caseIds
+      .map((caseId) => {
+        const c = caseMap.get(caseId);
+        const a = agentMap.get(assignments[caseId]);
+        if (!c || !a) return null;
+        return `${parseFullName(c.customer.firstName, c.customer.lastName)} → ${parseFullName(a.firstName, a.lastName)}`;
+      })
+      .filter(Boolean)
+      .join(', ');
+
+    await createAuditLog({
+      actor: `Admin (${adminId})`,
+      action: 'Batch assigned cases to agents',
+      entity: `Assignments: ${logDetails}`,
+      ip: req.ip || 'system',
+      adminId,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Successfully saved ${caseIds.length} agent assignments!`
+    });
+  } catch (error: any) {
+    return apiError(res, 'Failed to batch assign cases', 500, error);
   }
 };

@@ -85,6 +85,7 @@ export const getCasesApi = (status?: string) => api.get(`/admin/cases${status &&
 export const getCaseByIdAdminApi = (caseId: string) => api.get(`/admin/cases/${caseId}`);
 export const assignCaseApi = (caseId: string, agentId: string) => api.put(`/admin/cases/${caseId}/assign`, { agentId });
 export const assignBulkCasesApi = (caseIds: string[], agentId: string) => api.put(`/admin/cases/bulk-assign`, { caseIds, agentId });
+export const batchAssignCasesApi = (assignments: Record<string, string>) => api.put(`/admin/cases/batch-assign`, { assignments });
 export const updateCaseStatusApi = (caseId: string, status: string) => api.put(`/admin/cases/${caseId}/status`, { status });
 export const uploadBulkCasesApi = (fileName: string, rows: any[]) =>
   api.post("/admin/upload/bulk", { fileName, rows });
