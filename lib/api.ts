@@ -12,7 +12,7 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if ((error.response?.status === 401 || error.response?.status === 403) && typeof window !== "undefined") {
+    if (error.response?.status === 401 && typeof window !== "undefined") {
       localStorage.removeItem("lvms_user");
       localStorage.removeItem("lvms_agent");
       const isAgentPath = window.location.pathname.startsWith("/agent");

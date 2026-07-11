@@ -809,7 +809,7 @@ export default function AgentDashboard() {
 
           <button
             onClick={handleStartRide}
-            disabled={!liveCases[0]}
+            disabled={loading}
             className="w-full mt-4 bg-[#1E4DB7] text-white hover:bg-blue-800 disabled:opacity-50 disabled:hover:bg-[#1E4DB7] py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20"
           >
             <FiMapPin className="w-5 h-5" />

@@ -398,9 +398,31 @@ export default function AdminLayout({
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    const userStr = localStorage.getItem("lvms_user");
+    if (!userStr) {
+      router.push("/login");
+    } else {
+      setCheckingAuth(false);
+    }
+  }, [router]);
 
   function handleLogout() {
+    localStorage.removeItem("lvms_user");
     router.push("/login");
+  }
+
+  if (checkingAuth) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-[#F8FAFC]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-[#1E3A5F] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm text-slate-500 font-medium">Checking authorization...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
