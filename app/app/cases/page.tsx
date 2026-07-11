@@ -137,38 +137,17 @@ export default function CasesPage() {
   });
 
   return (
-    <div className="space-y-6 relative pb-20">
+    <div className="space-y-6 pb-6">
       <PageHeader
         title="Cases"
         description="Manage and assign all verification cases."
         action={
-          <div className="flex gap-3">
-            {Object.keys(pendingAssignments).length > 0 && (
-              <Button
-                onClick={handleSaveAllAssignments}
-                disabled={saving}
-                className="bg-blue-600 hover:bg-blue-500 text-white gap-2 font-semibold shadow-md"
-              >
-                {saving ? (
-                  <>
-                    <FiRefreshCw className="w-4 h-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <FiCheck className="w-4 h-4" />
-                    Save Assignments ({Object.keys(pendingAssignments).length})
-                  </>
-                )}
-              </Button>
-            )}
-            <Link href="/app/upload">
-              <Button className="bg-[--color-brand-900] hover:bg-[--color-brand-800] text-white gap-2">
-                <FiUserPlus className="w-4 h-4" />
-                Upload & Bulk Assign
-              </Button>
-            </Link>
-          </div>
+          <Link href="/app/upload">
+            <Button className="bg-[--color-brand-900] hover:bg-[--color-brand-800] text-white gap-2">
+              <FiUserPlus className="w-4 h-4" />
+              Upload & Bulk Assign
+            </Button>
+          </Link>
         }
       />
 
@@ -308,57 +287,59 @@ export default function CasesPage() {
             </tbody>
           </table>
         </div>
-        <div className="px-5 py-3 border-t border-border flex items-center justify-between text-xs text-slate-500">
+
+        {/* Footer Container with Always Present Submit Actions */}
+        <div className="px-5 py-3.5 border-t border-border flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500 bg-slate-50/50 dark:bg-slate-900/10">
           <span>
             Showing {filtered.length} of {casesList.length} cases
             {filtered.some((c) => c.overdue) && (
-              <span className="ml-3 text-amber-700 font-medium">
+              <span className="ml-3 text-amber-700 font-medium font-semibold">
                 ⚠ {filtered.filter((c) => c.overdue).length} overdue
               </span>
             )}
           </span>
-          <div className="flex gap-1">
-            <Button variant="outline" size="sm" className="h-7 px-3 text-xs" disabled>Previous</Button>
-            <Button variant="outline" size="sm" className="h-7 px-3 text-xs bg-[--color-brand-900] text-white border-[--color-brand-900]">1</Button>
-            <Button variant="outline" size="sm" className="h-7 px-3 text-xs">Next</Button>
+
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPendingAssignments({})}
+                disabled={Object.keys(pendingAssignments).length === 0 || saving}
+                className="h-8 text-xs font-semibold"
+              >
+                Discard
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveAllAssignments}
+                disabled={Object.keys(pendingAssignments).length === 0 || saving}
+                className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-600 text-white font-semibold h-8 text-xs flex items-center gap-1.5 shadow-sm transition-all"
+              >
+                {saving ? (
+                  <>
+                    <FiRefreshCw className="w-3 h-3 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <FiCheck className="w-3 h-3" />
+                    Submit Assignments {Object.keys(pendingAssignments).length > 0 ? `(${Object.keys(pendingAssignments).length})` : ""}
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
+
+            <div className="flex gap-1">
+              <Button variant="outline" size="sm" className="h-7 px-3 text-xs" disabled>Previous</Button>
+              <Button variant="outline" size="sm" className="h-7 px-3 text-xs bg-[--color-brand-900] text-white border-[--color-brand-900]">1</Button>
+              <Button variant="outline" size="sm" className="h-7 px-3 text-xs">Next</Button>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Floating Save Action Bar */}
-      {Object.keys(pendingAssignments).length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 dark:bg-slate-950/95 backdrop-blur-md px-6 py-3.5 rounded-full border border-slate-700/50 shadow-2xl flex items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <span className="text-sm font-medium text-slate-200">
-            {Object.keys(pendingAssignments).length} pending {Object.keys(pendingAssignments).length === 1 ? 'assignment' : 'assignments'}
-          </span>
-          <div className="flex gap-2.5">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-slate-400 hover:text-slate-200 text-xs px-3 py-1.5 h-8 rounded-full"
-              onClick={() => setPendingAssignments({})}
-              disabled={saving}
-            >
-              Discard
-            </Button>
-            <Button
-              size="sm"
-              className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-1.5 h-8 rounded-full shadow-lg flex items-center gap-1.5"
-              onClick={handleSaveAllAssignments}
-              disabled={saving}
-            >
-              {saving ? (
-                <>
-                  <FiRefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save Changes"
-              )}
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
