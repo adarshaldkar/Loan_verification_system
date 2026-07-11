@@ -257,6 +257,7 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth < 1024) {
@@ -264,10 +265,34 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
     }
   }, []);
 
+  useEffect(() => {
+    if (pathname === "/agent/login") {
+      setCheckingAuth(false);
+      return;
+    }
+    const agentStr = localStorage.getItem("lvms_agent");
+    if (!agentStr) {
+      router.push("/agent/login");
+    } else {
+      setCheckingAuth(false);
+    }
+  }, [pathname, router]);
+
   const isLoginPage = pathname === "/agent/login";
 
   if (isLoginPage) {
     return <div className="min-h-screen bg-[#F4F6FB] dark:bg-slate-900">{children}</div>;
+  }
+
+  if (checkingAuth) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-[#F4F6FB]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-[#1E4DB7] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm text-slate-500 font-medium">Checking authorization...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -12,7 +12,16 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if ((error.response?.status === 401 || error.response?.status === 403) && typeof window !== "undefined") {
+    const msg = error.response?.data?.message?.toLowerCase() || "";
+    const isAuthError =
+      error.response?.status === 401 ||
+      (error.response?.status === 403 &&
+        (msg.includes("role") ||
+          msg.includes("forbidden") ||
+          msg.includes("token") ||
+          msg.includes("access denied")));
+
+    if (isAuthError && typeof window !== "undefined") {
       localStorage.removeItem("lvms_user");
       localStorage.removeItem("lvms_agent");
       const isAgentPath = window.location.pathname.startsWith("/agent");
