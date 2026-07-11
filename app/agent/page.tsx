@@ -820,45 +820,50 @@ export default function AgentDashboard() {
         {/* Column 3: Stats & Actions */}
         <div className="space-y-6">
           {/* Card 1: Current Case */}
-          <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-[16px] font-bold text-gray-900">Current Case</h2>
-              {liveCases[0] && (
-                <Link href={`/agent/cases/${liveCases[0].id}`} className="text-xs font-semibold text-[#1E4DB7] hover:underline">
-                  View details
-                </Link>
-              )}
-            </div>
-            
-            {liveCases[0] ? (
-              <div className="space-y-2">
+          {(() => {
+            const currentActiveCase = liveCases.find((c: any) => ["ASSIGNED", "PENDING", "IN_PROGRESS"].includes(c.status)) || liveCases[0];
+            return (
+              <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-mono font-semibold text-gray-400">{liveCases[0].id}</span>
-                  <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">{liveCases[0].status}</span>
+                  <h2 className="text-[16px] font-bold text-gray-900">Current Case</h2>
+                  {currentActiveCase && (
+                    <Link href={`/agent/cases/${currentActiveCase.id}`} className="text-xs font-semibold text-[#1E4DB7] hover:underline">
+                      View details
+                    </Link>
+                  )}
                 </div>
-                <h3 className="text-[15px] font-bold text-gray-900">{liveCases[0].customer}</h3>
-                <p className="text-[11px] font-semibold text-gray-400">{liveCases[0].type === 'BUSINESS' ? 'Business' : 'Residential'} Verification</p>
                 
-                <div className="flex items-start gap-1.5 bg-gray-50 p-2.5 rounded-xl">
-                  <FiMapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-gray-500 leading-snug">{liveCases[0].address}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-sm text-gray-400">No active cases assigned</p>
-              </div>
-            )}
+                {currentActiveCase ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-mono font-semibold text-gray-400">{currentActiveCase.id}</span>
+                      <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">{currentActiveCase.status}</span>
+                    </div>
+                    <h3 className="text-[15px] font-bold text-gray-900">{currentActiveCase.customer}</h3>
+                    <p className="text-[11px] font-semibold text-gray-400">{currentActiveCase.type === 'BUSINESS' ? 'Business' : 'Residential'} Verification</p>
+                    
+                    <div className="flex items-start gap-1.5 bg-gray-50 p-2.5 rounded-xl">
+                      <FiMapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                      <p className="text-xs text-gray-500 leading-snug">{currentActiveCase.address}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-400">No active cases assigned</p>
+                  </div>
+                )}
 
-            <button
-              onClick={() => liveCases[0] && router.push(`/agent/verify/${liveCases[0].id}`)}
-              className="w-full text-white py-2.5 rounded-xl text-xs font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1.5"
-              style={{ background: "#1E4DB7" }}
-            >
-              <span>Continue Verification</span>
-              <FiArrowRight className="w-4 h-4" />
-            </button>
-          </div>
+                <button
+                  onClick={() => currentActiveCase && router.push(`/agent/verify/${currentActiveCase.id}`)}
+                  className="w-full text-white py-2.5 rounded-xl text-xs font-bold transition-all hover:opacity-90 flex items-center justify-center gap-1.5"
+                  style={{ background: "#1E4DB7" }}
+                >
+                  <span>{['APPROVED', 'COMPLETED', 'REJECTED'].includes(currentActiveCase?.status) ? "View Verification Details" : "Continue Verification"}</span>
+                  <FiArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            );
+          })()}
 
           {/* Card 2: Verification Progress */}
           <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm space-y-4">

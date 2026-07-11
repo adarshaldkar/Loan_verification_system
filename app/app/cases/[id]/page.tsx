@@ -143,13 +143,23 @@ export default function CaseDetailPage({
                 </h3>
               </div>
               {c.profileData ? (
-                Object.entries(c.profileData).filter(([k]) => k !== 'remarks').map(([key, val]) => (
-                  <FieldRow
-                    key={key}
-                    label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
-                    value={String(val)}
-                  />
-                ))
+                Object.entries(c.profileData).filter(([k]) => k !== 'remarks').map(([key, val]) => {
+                  let displayValue = String(val);
+                  if (Array.isArray(val)) {
+                    displayValue = `${val.length} item(s)`;
+                  } else if (typeof val === 'object' && val !== null) {
+                    displayValue = Object.entries(val)
+                      .map(([k, v]) => `${k.replace(/([A-Z])/g, " $1").trim()}: ${v}`)
+                      .join(", ");
+                  }
+                  return (
+                    <FieldRow
+                      key={key}
+                      label={key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())}
+                      value={displayValue}
+                    />
+                  );
+                })
               ) : (
                 <p className="text-sm text-gray-500">No profile data submitted yet.</p>
               )}

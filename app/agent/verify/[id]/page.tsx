@@ -58,6 +58,7 @@ type CurrentCase = {
   type: CaseType;
   address: string;
   branch: string;
+  status: string;
 };
 
 type EvidencePhoto = {
@@ -140,6 +141,7 @@ export default function CaseVerificationFormPage({
           type: fetched.type === "BUSINESS" ? "BUSINESS" : "RESIDENTIAL",
           address: customer.address ?? "",
           branch: fetched.branch ?? "Unassigned",
+          status: fetched.status ?? "PENDING",
         };
         setCurrentCase(mappedCase);
 
@@ -391,7 +393,16 @@ export default function CaseVerificationFormPage({
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         <div className="xl:col-span-8 bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {['APPROVED', 'COMPLETED', 'REJECTED'].includes(currentCase.status) && (
+            <div className="mb-6 bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-xl flex items-start gap-3">
+              <FiInfo className="w-5 h-5 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-bold">Case Closed</p>
+                <p className="opacity-90">This case has already been processed ({currentCase.status}). The form below is locked.</p>
+              </div>
+            </div>
+          )}
+          <form onSubmit={handleSubmit} className={cn("space-y-6", ['APPROVED', 'COMPLETED', 'REJECTED'].includes(currentCase.status) && "pointer-events-none opacity-60")}>
             {currentStep === 1 && (
               <div className="space-y-4">
                 <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
