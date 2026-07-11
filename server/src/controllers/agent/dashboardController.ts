@@ -48,9 +48,9 @@ export const getAgentDashboard = async (req: AuthRequest, res: Response) => {
 
     const recentCases = cases.slice(0, 5).map((c) => ({
       id: c.id,
-      customer: parseFullName(c.customer.firstName, c.customer.lastName),
-      phone: c.customer.phone ?? '',
-      address: c.customer.address,
+      customer: c.customer ? parseFullName(c.customer.firstName, c.customer.lastName) : 'Unknown Customer',
+      phone: c.customer?.phone ?? '',
+      address: c.customer?.address ?? 'No Address',
       type: c.type === 'RESIDENTIAL' ? 'Residential Verification' : 'Business Verification',
       status: c.status,
       priority: c.status === 'PENDING' ? 'High' : c.status === 'IN_PROGRESS' ? 'Medium' : 'Low',
@@ -66,8 +66,8 @@ export const getAgentDashboard = async (req: AuthRequest, res: Response) => {
         return {
           num: index + 1,
           id: c.id,
-          name: parseFullName(c.customer.firstName, c.customer.lastName),
-          address: c.customer.address,
+          name: c.customer ? parseFullName(c.customer.firstName, c.customer.lastName) : 'Unknown Customer',
+          address: c.customer?.address ?? 'No Address',
           type: c.type === 'RESIDENTIAL' ? 'Residential Verification' : 'Business Verification',
           time: times[index] || 'Today',
           status: c.status === 'IN_PROGRESS' ? 'In Progress' : 'Pending',
