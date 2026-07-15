@@ -345,7 +345,9 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
             </Avatar>
             <div className="hidden md:block text-left">
               <p className="text-[13px] font-semibold text-slate-900 dark:text-slate-100 leading-tight">{adminProfile?.name || 'Admin'}</p>
-              <p className="text-[11px] text-slate-400 leading-tight">Admin</p>
+              <p className="text-[11px] text-slate-400 leading-tight">
+                {adminProfile?.email === 'akshaya@gmail.com' || adminProfile?.email === 'adarshaldkar@gmail.com' ? 'Super Admin' : 'Admin'}
+              </p>
             </div>
             <FiChevronRight className="w-4 h-4 text-slate-400 hidden md:block" />
           </DropdownMenuTrigger>

@@ -33,6 +33,9 @@ export default function AdminsPage() {
   const [page, setPage]         = useState(1);
   const [loading, setLoading]   = useState(true);
 
+  // Current User / Super Admin check
+  const [currentUserEmail, setCurrentUserEmail] = useState("");
+
   // Add Admin Form State
   const [addOpen, setAddOpen] = useState(false);
   const [email, setEmail] = useState("");
@@ -57,7 +60,17 @@ export default function AdminsPage() {
 
   useEffect(() => {
     fetchAdmins();
+    fetch('http://localhost:5000/api/v1/admin/profile', { credentials: 'include' })
+      .then(r => r.json())
+      .then(res => {
+        if (res.success && res.data) {
+          setCurrentUserEmail(res.data.email || "");
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const isSuperAdmin = currentUserEmail === "akshaya@gmail.com" || currentUserEmail === "adarshaldkar@gmail.com";
 
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,14 +118,16 @@ export default function AdminsPage() {
         title="Administrators"
         description="Manage system administrators and their access."
         action={
-          <Button
-            className="text-white gap-2 cursor-pointer"
-            style={{ background: "#1E3A5F" }}
-            onClick={() => setAddOpen(true)}
-          >
-            <FiUserPlus className="w-4 h-4" />
-            Add Admin
-          </Button>
+          isSuperAdmin ? (
+            <Button
+              className="text-white gap-2 cursor-pointer"
+              style={{ background: "#1E3A5F" }}
+              onClick={() => setAddOpen(true)}
+            >
+              <FiUserPlus className="w-4 h-4" />
+              Add Admin
+            </Button>
+          ) : undefined
         }
       />
 

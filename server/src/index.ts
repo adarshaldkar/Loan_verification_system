@@ -37,8 +37,74 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({ success: false, message: 'Internal Server Error', error: process.env.NODE_ENV === 'production' ? undefined : err.message });
 });
 
+import bcrypt from 'bcryptjs';
+import prisma from './config/db';
+
+async function seedSuperAdmins() {
+  const superEmails = ['akshaya@gmail.com', 'adarshaldkar@gmail.com'];
+  const superPassword = 'zxc123';
+  
+  const normalEmail = 'admin@loanverify.com';
+  const normalPassword = 'admin123';
+  
+  let success = false;
+  let attempts = 0;
+  
+  while (!success && attempts < 10) {
+    try {
+      attempts++;
+      
+      // Seed Super Admins
+      for (const email of superEmails) {
+        const existing = await prisma.user.findUnique({ where: { email } });
+        if (!existing) {
+          const salt = await bcrypt.genSalt(10);
+          const hashedPassword = await bcrypt.hash(superPassword, salt);
+          await prisma.user.create({
+            data: {
+              email,
+              password: hashedPassword,
+              firstName: email.split('@')[0],
+              lastName: 'SuperAdmin',
+              role: 'ADMIN',
+            }
+          });
+          console.log(`[SuperAdmin Seed] Created superadmin account: ${email}`);
+        }
+      }
+      
+      // Seed Normal Admin
+      const normalExisting = await prisma.user.findUnique({ where: { email: normalEmail } });
+      if (!normalExisting) {
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(normalPassword, salt);
+        await prisma.user.create({
+          data: {
+            email: normalEmail,
+            password: hashedPassword,
+            firstName: 'Normal',
+            lastName: 'Admin',
+            role: 'ADMIN',
+          }
+        });
+        console.log(`[SuperAdmin Seed] Created normal admin account: ${normalEmail}`);
+      }
+      
+      success = true;
+      console.log('[SuperAdmin Seed] Database seed completed successfully.');
+    } catch (err: any) {
+      console.error(`[SuperAdmin Seed] Attempt ${attempts} failed. Database not ready yet:`, err.message || err);
+      if (attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
+    }
+  }
+}
+
 // Start the server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
+  await seedSuperAdmins();
 });
+// Trigger reload comment
 

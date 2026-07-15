@@ -5,6 +5,12 @@ import { apiError } from '../../utils/helpers';
 
 export const registerAdmin = async (req: Request, res: Response) => {
   try {
+    const requesterId = (req as any).user?.id;
+    const requester = await prisma.user.findUnique({ where: { id: requesterId } });
+    if (!requester || (requester.email !== 'akshaya@gmail.com' && requester.email !== 'adarshaldkar@gmail.com')) {
+      return res.status(403).json({ success: false, message: 'Forbidden. Only Super Admins can register new Admins.' });
+    }
+
     const { email, password, firstName, lastName, phone, branch } = req.body;
     
     const existingUser = await prisma.user.findUnique({ where: { email } });
