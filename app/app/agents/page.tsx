@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { FiSearch, FiEye, FiUserPlus, FiUserX, FiUserCheck, FiChevronLeft, FiChevronRight, FiEdit2 } from "react-icons/fi";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -41,6 +42,7 @@ type Agent = {
 const PAGE_SIZE = 4;
 
 export default function AgentsPage() {
+  const router = useRouter();
   const [search, setSearch]     = useState("");
   const [agentList, setAgentList] = useState<Agent[]>([]);
   const [selected, setSelected] = useState<Agent | null>(null);
@@ -358,7 +360,7 @@ export default function AgentsPage() {
 
       {/* Agent Detail Sheet */}
       <Sheet open={!!selected} onOpenChange={() => setSelected(null)}>
-        <SheetContent className="w-[400px] sm:w-[480px]">
+        <SheetContent className="w-[400px] sm:w-[480px] p-6 sm:p-8">
           {selected && (
             <>
               <SheetHeader className="mb-6">
@@ -407,8 +409,8 @@ export default function AgentsPage() {
                   className="flex-1 text-white cursor-pointer"
                   style={{ background: "#1E3A5F" }}
                   onClick={() => {
+                    router.push(`/app/cases?search=${encodeURIComponent(selected.name)}`);
                     setSelected(null);
-                    toast.info(`Opening case history for ${selected.name}`);
                   }}
                 >
                   View Case History
@@ -436,7 +438,7 @@ export default function AgentsPage() {
 
        {/* Add / Edit Agent Sheet */}
       <Sheet open={addOpen} onOpenChange={setAddOpen}>
-        <SheetContent className="w-[400px] sm:w-[480px] overflow-y-auto">
+        <SheetContent className="w-[400px] sm:w-[480px] p-6 sm:p-8 overflow-y-auto">
           <SheetHeader className="mb-6">
             <SheetTitle className="text-xl">{editAgentId ? "Edit Agent Profile" : "Register New Agent"}</SheetTitle>
             <SheetDescription>

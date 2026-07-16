@@ -18,6 +18,8 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import LocationPickerMap from "@/components/shared/LocationPickerMap";
 import {
   getAgentCaseByIdApi,
@@ -26,24 +28,24 @@ import {
 } from "@/lib/api";
 
 const residentialSchema = z.object({
-  applicantName: z.string().min(2),
-  mobileNumber: z.string().min(10),
-  houseNo: z.string().min(1),
-  streetArea: z.string().min(2),
-  cityTown: z.string().min(2),
-  district: z.string().min(1),
-  pincode: z.string().regex(/^[0-9]{6}$/),
+  applicantName: z.string().min(2, { message: "Name must be at least 2 characters" }),
+  mobileNumber: z.string().regex(/^(?:\+91|0)?[6-9]\d{9}$/, { message: "Invalid 10-digit phone number" }),
+  houseNo: z.string().min(1, { message: "House number is required" }),
+  streetArea: z.string().min(2, { message: "Street/Area must be at least 2 characters" }),
+  cityTown: z.string().min(2, { message: "City/Town must be at least 2 characters" }),
+  district: z.string().min(1, { message: "District is required" }),
+  pincode: z.string().regex(/^[0-9]{6}$/, { message: "Pincode must be exactly 6 digits" }),
   remarks: z.string().max(300).optional(),
 });
 
 const businessSchema = z.object({
-  companyName: z.string().min(2),
-  natureOfBusiness: z.string().min(2),
-  doorNo: z.string().min(1),
-  streetArea: z.string().min(2),
-  cityTown: z.string().min(2),
-  district: z.string().min(1),
-  pincode: z.string().regex(/^[0-9]{6}$/),
+  companyName: z.string().min(2, { message: "Company name must be at least 2 characters" }),
+  natureOfBusiness: z.string().min(2, { message: "Nature of business must be at least 2 characters" }),
+  doorNo: z.string().min(1, { message: "Door number is required" }),
+  streetArea: z.string().min(2, { message: "Street/Area must be at least 2 characters" }),
+  cityTown: z.string().min(2, { message: "City/Town must be at least 2 characters" }),
+  district: z.string().min(1, { message: "District is required" }),
+  pincode: z.string().regex(/^[0-9]{6}$/, { message: "Pincode must be exactly 6 digits" }),
   remarks: z.string().max(300).optional(),
 });
 
@@ -277,6 +279,10 @@ export default function CaseVerificationFormPage({
     e.preventDefault();
     if (!currentCase) return;
 
+    if (currentStep !== 6) {
+      return;
+    }
+
     if (!validateActiveForm()) {
       setCurrentStep(4);
       toast.error("Please fix form errors");
@@ -402,7 +408,15 @@ export default function CaseVerificationFormPage({
               </div>
             </div>
           )}
-          <form onSubmit={handleSubmit} className={cn("space-y-6", ['APPROVED', 'COMPLETED', 'REJECTED'].includes(currentCase.status) && "pointer-events-none opacity-60")}>
+          <form
+            onSubmit={handleSubmit}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+              }
+            }}
+            className={cn("space-y-6", ['APPROVED', 'COMPLETED', 'REJECTED'].includes(currentCase.status) && "pointer-events-none opacity-60")}
+          >
             {currentStep === 1 && (
               <div className="space-y-4">
                 <div className="flex items-center gap-3 pb-3 border-b border-gray-100 dark:border-slate-800">
@@ -506,42 +520,213 @@ export default function CaseVerificationFormPage({
                 </h2>
                 {currentCase.type === "BUSINESS" ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Company Name" value={busForm.companyName} onChange={getBusSetter("companyName")} />
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Nature of Business" value={busForm.natureOfBusiness} onChange={getBusSetter("natureOfBusiness")} />
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Door No" value={busForm.doorNo} onChange={getBusSetter("doorNo")} />
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Street / Area" value={busForm.streetArea} onChange={getBusSetter("streetArea")} />
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="City / Town" value={busForm.cityTown} onChange={getBusSetter("cityTown")} />
-                    <select className="border rounded-xl px-3 py-2 text-sm" value={busForm.district} onChange={getBusSetter("district")}>
-                      {DISTRICT_OPTIONS.map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Pincode" value={busForm.pincode} onChange={getBusSetter("pincode")} />
+                    <div className="space-y-1.5 flex flex-col">
+                      <Label htmlFor="companyName" className="text-[13px] font-semibold text-slate-700">
+                        Company Name <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="companyName"
+                        placeholder="Company Name"
+                        value={busForm.companyName}
+                        onChange={getBusSetter("companyName")}
+                        className={cn("h-10 rounded-xl", errors.companyName ? "border-rose-500 focus-visible:ring-rose-500" : "border-slate-200")}
+                      />
+                      {errors.companyName && <p className="text-[11px] text-rose-500 font-medium">{errors.companyName}</p>}
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col">
+                      <Label htmlFor="natureOfBusiness" className="text-[13px] font-semibold text-slate-700">
+                        Nature of Business <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="natureOfBusiness"
+                        placeholder="Nature of Business"
+                        value={busForm.natureOfBusiness}
+                        onChange={getBusSetter("natureOfBusiness")}
+                        className={cn("h-10 rounded-xl", errors.natureOfBusiness ? "border-rose-500 focus-visible:ring-rose-500" : "border-slate-200")}
+                      />
+                      {errors.natureOfBusiness && <p className="text-[11px] text-rose-500 font-medium">{errors.natureOfBusiness}</p>}
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col">
+                      <Label htmlFor="doorNo" className="text-[13px] font-semibold text-slate-700">
+                        Door No <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="doorNo"
+                        placeholder="Door No"
+                        value={busForm.doorNo}
+                        onChange={getBusSetter("doorNo")}
+                        className={cn("h-10 rounded-xl", errors.doorNo ? "border-rose-500 focus-visible:ring-rose-500" : "border-slate-200")}
+                      />
+                      {errors.doorNo && <p className="text-[11px] text-rose-500 font-medium">{errors.doorNo}</p>}
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col">
+                      <Label htmlFor="streetArea" className="text-[13px] font-semibold text-slate-700">
+                        Street / Area <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="streetArea"
+                        placeholder="Street / Area"
+                        value={busForm.streetArea}
+                        onChange={getBusSetter("streetArea")}
+                        className={cn("h-10 rounded-xl", errors.streetArea ? "border-rose-500 focus-visible:ring-rose-500" : "border-slate-200")}
+                      />
+                      {errors.streetArea && <p className="text-[11px] text-rose-500 font-medium">{errors.streetArea}</p>}
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col">
+                      <Label htmlFor="cityTown" className="text-[13px] font-semibold text-slate-700">
+                        City / Town <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="cityTown"
+                        placeholder="City / Town"
+                        value={busForm.cityTown}
+                        onChange={getBusSetter("cityTown")}
+                        className={cn("h-10 rounded-xl", errors.cityTown ? "border-rose-500 focus-visible:ring-rose-500" : "border-slate-200")}
+                      />
+                      {errors.cityTown && <p className="text-[11px] text-rose-500 font-medium">{errors.cityTown}</p>}
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col">
+                      <Label htmlFor="district" className="text-[13px] font-semibold text-slate-700">
+                        District <span className="text-rose-500">*</span>
+                      </Label>
+                      <select
+                        id="district"
+                        className={cn("border rounded-xl px-3 h-10 text-sm bg-white dark:bg-slate-900", errors.district ? "border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500" : "border-slate-200")}
+                        value={busForm.district}
+                        onChange={getBusSetter("district")}
+                      >
+                        {DISTRICT_OPTIONS.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.district && <p className="text-[11px] text-rose-500 font-medium">{errors.district}</p>}
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col">
+                      <Label htmlFor="pincode" className="text-[13px] font-semibold text-slate-700">
+                        Pincode <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="pincode"
+                        placeholder="6-digit Pincode"
+                        value={busForm.pincode}
+                        onChange={getBusSetter("pincode")}
+                        className={cn("h-10 rounded-xl", errors.pincode ? "border-rose-500 focus-visible:ring-rose-500" : "border-slate-200")}
+                      />
+                      {errors.pincode && <p className="text-[11px] text-rose-500 font-medium">{errors.pincode}</p>}
+                    </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Applicant Name" value={resForm.applicantName} onChange={getResSetter("applicantName")} />
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Mobile Number" value={resForm.mobileNumber} onChange={getResSetter("mobileNumber")} />
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="House No" value={resForm.houseNo} onChange={getResSetter("houseNo")} />
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Street / Area" value={resForm.streetArea} onChange={getResSetter("streetArea")} />
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="City / Town" value={resForm.cityTown} onChange={getResSetter("cityTown")} />
-                    <select className="border rounded-xl px-3 py-2 text-sm" value={resForm.district} onChange={getResSetter("district")}>
-                      {DISTRICT_OPTIONS.map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
-                    <input className="border rounded-xl px-3 py-2 text-sm" placeholder="Pincode" value={resForm.pincode} onChange={getResSetter("pincode")} />
-                  </div>
-                )}
-                {Object.keys(errors).length > 0 && (
-                  <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3">
-                    {Object.entries(errors).map(([k, v]) => (
-                      <p key={k}>{k}: {v}</p>
-                    ))}
+                    <div className="space-y-1.5 flex flex-col">
+                      <Label htmlFor="applicantName" className="text-[13px] font-semibold text-slate-700">
+                        Applicant Name <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="applicantName"
+                        placeholder="Applicant Name"
+                        value={resForm.applicantName}
+                        onChange={getResSetter("applicantName")}
+                        className={cn("h-10 rounded-xl", errors.applicantName ? "border-rose-500 focus-visible:ring-rose-500" : "border-slate-200")}
+                      />
+                      {errors.applicantName && <p className="text-[11px] text-rose-500 font-medium">{errors.applicantName}</p>}
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col">
+                      <Label htmlFor="mobileNumber" className="text-[13px] font-semibold text-slate-700">
+                        Mobile Number <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="mobileNumber"
+                        placeholder="Mobile Number"
+                        value={resForm.mobileNumber}
+                        onChange={getResSetter("mobileNumber")}
+                        className={cn("h-10 rounded-xl", errors.mobileNumber ? "border-rose-500 focus-visible:ring-rose-500" : "border-slate-200")}
+                      />
+                      {errors.mobileNumber && <p className="text-[11px] text-rose-500 font-medium">{errors.mobileNumber}</p>}
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col">
+                      <Label htmlFor="houseNo" className="text-[13px] font-semibold text-slate-700">
+                        House No <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="houseNo"
+                        placeholder="House No"
+                        value={resForm.houseNo}
+                        onChange={getResSetter("houseNo")}
+                        className={cn("h-10 rounded-xl", errors.houseNo ? "border-rose-500 focus-visible:ring-rose-500" : "border-slate-200")}
+                      />
+                      {errors.houseNo && <p className="text-[11px] text-rose-500 font-medium">{errors.houseNo}</p>}
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col">
+                      <Label htmlFor="streetArea" className="text-[13px] font-semibold text-slate-700">
+                        Street / Area <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="streetArea"
+                        placeholder="Street / Area"
+                        value={resForm.streetArea}
+                        onChange={getResSetter("streetArea")}
+                        className={cn("h-10 rounded-xl", errors.streetArea ? "border-rose-500 focus-visible:ring-rose-500" : "border-slate-200")}
+                      />
+                      {errors.streetArea && <p className="text-[11px] text-rose-500 font-medium">{errors.streetArea}</p>}
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col">
+                      <Label htmlFor="cityTown" className="text-[13px] font-semibold text-slate-700">
+                        City / Town <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="cityTown"
+                        placeholder="City / Town"
+                        value={resForm.cityTown}
+                        onChange={getResSetter("cityTown")}
+                        className={cn("h-10 rounded-xl", errors.cityTown ? "border-rose-500 focus-visible:ring-rose-500" : "border-slate-200")}
+                      />
+                      {errors.cityTown && <p className="text-[11px] text-rose-500 font-medium">{errors.cityTown}</p>}
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col">
+                      <Label htmlFor="district" className="text-[13px] font-semibold text-slate-700">
+                        District <span className="text-rose-500">*</span>
+                      </Label>
+                      <select
+                        id="district"
+                        className={cn("border rounded-xl px-3 h-10 text-sm bg-white dark:bg-slate-900", errors.district ? "border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500" : "border-slate-200")}
+                        value={resForm.district}
+                        onChange={getResSetter("district")}
+                      >
+                        {DISTRICT_OPTIONS.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.district && <p className="text-[11px] text-rose-500 font-medium">{errors.district}</p>}
+                    </div>
+
+                    <div className="space-y-1.5 flex flex-col">
+                      <Label htmlFor="pincode" className="text-[13px] font-semibold text-slate-700">
+                        Pincode <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="pincode"
+                        placeholder="6-digit Pincode"
+                        value={resForm.pincode}
+                        onChange={getResSetter("pincode")}
+                        className={cn("h-10 rounded-xl", errors.pincode ? "border-rose-500 focus-visible:ring-rose-500" : "border-slate-200")}
+                      />
+                      {errors.pincode && <p className="text-[11px] text-rose-500 font-medium">{errors.pincode}</p>}
+                    </div>
                   </div>
                 )}
               </div>

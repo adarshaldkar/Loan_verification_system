@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import {
   FiUsers, FiBriefcase, FiClock, FiCheckCircle,
-  FiUserCheck, FiGitBranch, FiFile, FiUploadCloud, FiUserPlus, FiCalendar, FiChevronDown,
+  FiUserCheck, FiGitBranch, FiFile, FiUploadCloud, FiUserPlus, FiCalendar, FiChevronDown, FiXCircle, FiRefreshCw,
 } from "react-icons/fi";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
@@ -96,6 +96,8 @@ export default function DashboardPage() {
   const [livePieData, setLivePieData] = useState<any[] | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [adminName, setAdminName] = useState('Admin');
+  const [currentUserEmail, setCurrentUserEmail] = useState("");
+  const [adminPerformance, setAdminPerformance] = useState<any[]>([]);
 
   useEffect(() => {
     fetch('http://localhost:5000/api/v1/admin/profile', { credentials: 'include' })
@@ -103,6 +105,7 @@ export default function DashboardPage() {
       .then(res => {
         if (res.success && res.data) {
           setAdminName(res.data.firstName || res.data.name?.split(' ')[0] || 'Admin');
+          setCurrentUserEmail(res.data.email || "");
         }
       })
       .catch(() => {});
@@ -119,6 +122,7 @@ export default function DashboardPage() {
         setAnalytics(analyticsRes.data.data);
         setRecentCases(dash.recentCases ?? []);
         setTopAgents(dash.topAgents ?? []);
+        setAdminPerformance(dash.adminPerformance ?? []);
         if (dash.recentActivity?.length) setRecentActivity(dash.recentActivity);
         if (dash.lineData?.length) setLiveLineData(dash.lineData);
         if (dash.pieData?.length) setLivePieData(dash.pieData);
@@ -133,8 +137,12 @@ export default function DashboardPage() {
 
   // Compute live KPI values from analytics
   const totalCases = analytics?.caseBreakdown?.reduce((sum: number, c: any) => sum + c.count, 0) ?? 0;
-  const pendingCount = analytics?.caseBreakdown?.find((c: any) => c.status === "PENDING")?.count ?? 0;
-  const completedCount = analytics?.caseBreakdown?.find((c: any) => c.status === "COMPLETED")?.count ?? 0;
+  const pendingCount = (analytics?.caseBreakdown?.find((c: any) => c.status === "PENDING")?.count ?? 0) +
+                       (analytics?.caseBreakdown?.find((c: any) => c.status === "ASSIGNED")?.count ?? 0);
+  const completedCount = (analytics?.caseBreakdown?.find((c: any) => c.status === "COMPLETED")?.count ?? 0) +
+                         (analytics?.caseBreakdown?.find((c: any) => c.status === "APPROVED")?.count ?? 0);
+
+  const isSuperAdmin = currentUserEmail === "akshaya@gmail.com" || currentUserEmail === "adarshaldkar@gmail.com";
 
   const kpiData = [
     { label: "Total Customers", value: analytics?.totalCustomers ?? 0,  icon: <FiUsers />,        iconBg: "bg-blue-50 dark:bg-slate-800",    trend: 15.3 },
@@ -143,6 +151,8 @@ export default function DashboardPage() {
     { label: "Completed Cases", value: completedCount,                   icon: <FiCheckCircle />,  iconBg: "bg-teal-50 dark:bg-slate-800",    trend: 18.7 },
     { label: "Active Agents",   value: analytics?.totalAgents ?? 0,     icon: <FiUserCheck />,    iconBg: "bg-indigo-50 dark:bg-slate-800",  trend: 9.4  },
     { label: "Branches",        value: analytics?.totalBranches ?? 0,                     icon: <FiGitBranch />,    iconBg: "bg-slate-100 dark:bg-slate-800",  trend: 0    },
+    { label: "Rejected Cases",  value: analytics?.caseBreakdown?.find((c: any) => c.status === "REJECTED")?.count ?? 0, icon: <FiXCircle className="text-rose-600" />, iconBg: "bg-rose-50 dark:bg-slate-800", trend: 0 },
+    { label: "Re-verification", value: analytics?.reverificationCount ?? 0, icon: <FiRefreshCw className="text-orange-600" />, iconBg: "bg-orange-50 dark:bg-slate-800", trend: 0 },
   ];
 
   const pieData = [
@@ -165,8 +175,8 @@ export default function DashboardPage() {
         </div>
 
         {/* KPI Cards Skeleton */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="card-flat p-4 space-y-3 bg-white border border-border rounded-xl">
               <div className="flex items-center justify-between">
                 <Skeleton className="h-10 w-10 rounded-lg" />
@@ -312,7 +322,7 @@ export default function DashboardPage() {
       />
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4">
         {kpiData.map((kpi) => (
           <StatsCard key={kpi.label} {...kpi} />
         ))}
@@ -423,107 +433,80 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Bottom Row: Recent Cases + Right Panels ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-stretch">
-        {/* Recent Cases — fills available height */}
-        <div className="lg:col-span-3 flex flex-col">
-          <SectionCard title="Recent Cases" viewAllHref="/app/cases">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border">
-                    <th className="px-5 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Case ID</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Customer</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider hidden md:table-cell">Type</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider hidden lg:table-cell">Agent</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider hidden xl:table-cell">Updated On</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {recentCases.map((c) => (
-                    <tr key={c.id} className="hover:bg-slate-50 cursor-pointer transition-colors">
-                      <td className="px-5 py-3.5">
-                        <span className="font-mono text-xs text-slate-600 flex items-center gap-1.5">
-                          <FiFile className="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                          {c.id}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5 font-medium text-slate-900">{c.customer}</td>
-                      <td className="px-4 py-3.5 text-slate-500 hidden md:table-cell">{c.type}</td>
-                      <td className="px-4 py-3.5"><StatusBadge status={c.status} /></td>
-                      <td className="px-4 py-3.5 text-slate-500 hidden lg:table-cell">{c.agent}</td>
-                      <td className="px-4 py-3.5 text-slate-400 text-xs hidden xl:table-cell whitespace-nowrap">{c.updatedOn}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </SectionCard>
-        </div>
-
-        {/* Right column */}
-        <div className="lg:col-span-2 flex flex-col gap-4">
-          {/* Recent Activity */}
-          <SectionCard title="Recent Activity">
-            <div className="divide-y divide-border">
-              {recentActivity.map((item, i) => (
-                <div key={i} className="flex gap-3 px-5 py-3.5 hover:bg-slate-50 transition-colors">
-                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-base", item.bg)}>
-                    {typeof item.icon === "string" ? ICON_MAP[item.icon] ?? ICON_MAP["activity"] : item.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900 leading-tight">{item.title}</p>
-                    <p className="text-xs text-slate-400 mt-0.5 line-clamp-2">{item.desc}</p>
-                  </div>
-                  <p className="text-[11px] text-slate-400 shrink-0 whitespace-nowrap">{item.time}</p>
-                </div>
-              ))}
-            </div>
-            <div className="px-5 py-3 border-t border-border">
-              <Link
-                href="/app/audit-logs"
-                className="text-xs font-medium text-[#1E3A5F] hover:underline flex items-center gap-1"
-              >
-                View All Activity
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            </div>
-          </SectionCard>
-
-          {/* Top Agents */}
-          <SectionCard title="Top Agents Performance" viewAllHref="/app/agents">
-            <div className="px-5 py-3">
-              <div className="grid grid-cols-4 text-[11px] font-medium text-slate-400 uppercase tracking-wider pb-2 border-b border-border">
-                <span className="col-span-2">Agent Name</span>
-                <span className="text-center">Completed</span>
-                <span className="text-right">Rate</span>
-              </div>
-              <div className="space-y-3 pt-3">
-                {topAgents.map((agent, index) => (
-                  <div key={`${agent.name}-${index}`} className="grid grid-cols-4 items-center gap-2">
-                    <div className="col-span-2 flex items-center gap-2">
+      {/* ── Admin Performance (Super Admin Only) ── */}
+      {isSuperAdmin && adminPerformance.length > 0 && (
+        <SectionCard title="Administrators Performance Overview">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="px-5 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Admin Name</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Email</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">Total Cases</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider text-amber-700">Pending</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider text-teal-700">Completed</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider text-emerald-800">Verified (Approved)</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider text-rose-700">Rejected</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider text-orange-700">Re-verification</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider font-bold">Overall Verifications</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {adminPerformance.map((admin) => (
+                  <tr key={admin.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-3.5 font-medium text-slate-900 flex items-center gap-3">
                       <Avatar className="w-7 h-7 shrink-0">
                         <AvatarFallback className="text-[10px] font-semibold" style={{ background: "#E8EFF8", color: "#1E3A5F" }}>
-                          {agent.name.split(" ").map((n: string) => n[0]).join("")}
+                          {admin.name.split(" ").map((n: string) => n[0]).join("")}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-xs font-medium text-slate-900 truncate">{agent.name}</span>
-                    </div>
-                    <span className="text-xs text-slate-600 text-center">{agent.completed}</span>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-xs font-semibold text-slate-900">{agent.rate}%</span>
-                      <Progress value={agent.rate} className="h-1.5 w-full" />
-                    </div>
-                  </div>
+                      {admin.name}
+                    </td>
+                    <td className="px-4 py-3.5 text-slate-500">{admin.email}</td>
+                    <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{admin.total}</td>
+                    <td className="px-4 py-3.5 text-center text-amber-700">{admin.pending}</td>
+                    <td className="px-4 py-3.5 text-center text-teal-700">{admin.completed}</td>
+                    <td className="px-4 py-3.5 text-center text-emerald-800">{admin.verified}</td>
+                    <td className="px-4 py-3.5 text-center text-rose-700">{admin.rejected ?? 0}</td>
+                    <td className="px-4 py-3.5 text-center text-orange-700">{admin.reverification ?? 0}</td>
+                    <td className="px-4 py-3.5 text-center font-bold text-slate-900">{admin.overall}</td>
+                  </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        </SectionCard>
+      )}
+
+      {/* ── Bottom Row: Top Agents Performance ── */}
+      <SectionCard title="Top Agents Performance" viewAllHref="/app/agents">
+        <div className="px-5 py-4">
+          <div className="grid grid-cols-4 text-xs font-semibold text-slate-400 uppercase tracking-wider pb-3 border-b border-border">
+            <span className="col-span-2">Agent Name</span>
+            <span className="text-center">Completed Cases</span>
+            <span className="text-right">Success Rate</span>
+          </div>
+          <div className="space-y-4 pt-4">
+            {topAgents.map((agent, index) => (
+              <div key={`${agent.name}-${index}`} className="grid grid-cols-4 items-center gap-4">
+                <div className="col-span-2 flex items-center gap-3">
+                  <Avatar className="w-8 h-8 shrink-0">
+                    <AvatarFallback className="text-xs font-bold" style={{ background: "#E8EFF8", color: "#1E3A5F" }}>
+                      {agent.name.split(" ").map((n: string) => n[0]).join("")}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm font-semibold text-slate-900 truncate">{agent.name}</span>
+                </div>
+                <span className="text-sm text-slate-600 text-center font-medium">{agent.completed}</span>
+                <div className="flex flex-col items-end gap-1.5 w-full">
+                  <span className="text-xs font-bold text-slate-900">{agent.rate}%</span>
+                  <Progress value={agent.rate} className="h-2 w-full" />
+                </div>
               </div>
-            </div>
-          </SectionCard>
+            ))}
+          </div>
         </div>
-      </div>
+      </SectionCard>
     </div>
   );
 }

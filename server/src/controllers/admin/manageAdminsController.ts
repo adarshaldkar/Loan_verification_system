@@ -70,3 +70,44 @@ export const getAdmins = async (req: Request, res: Response) => {
     return apiError(res, 'Failed to load admins', 500, error);
   }
 };
+
+export const updateAdmin = async (req: Request, res: Response) => {
+  try {
+    const requesterId = (req as any).user?.id;
+    const requester = await prisma.user.findUnique({ where: { id: requesterId } });
+    if (!requester || (requester.email !== 'akshaya@gmail.com' && requester.email !== 'adarshaldkar@gmail.com')) {
+      return res.status(403).json({ success: false, message: 'Forbidden. Only Super Admins can edit Admins.' });
+    }
+
+    const adminId = req.params.adminId;
+    const { email, password, firstName, lastName, phone, branch, isActive } = req.body;
+
+    const existingAdmin = await prisma.user.findUnique({ where: { id: adminId } });
+    if (!existingAdmin || existingAdmin.role !== 'ADMIN') {
+      return res.status(404).json({ success: false, message: 'Admin not found' });
+    }
+
+    let hashedPassword = undefined;
+    if (password && password.trim() !== '') {
+      const salt = await bcrypt.genSalt(10);
+      hashedPassword = await bcrypt.hash(password, salt);
+    }
+
+    const updated = await prisma.user.update({
+      where: { id: adminId },
+      data: {
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName,
+        phone,
+        branch,
+        isActive: isActive !== undefined ? isActive : undefined,
+      },
+    });
+
+    res.status(200).json({ success: true, message: 'Admin updated successfully', user: updated });
+  } catch (error: any) {
+    return apiError(res, 'Failed to update admin', 500, error);
+  }
+};

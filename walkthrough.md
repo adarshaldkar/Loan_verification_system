@@ -39,10 +39,4 @@ I wrote out all the crucial endpoints needed to bring your Admin Dashboard to li
 #### 📝 Review & Analytics
 - **`PUT /api/v1/admin/cases/:caseId/status`**: The endpoint where admins review submitted geo-tagged photos and mark cases as `COMPLETED` or `REJECTED`.
 - **`GET /api/v1/admin/analytics`**: A dedicated high-speed endpoint that aggregates total agents, total customers, and groups cases by status—perfect for powering dashboard charts.
-
----
-
-## 🚦 Next Steps
-
-The backend is now waiting for the frontend Admin Panel to start talking to it! 
 You can start testing these endpoints via Postman, or we can move on to building the **Field Agent API** (Mobile App APIs for GPS photo uploads).

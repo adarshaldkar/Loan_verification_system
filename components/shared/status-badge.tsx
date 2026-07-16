@@ -2,9 +2,11 @@ import { cn } from "@/lib/utils";
 
 export type VerificationStatus =
   | "Completed"
+  | "Approved"
   | "Pending"
   | "In Progress"
-  | "Rejected";
+  | "Rejected"
+  | "Re-verification";
 
 interface StatusBadgeProps {
   status: VerificationStatus;
@@ -16,15 +18,19 @@ const statusMap: Record<
   { label: string; className: string }
 > = {
   Completed:   { label: "Completed",   className: "badge-completed" },
+  Approved:    { label: "Approved",    className: "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50" },
   Pending:     { label: "Pending",     className: "badge-pending" },
   "In Progress": { label: "In Progress", className: "badge-inprogress" },
   Rejected:    { label: "Rejected",    className: "badge-rejected" },
+  "Re-verification": { label: "Needs Revision", className: "bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-900/50" },
 };
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   // Normalize status string (e.g., "IN_PROGRESS" -> "In Progress", "PENDING" -> "Pending")
   const normalizedStatus = (
     (status as string) === "IN_PROGRESS" ? "In Progress" :
+    (status as string) === "RE_VERIFICATION" ? "Re-verification" :
+    (status as string) === "APPROVED" ? "Approved" :
     status.charAt(0).toUpperCase() + status.slice(1).toLowerCase()
   ) as VerificationStatus;
   

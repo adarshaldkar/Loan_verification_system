@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { FiSearch, FiFilter, FiEye, FiBriefcase, FiPhone, FiMapPin, FiChevronLeft, FiChevronRight } from "react-icons/fi";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ const PAGE_SIZE = 5;
 /* ─── Customers Page ─────────────────────────────────────────────────────── */
 
 export default function CustomersPage() {
+  const router = useRouter();
   const [search, setSearch]         = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [selected, setSelected]     = useState<Customer | null>(null);
@@ -223,7 +225,7 @@ export default function CustomersPage() {
 
       {/* ── Customer Detail Sheet ── */}
       <Sheet open={!!selected} onOpenChange={() => setSelected(null)}>
-        <SheetContent className="w-[400px] sm:w-[480px]">
+        <SheetContent className="w-[400px] sm:w-[480px] p-6 sm:p-8">
           {selected && (
             <>
               <SheetHeader className="mb-6">
@@ -262,7 +264,10 @@ export default function CustomersPage() {
                 <Button
                   className="w-full text-white cursor-pointer"
                   style={{ background: "#1E3A5F" }}
-                  onClick={() => { toast.info(`Opening cases for ${selected.name}`); setSelected(null); }}
+                  onClick={() => {
+                    router.push(`/app/cases?search=${encodeURIComponent(selected.name)}`);
+                    setSelected(null);
+                  }}
                 >
                   View Linked Case
                 </Button>

@@ -7,7 +7,7 @@ import {
   FiGrid, FiUsers, FiUserCheck, FiBriefcase, FiUploadCloud,
   FiBarChart2, FiGitBranch, FiFileText, FiSettings, FiUser,
   FiLogOut, FiShield, FiChevronLeft, FiChevronRight,
-  FiBell, FiSearch, FiMenu, FiCheckCircle, FiAlertCircle, FiInfo, FiMapPin, FiStar, FiSun, FiMoon
+  FiBell, FiSearch, FiMenu, FiCheckCircle, FiAlertCircle, FiInfo, FiMapPin, FiStar, FiSun, FiMoon, FiUserPlus
 } from "react-icons/fi";
 
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -23,6 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { getAuditLogsApi, getSettingsApi } from "@/lib/api";
 
 /* ─── Nav Items ──────────────────────────────────────────────────────────── */
 
@@ -58,7 +59,7 @@ function SidebarContent({
       {/* Logo */}
       <div
         className={cn(
-          "flex items-center gap-3 px-4 py-5 border-b border-border dark:border-slate-800 shrink-0",
+          "flex items-center gap-3 px-4 h-14 border-b border-border dark:border-slate-800 shrink-0",
           collapsed && "justify-center px-2"
         )}
       >
@@ -170,8 +171,77 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
     }
   };
 
-  // Admin notifications are not yet fully wired to the backend
-  const notifications: any[] = [];
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadNotifications() {
+      try {
+        const [logsRes, settingsRes] = await Promise.all([
+          getAuditLogsApi(),
+          getSettingsApi()
+        ]);
+        if (logsRes.data.success && settingsRes.data.success) {
+          const logs = logsRes.data.data || [];
+          const settings = settingsRes.data.data || {};
+          
+          const mapped = logs
+            .map((log: any) => {
+              let type = "info";
+              let title = log.action;
+              let bg = "bg-blue-50 dark:bg-slate-800 text-blue-600";
+              let iconElement = <FiInfo className="w-4 h-4" />;
+
+              if (log.action.toLowerCase().includes("verification") || log.action.toLowerCase().includes("completed")) {
+                type = "success";
+                title = "Verification Completed";
+                bg = "bg-teal-50 dark:bg-slate-800 text-teal-600";
+                iconElement = <FiCheckCircle className="w-4 h-4" />;
+              } else if (log.action.toLowerCase().includes("upload") || log.action.toLowerCase().includes("import")) {
+                type = "upload";
+                title = "Excel Upload Completed";
+                bg = "bg-indigo-50 dark:bg-slate-800 text-indigo-600";
+                iconElement = <FiUploadCloud className="w-4 h-4" />;
+              } else if (log.action.toLowerCase().includes("create") || log.action.toLowerCase().includes("register")) {
+                type = "activity";
+                title = log.action;
+                bg = "bg-amber-50 dark:bg-slate-800 text-amber-600";
+                iconElement = <FiUserPlus className="w-4 h-4" />;
+              }
+
+              // Apply Settings filters
+              if (log.action.includes("Verification submitted") && !settings.notifyCaseComplete) {
+                return null;
+              }
+              if (log.action.toLowerCase().includes("upload") && !settings.notifyNewUpload) {
+                return null;
+              }
+
+              return {
+                id: log.id,
+                icon: iconElement,
+                bg,
+                title,
+                desc: log.entity,
+                time: new Date(log.createdAt).toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit"
+                }),
+                unread: true
+              };
+            })
+            .filter(Boolean)
+            .slice(0, 5);
+
+          setNotifications(mapped);
+        }
+      } catch (err) {
+        console.error("Failed to load layout notifications:", err);
+      }
+    }
+    loadNotifications();
+  }, [notifOpen]);
 
   const quickLinks = [
     { label: "Dashboard",    href: "/app",             icon: FiGrid,        hint: "Overview" },
@@ -315,6 +385,7 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-900 font-medium leading-snug">{n.title}</p>
+                    {n.desc && <p className="text-xs text-slate-500 truncate mt-0.5">{n.desc}</p>}
                     <p className="text-xs text-slate-400 mt-0.5">{n.time}</p>
                   </div>
                   {n.unread && <span className="w-2 h-2 rounded-full bg-[#1E3A5F] mt-1.5 shrink-0" />}

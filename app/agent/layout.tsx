@@ -59,7 +59,7 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-950 border-r border-gray-100 dark:border-slate-800">
       {/* Logo */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-800">
+      <div className="flex items-center justify-between px-5 h-14 border-b border-gray-100 dark:border-slate-800">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "#1E4DB7" }}>
             <FiShield className="w-5 h-5 text-white" />

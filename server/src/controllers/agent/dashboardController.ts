@@ -34,17 +34,32 @@ export const getAgentDashboard = async (req: AuthRequest, res: Response) => {
     const total      = cases.length;
     const pending    = cases.filter((c) => c.status === 'ASSIGNED' || c.status === 'PENDING').length;
     const inProgress = cases.filter((c) => c.status === 'IN_PROGRESS').length;
-    const completed  = cases.filter((c) => c.status === 'COMPLETED').length;
+    const completed  = cases.filter((c) => c.status === 'COMPLETED' || c.status === 'APPROVED').length;
     const rejected   = cases.filter((c) => c.status === 'REJECTED').length;
+    const reverification = cases.filter((item: any) => {
+      try {
+        const pd = typeof item.profileData === 'string' ? JSON.parse(item.profileData) : item.profileData;
+        return pd?.adminReview?.decision === 'NEEDS_REVISION';
+      } catch {
+        return false;
+      }
+    }).length;
 
-    // Calculate average turnaround time in minutes
     const completedDurations = cases
-      .filter((c) => c.status === 'COMPLETED' && c.completedAt)
+      .filter((c) => (c.status === 'COMPLETED' || c.status === 'APPROVED') && c.completedAt)
       .map((c) => Math.max(1, Math.round((new Date(c.completedAt as Date).getTime() - new Date(c.createdAt).getTime()) / 60000)));
     
-    const avgTime = completedDurations.length
-      ? `${Math.round(completedDurations.reduce((sum, value) => sum + value, 0) / completedDurations.length)} min`
-      : '—';
+    let avgTime = '—';
+    if (completedDurations.length) {
+      const avgMinutes = Math.round(completedDurations.reduce((sum, value) => sum + value, 0) / completedDurations.length);
+      if (avgMinutes >= 60) {
+        const hours = Math.floor(avgMinutes / 60);
+        const mins = avgMinutes % 60;
+        avgTime = mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+      } else {
+        avgTime = `${avgMinutes}m`;
+      }
+    }
 
     const recentCases = cases.slice(0, 5).map((c) => ({
       id: c.id,
@@ -84,7 +99,7 @@ export const getAgentDashboard = async (req: AuthRequest, res: Response) => {
           branchCity,
           email: agent.email,
         },
-        kpis: { total, pending, inProgress, completed, rejected, avgTime },
+        kpis: { total, pending, inProgress, completed, rejected, reverification, avgTime },
         recentCases,
         todaySchedule,
       },

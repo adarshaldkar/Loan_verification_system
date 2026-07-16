@@ -11,11 +11,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { getAgentProfileApi } from "@/lib/api";
+import { getAgentProfileApi, updateAgentProfileApi, updateAgentPasswordApi } from "@/lib/api";
 
 type AgentProfile = {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
   phone: string;
   branch: string;
@@ -61,27 +63,58 @@ export default function AgentProfilePage() {
     loadProfile();
   }, []);
 
-  const handleUpdateProfile = () => {
-    // We can add an update API later. For now, just close edit mode.
-    toast.success("Profile details updated locally (API not wired)!");
-    setIsEditingPhone(false);
+  const handleUpdateProfile = async () => {
+    if (!phone.trim()) {
+      toast.error("Phone number is required");
+      return;
+    }
+    const phoneRegex = /^(?:\+91|0)?[6-9]\d{9}$/;
+    if (!phoneRegex.test(phone)) {
+      toast.error("Phone must be exactly 10 digits");
+      return;
+    }
+    try {
+      const res = await updateAgentProfileApi({
+        firstName: agent?.firstName || agent?.name?.split(" ")[0] || "",
+        lastName: agent?.lastName || agent?.name?.split(" ").slice(1).join(" ") || "",
+        phone
+      });
+      if (res.data.success) {
+        toast.success("Profile details updated successfully!");
+        setAgent(prev => prev ? { ...prev, phone } : null);
+        setIsEditingPhone(false);
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to update profile details");
+    }
   };
 
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!oldPassword || !newPassword || !confirmPassword) {
       toast.error("Please fill in all password fields.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters.");
       return;
     }
     if (newPassword !== confirmPassword) {
       toast.error("New passwords do not match.");
       return;
     }
-    toast.success("Password change feature coming soon!");
-    setShowPasswordModal(false);
-    setOldPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
+    try {
+      const res = await updateAgentPasswordApi({ oldPassword, newPassword });
+      if (res.data.success) {
+        toast.success("Password changed successfully!");
+        setShowPasswordModal(false);
+        setOldPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to change password");
+    }
   };
 
   if (loading) {

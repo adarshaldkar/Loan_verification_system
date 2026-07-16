@@ -37,6 +37,17 @@ export default function CasesPage() {
   const [agents, setAgents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Pre-populate search from URL query param if present
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const query = params.get("search");
+      if (query) {
+        setSearch(decodeURIComponent(query));
+      }
+    }
+  }, []);
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -52,6 +63,8 @@ export default function CasesPage() {
         if (s === "In Progress") return "IN_PROGRESS";
         if (s === "Completed") return "COMPLETED";
         if (s === "Rejected") return "REJECTED";
+        if (s === "Approved") return "APPROVED";
+        if (s === "Re-verification") return "RE-VERIFICATION";
         return "All";
       };
       const res = await getCasesApi(mapStatus(statusFilter));
@@ -141,7 +154,8 @@ export default function CasesPage() {
   const filtered = casesList.filter((c) => {
     const matchSearch =
       c.id.toLowerCase().includes(search.toLowerCase()) ||
-      c.customer.toLowerCase().includes(search.toLowerCase());
+      c.customer.toLowerCase().includes(search.toLowerCase()) ||
+      (c.agent && c.agent.toLowerCase().includes(search.toLowerCase()));
     const matchType = typeFilter === "All" || c.type === typeFilter;
     return matchSearch && matchType;
   });
@@ -187,6 +201,8 @@ export default function CasesPage() {
             <SelectItem value="In Progress">In Progress</SelectItem>
             <SelectItem value="Completed">Completed</SelectItem>
             <SelectItem value="Rejected">Rejected</SelectItem>
+            <SelectItem value="Approved">Approved</SelectItem>
+            <SelectItem value="Re-verification">Needs Revision</SelectItem>
           </SelectContent>
         </Select>
         <Select value={typeFilter} onValueChange={(v) => v && setTypeFilter(v)}>
