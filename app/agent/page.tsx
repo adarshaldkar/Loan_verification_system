@@ -332,6 +332,8 @@ export default function AgentDashboard() {
     if (activeKpi) {
       if (activeKpi === "Assigned") {
         result = result.filter(c => c.status === "ASSIGNED" || c.status === "PENDING" || c.status === "IN_PROGRESS");
+      } else if (activeKpi === "Re-verification") {
+        result = result.filter(c => c.needsRevision);
       } else {
         result = result.filter(c => c.status === activeKpi.toUpperCase());
       }
@@ -572,7 +574,7 @@ export default function AgentDashboard() {
       </div>
 
       {/* ── KPI Grid ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {/* 1. Assigned Cases */}
         <button
           onClick={() => handleKpiClick("Assigned")}
@@ -643,13 +645,31 @@ export default function AgentDashboard() {
           </div>
           <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">Rejected</p>
           <p className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 mt-1">{dashboardData?.kpis?.rejected ?? 0}</p>
-          <div className="flex items-center gap-1 mt-2 text-xs font-medium text-rose-600 hover:underline">
+          <div className="flex items-center gap-1 mt-2 text-xs font-medium text-rose-600">
             <span>Declined/failed</span>
           </div>
         </button>
 
-        {/* 5. Avg Time */}
-        <div className="bg-white dark:bg-slate-950 rounded-2xl p-4 text-left border border-gray-100 dark:border-slate-800 shadow-sm col-span-2 lg:col-span-1">
+        {/* 5. Re-verification */}
+        <button
+          onClick={() => handleKpiClick("Re-verification")}
+          className={cn(
+            "bg-white dark:bg-slate-950 rounded-2xl p-4 text-left border transition-all shadow-sm hover:shadow-md",
+            activeKpi === "Re-verification" ? "border-[#1E4DB7] ring-1 ring-[#1E4DB7]" : "border-gray-100 dark:border-slate-800"
+          )}
+        >
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-orange-50 text-orange-600 mb-3">
+            <FiRefreshCw className="w-5 h-5" />
+          </div>
+          <p className="text-xs font-semibold text-gray-500 dark:text-slate-400">Re-verification</p>
+          <p className="text-3xl font-extrabold text-gray-900 dark:text-slate-100 mt-1">{dashboardData?.kpis?.reverification ?? 0}</p>
+          <div className="flex items-center gap-1 mt-2 text-xs font-medium text-orange-600">
+            <span>Needs Revision</span>
+          </div>
+        </button>
+
+        {/* 6. Avg Time */}
+        <div className="bg-white dark:bg-slate-950 rounded-2xl p-4 text-left border border-gray-100 dark:border-slate-800 shadow-sm">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-purple-50 text-purple-600 mb-3">
             <FiClock className="w-5 h-5" />
           </div>

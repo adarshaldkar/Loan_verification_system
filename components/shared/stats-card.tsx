@@ -32,11 +32,11 @@ export function StatsCard({
       )}
     >
       {/* Icon + Label row */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-slate-500">{label}</p>
+      <div className="flex items-center justify-between gap-1.5 min-w-0">
+        <p className="text-xs xl:text-[13px] font-medium text-slate-500 whitespace-nowrap truncate" title={label}>{label}</p>
         <div
           className={cn(
-            "w-10 h-10 rounded-xl flex items-center justify-center text-[--color-brand-900] dark:text-slate-200 text-lg",
+            "w-10 h-10 rounded-xl flex items-center justify-center text-[--color-brand-900] dark:text-slate-200 text-lg shrink-0",
             iconBg
           )}
         >

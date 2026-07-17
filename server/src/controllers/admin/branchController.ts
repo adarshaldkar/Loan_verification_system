@@ -5,12 +5,10 @@ import { apiError, createAuditLog } from '../../utils/helpers';
 
 export const getBranches = async (req: AuthRequest, res: Response) => {
   try {
-    const adminId = req.user?.id;
-
     const [branches, agents, cases] = await Promise.all([
-      (prisma.branch as any).findMany({ where: { adminId }, orderBy: { createdAt: 'asc' } }),
-      (prisma.user as any).findMany({ where: { role: 'FIELD_AGENT', adminId } }),
-      (prisma.verificationCase as any).findMany({ where: { adminId }, include: { agent: { select: { branch: true } } } }),
+      (prisma.branch as any).findMany({ orderBy: { createdAt: 'asc' } }),
+      (prisma.user as any).findMany({ where: { role: 'FIELD_AGENT' } }),
+      (prisma.verificationCase as any).findMany({ include: { agent: { select: { branch: true } } } }),
     ]);
 
     const data = branches.map((branch: any) => {

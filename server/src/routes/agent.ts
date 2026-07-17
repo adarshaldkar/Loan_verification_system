@@ -5,7 +5,8 @@ import { authenticateToken, requireRole } from '../middlewares/auth';
 // ── Domain-Specific Agent Controllers ─────────────────────────────────────
 import { getAgentDashboard } from '../controllers/agent/dashboardController';
 import { getAgentCases, getAgentCaseById, updateAgentCaseStatus, submitVerification, uploadEvidence } from '../controllers/agent/caseController';
-import { getAgentProfile } from '../controllers/agent/profileController';
+import { getAgentProfile, updateAgentProfile } from '../controllers/agent/profileController';
+import { updatePassword } from '../controllers/admin/profileController';
 import { getAgentNotifications } from '../controllers/agent/notificationController';
 import { upload } from '../config/cloudinary';
 
@@ -37,6 +38,8 @@ router.post('/cases/:id/evidence', upload.single('file'), uploadEvidence);
 
 // ── Profile ────────────────────────────────────────────────────────────────
 router.get('/profile', getAgentProfile);
+router.put('/profile', updateAgentProfile);
+router.put('/profile/password', updatePassword);
 
 // ── Notifications ──────────────────────────────────────────────────────────
 router.get('/notifications', getAgentNotifications);

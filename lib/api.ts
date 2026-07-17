@@ -70,6 +70,12 @@ export const registerAdminApi = (data: {
   firstName: string; lastName: string;
   phone?: string; branch?: string;
 }) => api.post("/admin/admins/register", data);
+export const updateAdminApi = (adminId: string, data: {
+  email: string; password?: string;
+  firstName: string; lastName: string;
+  phone?: string; branch?: string;
+  isActive?: boolean;
+}) => api.put(`/admin/admins/${adminId}`, data);
 
 // ─── Customers ────────────────────────────────────────────────────────────
 export const getCustomersApi = () => api.get("/admin/customers");
@@ -111,6 +117,8 @@ export const getAuditLogsApi = () => api.get("/admin/audit-logs");
 
 // ─── Profile & Settings ───────────────────────────────────────────────────
 export const getProfileApi = () => api.get("/admin/profile");
+export const updateProfileApi = (data: { firstName: string; lastName: string; phone?: string }) => api.put("/admin/profile", data);
+export const updatePasswordApi = (data: { oldPassword: string; newPassword: string }) => api.put("/admin/profile/password", data);
 export const getSettingsApi = () => api.get("/admin/settings");
 export const updateSettingsApi = (data: any) => api.put("/admin/settings", data);
 
@@ -147,6 +155,12 @@ export const submitVerificationApi = (id: string, data: {
 
 export const getAgentProfileApi = () =>
   api.get("/agent/profile");
+
+export const updateAgentProfileApi = (data: { firstName: string; lastName: string; phone?: string }) =>
+  api.put("/agent/profile", data);
+
+export const updateAgentPasswordApi = (data: { oldPassword: string; newPassword: string }) =>
+  api.put("/agent/profile/password", data);
 
 export const getAgentNotificationsApi = () =>
   api.get("/agent/notifications");

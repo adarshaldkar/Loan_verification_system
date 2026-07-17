@@ -11,10 +11,31 @@ import { getBranches, createBranch } from '../controllers/admin/branchController
 import { getReports, generateReport, getReportMetrics } from '../controllers/admin/reportController';
 import { getAuditLogs } from '../controllers/admin/auditLogController';
 import { getSettings, updateSettings } from '../controllers/admin/settingsController';
-import { getProfile } from '../controllers/admin/profileController';
+import { getProfile, updateProfile, updatePassword } from '../controllers/admin/profileController';
 import { bulkUploadCases, getBatchStatus } from '../controllers/admin/uploadController';
 import { registerAgent } from '../controllers/authController';
-import { registerAdmin, getAdmins } from '../controllers/admin/manageAdminsController';
+import { registerAdmin, getAdmins, updateAdmin } from '../controllers/admin/manageAdminsController';
+import { z } from 'zod';
+import { validate } from '../middlewares/validate';
+
+const registerAdminSchema = z.object({
+  firstName: z.string().min(2, 'First name must be at least 2 characters'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  phone: z.string().regex(/^(?:\+91|0)?[6-9]\d{9}$/, 'Invalid phone format (e.g. +91XXXXXXXXXX or standard 10 digits)').optional().or(z.literal('')),
+  branch: z.string().min(2, 'Branch must be at least 2 characters'),
+});
+
+const updateAdminSchema = z.object({
+  firstName: z.string().min(2, 'First name must be at least 2 characters'),
+  lastName: z.string().min(1, 'Last name is required'),
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional().or(z.literal('')),
+  phone: z.string().regex(/^(?:\+91|0)?[6-9]\d{9}$/, 'Invalid phone format (e.g. +91XXXXXXXXXX or standard 10 digits)').optional().or(z.literal('')),
+  branch: z.string().min(2, 'Branch must be at least 2 characters'),
+  isActive: z.boolean().optional(),
+});
 
 const router = Router();
 
@@ -63,6 +84,8 @@ router.get('/audit-logs', getAuditLogs);
 
 // ── Profile & Settings ─────────────────────────────────────────────────────
 router.get('/profile', getProfile);
+router.put('/profile', updateProfile);
+router.put('/profile/password', updatePassword);
 router.get('/settings', getSettings);
 router.put('/settings', updateSettings);
 
@@ -72,7 +95,8 @@ router.get('/upload/batch/:batchId', getBatchStatus);
 
 // ── Admins ──────────────────────────────────────────────────────────────────
 router.get('/admins', getAdmins);
-router.post('/admins/register', registerAdmin);
+router.post('/admins/register', validate(registerAdminSchema), registerAdmin);
+router.put('/admins/:adminId', validate(updateAdminSchema), updateAdmin);
 
 // ── Tracking ───────────────────────────────────────────────────────────────
 import { getActiveRides, getRideHistory } from '../controllers/admin/trackingController';

@@ -16,13 +16,13 @@ export const getAgents = async (req: AuthRequest, res: Response) => {
 
     const data = agents.map((agent: any) => {
       const assignedCases: any[] = agent.assignedCases;
-      const completedCases = assignedCases.filter((item) => item.status === 'COMPLETED').length;
+      const completedCases = assignedCases.filter((item) => item.status === 'COMPLETED' || item.status === 'APPROVED').length;
       const activeCases = assignedCases.filter((item) => item.status === 'ASSIGNED' || item.status === 'IN_PROGRESS').length;
       const rejectedCases = assignedCases.filter((item) => item.status === 'REJECTED').length;
       const totalResolved = completedCases + rejectedCases;
       const successRate = totalResolved === 0 ? 0 : Math.round((completedCases / totalResolved) * 100);
       const completedDurations = assignedCases
-        .filter((item) => item.status === 'COMPLETED' && item.completedAt)
+        .filter((item) => (item.status === 'COMPLETED' || item.status === 'APPROVED') && item.completedAt)
         .map((item) => Math.max(1, Math.round((new Date(item.completedAt).getTime() - new Date(item.createdAt).getTime()) / 86400000)));
       const avgTurnaround = completedDurations.length
         ? `${(completedDurations.reduce((sum: number, value: number) => sum + value, 0) / completedDurations.length).toFixed(1)} days`

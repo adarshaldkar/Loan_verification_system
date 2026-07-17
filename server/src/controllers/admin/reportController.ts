@@ -1,18 +1,31 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import prisma from '../../config/db';
+import { AuthRequest } from '../../middlewares/auth';
 import { formatDateTime, apiError } from '../../utils/helpers';
 
-export const getReports = async (req: Request, res: Response) => {
+export const getReports = async (req: AuthRequest, res: Response) => {
   try {
-    const reports = await prisma.report.findMany({ orderBy: { createdAt: 'desc' } });
+    const adminId = req.user?.id;
+    const requester = await prisma.user.findUnique({ where: { id: adminId } });
+    const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+
+    const reports = await prisma.report.findMany({
+      where: isSuperAdmin ? {} : { adminId },
+      orderBy: { createdAt: 'desc' }
+    });
+
     return res.status(200).json({ success: true, data: reports });
   } catch (error: any) {
     return apiError(res, 'Failed to load reports', 500, error);
   }
 };
 
-export const getReportMetrics = async (req: Request, res: Response) => {
+export const getReportMetrics = async (req: AuthRequest, res: Response) => {
   try {
+    const adminId = req.user?.id;
+    const requester = await prisma.user.findUnique({ where: { id: adminId } });
+    const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+
     const { timeframe } = req.query; // 'daily', 'weekly', 'monthly'
     let startDate = new Date();
 
@@ -27,6 +40,7 @@ export const getReportMetrics = async (req: Request, res: Response) => {
 
     const cases = await prisma.verificationCase.findMany({
       where: {
+        ...(isSuperAdmin ? {} : { adminId }),
         updatedAt: {
           gte: startDate
         }
@@ -47,8 +61,9 @@ export const getReportMetrics = async (req: Request, res: Response) => {
   }
 };
 
-export const generateReport = async (req: Request, res: Response) => {
+export const generateReport = async (req: AuthRequest, res: Response) => {
   try {
+    const adminId = req.user?.id;
     const { reportType, format, dateRange } = req.body;
     if (!reportType || !format) {
       return res.status(400).json({ success: false, message: 'Report type and format are required' });
@@ -71,6 +86,7 @@ export const generateReport = async (req: Request, res: Response) => {
         size: `${(Math.random() * 3 + 0.5).toFixed(1)} MB`,
         dateRange,
         format,
+        adminId,
       },
     });
 

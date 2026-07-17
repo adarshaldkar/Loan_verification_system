@@ -17,19 +17,28 @@ export const getAgentCases = async (req: AuthRequest, res: Response) => {
       orderBy: { updatedAt: 'desc' },
     });
 
-    const data = cases.map((c) => ({
-      id: c.id,
-      customer: c.customer ? parseFullName(c.customer.firstName, c.customer.lastName) : 'Unknown Customer',
-      phone: c.customer?.phone ?? '',
-      address: c.customer?.address ?? 'No Address',
-      type: c.type === 'RESIDENTIAL' ? 'RESIDENTIAL' : 'BUSINESS',
-      loanType: c.customer?.loanType ?? 'N/A',
-      loanAmount: c.customer?.loanAmount ?? 0,
-      status: c.status,
-      branch: c.branch ?? c.customer?.branch ?? 'Unassigned',
-      assignedOn: formatDateTime(c.createdAt),
-      mediaCount: c.media.length,
-    }));
+    const data = cases.map((c) => {
+      let needsRevision = false;
+      try {
+        const pd = typeof c.profileData === 'string' ? JSON.parse(c.profileData) : c.profileData;
+        needsRevision = pd?.adminReview?.decision === 'NEEDS_REVISION';
+      } catch {}
+
+      return {
+        id: c.id,
+        customer: c.customer ? parseFullName(c.customer.firstName, c.customer.lastName) : 'Unknown Customer',
+        phone: c.customer?.phone ?? '',
+        address: c.customer?.address ?? 'No Address',
+        type: c.type === 'RESIDENTIAL' ? 'RESIDENTIAL' : 'BUSINESS',
+        loanType: c.customer?.loanType ?? 'N/A',
+        loanAmount: c.customer?.loanAmount ?? 0,
+        status: c.status,
+        needsRevision,
+        branch: c.branch ?? c.customer?.branch ?? 'Unassigned',
+        assignedOn: formatDateTime(c.createdAt),
+        mediaCount: c.media.length,
+      };
+    });
 
     return res.status(200).json({ success: true, data });
   } catch (error: any) {

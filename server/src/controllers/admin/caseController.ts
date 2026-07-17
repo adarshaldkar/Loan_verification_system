@@ -9,9 +9,9 @@ export const getCases = async (req: AuthRequest, res: Response) => {
     const { status } = req.query;
 
     const whereClause: any = { adminId };
-    if (status) whereClause.status = status as string;
+    if (status && status !== 'RE-VERIFICATION') whereClause.status = status as string;
 
-    const cases = await prisma.verificationCase.findMany({
+    let cases = await prisma.verificationCase.findMany({
       where: whereClause,
       include: {
         customer: true,
@@ -21,17 +21,36 @@ export const getCases = async (req: AuthRequest, res: Response) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    const data = cases.map((item) => ({
-      id: item.id,
-      customer: parseFullName(item.customer.firstName, item.customer.lastName),
-      type: item.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
-      status: resolveCaseStatus(item.status),
-      agent: resolveAgentName(item.agent ?? null),
-      agentId: item.agentId,
-      branch: item.branch ?? item.agent?.branch ?? item.customer.branch ?? 'Unassigned',
-      slaDue: formatDateTime(item.createdAt),
-      overdue: item.status !== 'COMPLETED' && item.status !== 'REJECTED',
-    }));
+    if (status === 'RE-VERIFICATION') {
+      cases = cases.filter((item: any) => {
+        try {
+          const pd = typeof item.profileData === 'string' ? JSON.parse(item.profileData) : item.profileData;
+          return pd?.adminReview?.decision === 'NEEDS_REVISION';
+        } catch {
+          return false;
+        }
+      });
+    }
+
+    const data = cases.map((item) => {
+      let isRevision = false;
+      try {
+        const pd = typeof item.profileData === 'string' ? JSON.parse(item.profileData) : item.profileData;
+        isRevision = pd?.adminReview?.decision === 'NEEDS_REVISION';
+      } catch {}
+
+      return {
+        id: item.id,
+        customer: parseFullName(item.customer.firstName, item.customer.lastName),
+        type: item.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
+        status: isRevision ? 'RE_VERIFICATION' : resolveCaseStatus(item.status),
+        agent: resolveAgentName(item.agent ?? null),
+        agentId: item.agentId,
+        branch: item.branch ?? item.agent?.branch ?? item.customer.branch ?? 'Unassigned',
+        slaDue: formatDateTime(item.createdAt),
+        overdue: item.status !== 'COMPLETED' && item.status !== 'APPROVED' && item.status !== 'REJECTED',
+      };
+    });
 
     return res.status(200).json({ success: true, data });
   } catch (error: any) {

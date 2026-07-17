@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FiSearch, FiEye, FiUserPlus, FiShield, FiChevronLeft, FiChevronRight } from "react-icons/fi";
+import { FiSearch, FiEye, FiUserPlus, FiShield, FiChevronLeft, FiChevronRight, FiEdit } from "react-icons/fi";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,9 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/shared/page-header";
-import { getAdminsApi, registerAdminApi } from "@/lib/api";
+import { getAdminsApi, registerAdminApi, updateAdminApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { z } from "zod";
 
 type Admin = {
   id: string;
@@ -46,6 +47,20 @@ export default function AdminsPage() {
   const [branch, setBranch] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Edit Admin Form State
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingAdminId, setEditingAdminId] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editBranch, setEditBranch] = useState("");
+  const [editStatus, setEditStatus] = useState<"Active" | "Inactive">("Active");
+
+  // Form Validation Errors
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
   const fetchAdmins = async () => {
     try {
       setLoading(true);
@@ -72,9 +87,144 @@ export default function AdminsPage() {
 
   const isSuperAdmin = currentUserEmail === "akshaya@gmail.com" || currentUserEmail === "adarshaldkar@gmail.com";
 
+  const validateField = (name: string, value: any, isEdit = false) => {
+    let schema;
+    if (name === "email") {
+      schema = z.string().email("Invalid email address");
+    } else if (name === "password") {
+      schema = isEdit 
+        ? z.string().min(6, "Password must be at least 6 characters").optional().or(z.literal(""))
+        : z.string().min(6, "Password must be at least 6 characters");
+    } else if (name === "firstName") {
+      schema = z.string().min(2, "First Name must be at least 2 characters");
+    } else if (name === "lastName") {
+      schema = z.string().min(1, "Last Name is required");
+    } else if (name === "phone") {
+      schema = z.string().regex(/^(?:\+91|0)?[6-9]\d{9}$/, "Phone must be exactly 10 digits (with optional +91 or 0 prefix)").optional().or(z.literal(""));
+    } else if (name === "branch") {
+      schema = z.string().min(2, "Branch must be at least 2 characters");
+    }
+
+    if (schema) {
+      const res = schema.safeParse(value);
+      if (!res.success) {
+        setFormErrors(prev => ({ ...prev, [name]: res.error.issues[0].message }));
+      } else {
+        setFormErrors(prev => {
+          const next = { ...prev };
+          delete next[name];
+          return next;
+        });
+      }
+    }
+  };
+
+  const handleOpenEdit = (a: Admin) => {
+    setFormErrors({});
+    setEditingAdminId(a.id);
+    setEditEmail(a.email);
+    setEditPassword("");
+    const names = a.name.split(" ");
+    setEditFirstName(names[0] || "");
+    setEditLastName(names.slice(1).join(" ") || "");
+    setEditPhone(a.phone || "");
+    setEditBranch(a.branch || "");
+    setEditStatus(a.status);
+    setEditOpen(true);
+  };
+
+  const handleEditAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setFormErrors({});
+
+    const editSchema = z.object({
+      firstName: z.string().min(2, "First Name must be at least 2 characters"),
+      lastName: z.string().min(1, "Last Name is required"),
+      email: z.string().email("Invalid email address"),
+      password: z.string().min(6, "Password must be at least 6 characters").optional().or(z.literal("")),
+      phone: z.string().regex(/^(?:\+91|0)?[6-9]\d{9}$/, "Phone must be exactly 10 digits (with optional +91 or 0 prefix)").optional().or(z.literal("")),
+      branch: z.string().min(2, "Branch must be at least 2 characters"),
+    });
+
+    const result = editSchema.safeParse({
+      firstName: editFirstName,
+      lastName: editLastName,
+      email: editEmail,
+      password: editPassword,
+      phone: editPhone,
+      branch: editBranch,
+    });
+
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.issues.forEach((err) => {
+        if (err.path[0]) {
+          errors[err.path[0] as string] = err.message;
+        }
+      });
+      setFormErrors(errors);
+      toast.error(result.error.issues[0].message);
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      await updateAdminApi(editingAdminId, {
+        email: editEmail,
+        password: editPassword || undefined,
+        firstName: editFirstName,
+        lastName: editLastName,
+        phone: editPhone,
+        branch: editBranch,
+        isActive: editStatus === "Active",
+      });
+      toast.success("Admin updated successfully!");
+      setEditOpen(false);
+      fetchAdmins();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to update admin");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setFormErrors({});
+
+    const adminSchema = z.object({
+      firstName: z.string().min(2, "First Name must be at least 2 characters"),
+      lastName: z.string().min(1, "Last Name is required"),
+      email: z.string().email("Invalid email address"),
+      password: z.string().min(6, "Password must be at least 6 characters"),
+      phone: z.string().regex(/^(?:\+91|0)?[6-9]\d{9}$/, "Phone must be exactly 10 digits (with optional +91 or 0 prefix)").optional().or(z.literal("")),
+      branch: z.string().min(2, "Branch must be at least 2 characters"),
+    });
+
+    const result = adminSchema.safeParse({
+      firstName,
+      lastName,
+      email,
+      password,
+      phone,
+      branch,
+    });
+
+    if (!result.success) {
+      const errors: Record<string, string> = {};
+      result.error.issues.forEach((err) => {
+        if (err.path[0]) {
+          errors[err.path[0] as string] = err.message;
+        }
+      });
+      setFormErrors(errors);
+      toast.error(result.error.issues[0].message);
+      setSubmitting(false);
+      return;
+    }
+
     try {
       await registerAdminApi({
         email,
@@ -122,7 +272,7 @@ export default function AdminsPage() {
             <Button
               className="text-white gap-2 cursor-pointer"
               style={{ background: "#1E3A5F" }}
-              onClick={() => setAddOpen(true)}
+              onClick={() => { setFormErrors({}); setAddOpen(true); }}
             >
               <FiUserPlus className="w-4 h-4" />
               Add Admin
@@ -202,10 +352,17 @@ export default function AdminsPage() {
                         {a.status}
                       </span>
                     </td>
-                    <td className="px-5 py-4">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setSelected(a); }}>
-                        <FiEye className="w-4 h-4 text-slate-400" />
-                      </Button>
+                     <td className="px-5 py-4">
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setSelected(a)}>
+                          <FiEye className="w-4 h-4 text-slate-400" />
+                        </Button>
+                        {isSuperAdmin && (
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenEdit(a)}>
+                            <FiEdit className="w-4 h-4 text-slate-500 hover:text-slate-700" />
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -254,7 +411,7 @@ export default function AdminsPage() {
 
       {/* Admin Detail Sheet */}
       <Sheet open={!!selected} onOpenChange={() => setSelected(null)}>
-        <SheetContent className="w-[400px] sm:w-[480px]">
+        <SheetContent className="w-[440px] sm:w-[520px] p-6 sm:p-8">
           {selected && (
             <>
               <SheetHeader className="mb-6">
@@ -278,17 +435,19 @@ export default function AdminsPage() {
               </SheetHeader>
               <Separator className="mb-6" />
               <div className="space-y-5">
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { label: "Branch",           value: selected.branch },
-                    { label: "Phone",            value: selected.phone || "—" },
-                    { label: "Email",            value: selected.email },
-                  ].map(({ label, value }) => (
-                    <div key={label} className="bg-slate-50 rounded-xl p-3">
-                      <p className="text-[11px] text-slate-400 mb-0.5">{label}</p>
-                      <p className="text-sm font-semibold text-slate-900">{value}</p>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div className="bg-slate-50 rounded-xl p-3">
+                    <p className="text-[11px] text-slate-400 mb-0.5">Branch</p>
+                    <p className="text-sm font-semibold text-slate-900">{selected.branch}</p>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-3">
+                    <p className="text-[11px] text-slate-400 mb-0.5">Phone</p>
+                    <p className="text-sm font-semibold text-slate-900">{selected.phone || "—"}</p>
+                  </div>
+                </div>
+                <div className="bg-slate-50 rounded-xl p-3 break-all w-fit max-w-full">
+                  <p className="text-[11px] text-slate-400 mb-0.5">Email</p>
+                  <p className="text-sm font-semibold text-slate-900">{selected.email}</p>
                 </div>
               </div>
             </>
@@ -298,46 +457,137 @@ export default function AdminsPage() {
 
       {/* Add Admin Sheet */}
       <Sheet open={addOpen} onOpenChange={setAddOpen}>
-        <SheetContent className="w-[400px] sm:w-[480px]">
+        <SheetContent className="w-[440px] sm:w-[520px] p-6 sm:p-8">
           <SheetHeader className="mb-6">
             <SheetTitle className="text-xl">Register New Admin</SheetTitle>
             <SheetDescription>Create a profile for a new system administrator.</SheetDescription>
           </SheetHeader>
           <Separator className="mb-6" />
-          <form onSubmit={handleAddAdmin} className="space-y-4">
+          <form onSubmit={handleAddAdmin} className="space-y-5">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                <Label htmlFor="firstName">
+                  First Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </Label>
+                <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} onBlur={() => validateField("firstName", firstName)} />
+                {formErrors.firstName && <p className="text-xs text-rose-500 mt-1 font-medium">{formErrors.firstName}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
+                <Label htmlFor="lastName">
+                  Last Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </Label>
+                <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} onBlur={() => validateField("lastName", lastName)} />
+                {formErrors.lastName && <p className="text-xs text-rose-500 mt-1 font-medium">{formErrors.lastName}</p>}
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Label htmlFor="email">
+                Email <span className="text-rose-500 font-bold ml-0.5">*</span>
+              </Label>
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onBlur={() => validateField("email", email)} />
+              {formErrors.email && <p className="text-xs text-rose-500 mt-1 font-medium">{formErrors.email}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Label htmlFor="password">
+                Password <span className="text-rose-500 font-bold ml-0.5">*</span>
+              </Label>
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onBlur={() => validateField("password", password)} />
+              {formErrors.password && <p className="text-xs text-rose-500 mt-1 font-medium">{formErrors.password}</p>}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+91 XXXXX XXXXX" />
+              <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} onBlur={() => validateField("phone", phone)} placeholder="+91 XXXXX XXXXX" />
+              {formErrors.phone && <p className="text-xs text-rose-500 mt-1 font-medium">{formErrors.phone}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="branch">Branch Name</Label>
-              <Input id="branch" value={branch} onChange={(e) => setBranch(e.target.value)} placeholder="e.g. Bangalore HQ" />
+              <Label htmlFor="branch">
+                Branch Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+              </Label>
+              <Input id="branch" value={branch} onChange={(e) => setBranch(e.target.value)} onBlur={() => validateField("branch", branch)} placeholder="e.g. Bangalore HQ" />
+              {formErrors.branch && <p className="text-xs text-rose-500 mt-1 font-medium">{formErrors.branch}</p>}
             </div>
+            <div className="py-2" />
             <Button
               type="submit"
               disabled={submitting}
-              className="w-full text-white cursor-pointer mt-4"
+              className="w-full text-white cursor-pointer mt-2"
               style={{ background: "#1E3A5F" }}
             >
               {submitting ? "Registering..." : "Register Admin"}
+            </Button>
+          </form>
+        </SheetContent>
+      </Sheet>
+
+      {/* Edit Admin Sheet */}
+      <Sheet open={editOpen} onOpenChange={setEditOpen}>
+        <SheetContent className="w-[440px] sm:w-[520px] p-6 sm:p-8">
+          <SheetHeader className="mb-6">
+            <SheetTitle className="text-xl">Edit Administrator</SheetTitle>
+            <SheetDescription>Update the system administrator's profile details.</SheetDescription>
+          </SheetHeader>
+          <Separator className="mb-6" />
+          <form onSubmit={handleEditAdmin} className="space-y-5">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="editFirstName">
+                  First Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </Label>
+                <Input id="editFirstName" value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} onBlur={() => validateField("firstName", editFirstName, true)} />
+                {formErrors.firstName && <p className="text-xs text-rose-500 mt-1 font-medium">{formErrors.firstName}</p>}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="editLastName">
+                  Last Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+                </Label>
+                <Input id="editLastName" value={editLastName} onChange={(e) => setEditLastName(e.target.value)} onBlur={() => validateField("lastName", editLastName, true)} />
+                {formErrors.lastName && <p className="text-xs text-rose-500 mt-1 font-medium">{formErrors.lastName}</p>}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="editEmail">
+                Email <span className="text-rose-500 font-bold ml-0.5">*</span>
+              </Label>
+              <Input id="editEmail" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} onBlur={() => validateField("email", editEmail, true)} />
+              {formErrors.email && <p className="text-xs text-rose-500 mt-1 font-medium">{formErrors.email}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="editPassword">Password (leave blank to keep current)</Label>
+              <Input id="editPassword" type="password" value={editPassword} onChange={(e) => setEditPassword(e.target.value)} onBlur={() => validateField("password", editPassword, true)} placeholder="••••••" />
+              {formErrors.password && <p className="text-xs text-rose-500 mt-1 font-medium">{formErrors.password}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="editPhone">Phone</Label>
+              <Input id="editPhone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} onBlur={() => validateField("phone", editPhone, true)} placeholder="+91 XXXXX XXXXX" />
+              {formErrors.phone && <p className="text-xs text-rose-500 mt-1 font-medium">{formErrors.phone}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="editBranch">
+                Branch Name <span className="text-rose-500 font-bold ml-0.5">*</span>
+              </Label>
+              <Input id="editBranch" value={editBranch} onChange={(e) => setEditBranch(e.target.value)} onBlur={() => validateField("branch", editBranch, true)} placeholder="e.g. Bangalore HQ" />
+              {formErrors.branch && <p className="text-xs text-rose-500 mt-1 font-medium">{formErrors.branch}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="editStatusSelect">Status</Label>
+              <select
+                id="editStatusSelect"
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as any)}
+                className="w-full h-10 px-3 border border-input bg-background rounded-md text-sm outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+            <div className="py-2" />
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="w-full text-white cursor-pointer mt-2"
+              style={{ background: "#1E3A5F" }}
+            >
+              {submitting ? "Saving Changes..." : "Save Changes"}
             </Button>
           </form>
         </SheetContent>
