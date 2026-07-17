@@ -9,10 +9,14 @@ const createLimiterStore = () => new RedisStore({
   },
 });
 
-// 1. Global Rate Limiter (1000 requests per 15 minutes)
+const isDev = process.env.NODE_ENV !== 'production';
+
+// 1. Global Rate Limiter
+// Dev: 100,000 req / 15 min (effectively disabled)
+// Prod: 1,000 req / 15 min
 export const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000,
+  max: isDev ? 100_000 : 1000,
   store: createLimiterStore(),
   message: {
     success: false,
@@ -20,12 +24,15 @@ export const globalLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
 });
 
-// 2. Brute-Force Login Limiter (10 login attempts per 5 minutes)
+// 2. Brute-Force Login Limiter
+// Dev: 1,000 attempts / 5 min (effectively disabled)
+// Prod: 10 attempts / 5 min
 export const authLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
-  max: 10,
+  max: isDev ? 1_000 : 10,
   store: createLimiterStore(),
   message: {
     success: false,
@@ -33,15 +40,17 @@ export const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
 });
 
-// 3. Location Ping Limiter (Max 1 location ping per 3 seconds per agent)
+// 3. Location Ping Limiter
+// Dev: 1,000 pings / 3 sec (effectively disabled)
+// Prod: 1 ping / 3 sec
 export const pingLimiter = rateLimit({
   windowMs: 3 * 1000,
-  max: 1,
+  max: isDev ? 1_000 : 1,
   store: createLimiterStore(),
   keyGenerator: (req: any) => {
-    // Rate-limit by agent ID if logged in, otherwise default to IP
     return req.user?.id || req.ip;
   },
   message: {
@@ -50,6 +59,7 @@ export const pingLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
 });
 
 // 4. IP Blacklisting & DDoS Protection Middleware
