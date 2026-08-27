@@ -73,17 +73,18 @@ export const loginUser = async (req: Request, res: Response) => {
       { expiresIn: '7d' }
     );
 
-    // Set JWT in HttpOnly cookie
+    // Set JWT in HttpOnly cookie (sameSite=none + secure=true for cross-origin Vercel to Render)
     res.cookie('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
+      token,
       user: {
         id: user.id,
         email: user.email,
@@ -103,7 +104,7 @@ export const logoutUser = (req: Request, res: Response) => {
   res.clearCookie('token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax'
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   });
   res.status(200).json({ success: true, message: 'Logged out successfully' });
 };

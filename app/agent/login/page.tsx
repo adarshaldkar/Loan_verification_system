@@ -31,7 +31,8 @@ export default function AgentLoginPage() {
         setLoading(false);
         return;
       }
-      // Store minimal user info for UI (token is in HttpOnly cookie)
+      const { user, token } = res.data;
+      if (token) localStorage.setItem("lvms_token", token);
       localStorage.setItem("lvms_agent", JSON.stringify(user));
       toast.success(`Welcome back, ${user.firstName}!`);
       router.push("/agent");

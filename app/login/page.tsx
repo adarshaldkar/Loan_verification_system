@@ -39,8 +39,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await loginApi(email, password);
-      const { user } = res.data; // token is now automatically set in HttpOnly cookie by backend
-      // Persist only user info for UI
+      const { user, token } = res.data;
+      if (token) localStorage.setItem("lvms_token", token);
       localStorage.setItem("lvms_user", JSON.stringify(user));
       router.push("/app");
     } catch (err: any) {

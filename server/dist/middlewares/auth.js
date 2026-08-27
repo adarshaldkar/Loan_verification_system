@@ -6,10 +6,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireRole = exports.authenticateToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const authenticateToken = (req, res, next) => {
-    // Read token from cookies instead of headers
-    const token = req.cookies?.token;
+    // Support both HttpOnly cookie and Bearer header for cross-origin deployments
+    const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+    const bearerToken = typeof authHeader === 'string' && authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+    const token = req.cookies?.token || bearerToken;
     if (!token) {
-        return res.status(401).json({ success: false, message: 'Access denied. No token provided in cookies.' });
+        return res.status(401).json({ success: false, message: 'Access denied. No authentication token provided.' });
     }
     try {
         const secret = process.env.JWT_SECRET;

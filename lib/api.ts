@@ -8,6 +8,17 @@ const api = axios.create({
   withCredentials: true, // Crucial for sending/receiving HttpOnly cookies
 });
 
+// Request interceptor to attach Bearer token for cross-origin hosting
+api.interceptors.request.use((config) => {
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("lvms_token");
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
+});
+
 // Auto-logout on 401/403 — redirect to correct login page based on current path
 api.interceptors.response.use(
   (response) => response,
@@ -24,6 +35,7 @@ api.interceptors.response.use(
     if (isAuthError && typeof window !== "undefined") {
       localStorage.removeItem("lvms_user");
       localStorage.removeItem("lvms_agent");
+      localStorage.removeItem("lvms_token");
       const isAgentPath = window.location.pathname.startsWith("/agent");
       window.location.href = isAgentPath ? "/agent/login" : "/login";
     }
