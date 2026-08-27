@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_1 = __importDefault(require("./auth"));
 const admin_1 = __importDefault(require("./admin"));
+const agent_1 = __importDefault(require("./agent"));
 const router = (0, express_1.Router)();
 // Health check endpoint (public)
 router.get('/health', (req, res) => {
@@ -14,4 +15,5 @@ router.get('/health', (req, res) => {
 // Mount routers
 router.use('/auth', auth_1.default);
 router.use('/admin', admin_1.default);
+router.use('/agent', agent_1.default); // ← Field Agent API (FIELD_AGENT role only)
 exports.default = router;

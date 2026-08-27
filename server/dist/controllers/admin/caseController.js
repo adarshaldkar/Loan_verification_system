@@ -1,0 +1,249 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.batchAssignCases = exports.assignBulkCases = exports.getCaseById = exports.updateCaseStatus = exports.assignCase = exports.getCases = void 0;
+const db_1 = __importDefault(require("../../config/db"));
+const helpers_1 = require("../../utils/helpers");
+const getCases = async (req, res) => {
+    try {
+        const adminId = req.user?.id;
+        const { status } = req.query;
+        const whereClause = { adminId };
+        if (status && status !== 'RE-VERIFICATION')
+            whereClause.status = status;
+        let cases = await db_1.default.verificationCase.findMany({
+            where: whereClause,
+            include: {
+                customer: true,
+                agent: { select: { firstName: true, lastName: true, branch: true } },
+                media: true,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        if (status === 'RE-VERIFICATION') {
+            cases = cases.filter((item) => {
+                try {
+                    const pd = typeof item.profileData === 'string' ? JSON.parse(item.profileData) : item.profileData;
+                    return pd?.adminReview?.decision === 'NEEDS_REVISION';
+                }
+                catch {
+                    return false;
+                }
+            });
+        }
+        const data = cases.map((item) => {
+            let isRevision = false;
+            try {
+                const pd = typeof item.profileData === 'string' ? JSON.parse(item.profileData) : item.profileData;
+                isRevision = pd?.adminReview?.decision === 'NEEDS_REVISION';
+            }
+            catch { }
+            return {
+                id: item.id,
+                customer: (0, helpers_1.parseFullName)(item.customer.firstName, item.customer.lastName),
+                type: item.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
+                status: isRevision ? 'RE_VERIFICATION' : (0, helpers_1.resolveCaseStatus)(item.status),
+                agent: (0, helpers_1.resolveAgentName)(item.agent ?? null),
+                agentId: item.agentId,
+                branch: item.branch ?? item.agent?.branch ?? item.customer.branch ?? 'Unassigned',
+                slaDue: (0, helpers_1.formatDateTime)(item.createdAt),
+                overdue: item.status !== 'COMPLETED' && item.status !== 'APPROVED' && item.status !== 'REJECTED',
+            };
+        });
+        return res.status(200).json({ success: true, data });
+    }
+    catch (error) {
+        return (0, helpers_1.apiError)(res, 'Failed to load cases', 500, error);
+    }
+};
+exports.getCases = getCases;
+const assignCase = async (req, res) => {
+    try {
+        const adminId = req.user?.id;
+        const caseId = req.params.caseId;
+        const agentId = req.body.agentId;
+        const [existingCase, agent] = await Promise.all([
+            db_1.default.verificationCase.findFirst({
+                where: { id: caseId, adminId },
+                include: { customer: true }
+            }),
+            db_1.default.user.findFirst({ where: { id: agentId, role: 'FIELD_AGENT', adminId } }),
+        ]);
+        if (!existingCase)
+            return res.status(404).json({ success: false, message: 'Case not found' });
+        if (!agent)
+            return res.status(404).json({ success: false, message: 'Field Agent not found under your account' });
+        const updatedCase = await db_1.default.verificationCase.update({
+            where: { id: caseId },
+            data: { agentId, status: 'ASSIGNED' },
+            include: { customer: true }
+        });
+        const customerName = (0, helpers_1.parseFullName)(updatedCase.customer.firstName, updatedCase.customer.lastName);
+        await (0, helpers_1.createAuditLog)({
+            actor: `Admin (${adminId})`,
+            action: 'Assigned case to agent',
+            entity: `Customer: ${customerName} → ${(0, helpers_1.parseFullName)(agent.firstName, agent.lastName)}`,
+            ip: req.ip || 'system',
+            adminId,
+        });
+        return res.status(200).json({ success: true, message: `Successfully assigned case for customer ${customerName} to ${(0, helpers_1.parseFullName)(agent.firstName, agent.lastName)}`, data: updatedCase });
+    }
+    catch (error) {
+        return (0, helpers_1.apiError)(res, 'Failed to assign case', 500, error);
+    }
+};
+exports.assignCase = assignCase;
+const updateCaseStatus = async (req, res) => {
+    try {
+        const adminId = req.user?.id;
+        const caseId = req.params.caseId;
+        const { status } = req.body;
+        if (!['COMPLETED', 'REJECTED', 'PENDING', 'IN_PROGRESS'].includes(status)) {
+            return res.status(400).json({ success: false, message: 'Invalid status update' });
+        }
+        const existing = await db_1.default.verificationCase.findFirst({ where: { id: caseId, adminId } });
+        if (!existing)
+            return res.status(404).json({ success: false, message: 'Case not found' });
+        const updatedCase = await db_1.default.verificationCase.update({
+            where: { id: caseId },
+            data: { status, completedAt: status === 'COMPLETED' ? new Date() : null },
+        });
+        return res.status(200).json({ success: true, message: `Case marked as ${status}`, data: updatedCase });
+    }
+    catch (error) {
+        return (0, helpers_1.apiError)(res, 'Failed to update case status', 500, error);
+    }
+};
+exports.updateCaseStatus = updateCaseStatus;
+const getCaseById = async (req, res) => {
+    try {
+        const adminId = req.user?.id;
+        const caseId = req.params.caseId;
+        const caseData = await db_1.default.verificationCase.findFirst({
+            where: { id: caseId, adminId },
+            include: {
+                customer: true,
+                agent: { select: { firstName: true, lastName: true, branch: true } },
+                media: true,
+            },
+        });
+        if (!caseData) {
+            return res.status(404).json({ success: false, message: 'Case not found' });
+        }
+        const data = {
+            id: caseData.id,
+            customer: (0, helpers_1.parseFullName)(caseData.customer.firstName, caseData.customer.lastName),
+            type: caseData.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
+            status: (0, helpers_1.resolveCaseStatus)(caseData.status),
+            agent: (0, helpers_1.resolveAgentName)(caseData.agent ?? null),
+            branch: caseData.branch ?? caseData.agent?.branch ?? caseData.customer.branch ?? 'Unassigned',
+            submittedAt: caseData.completedAt ? (0, helpers_1.formatDateTime)(caseData.completedAt) : 'Pending',
+            gps: { lat: `${caseData.gpsLatitude || '0'}° N`, lng: `${caseData.gpsLongitude || '0'}° E` },
+            profileData: caseData.profileData ? JSON.parse(caseData.profileData) : null,
+            remarks: caseData.remarks || 'No remarks provided.',
+            media: caseData.media.map((m) => ({ id: m.id, url: m.url, type: m.type })),
+        };
+        return res.status(200).json({ success: true, data });
+    }
+    catch (error) {
+        return (0, helpers_1.apiError)(res, 'Failed to load case details', 500, error);
+    }
+};
+exports.getCaseById = getCaseById;
+const assignBulkCases = async (req, res) => {
+    try {
+        const adminId = req.user?.id;
+        const { caseIds, agentId } = req.body;
+        if (!caseIds || !Array.isArray(caseIds) || caseIds.length === 0) {
+            return res.status(400).json({ success: false, message: 'No cases provided' });
+        }
+        if (!agentId) {
+            return res.status(400).json({ success: false, message: 'Agent ID is required' });
+        }
+        const [agent, casesToAssign] = await Promise.all([
+            db_1.default.user.findFirst({ where: { id: agentId, role: 'FIELD_AGENT', adminId } }),
+            db_1.default.verificationCase.findMany({
+                where: { id: { in: caseIds }, adminId },
+                include: { customer: true }
+            })
+        ]);
+        if (!agent)
+            return res.status(404).json({ success: false, message: 'Field Agent not found under your account' });
+        const updated = await db_1.default.verificationCase.updateMany({
+            where: { id: { in: caseIds }, adminId },
+            data: { agentId, status: 'ASSIGNED' }
+        });
+        const customerNames = casesToAssign.map(c => (0, helpers_1.parseFullName)(c.customer.firstName, c.customer.lastName)).join(', ');
+        await (0, helpers_1.createAuditLog)({
+            actor: `Admin (${adminId})`,
+            action: 'Bulk assigned cases to agent',
+            entity: `Customers: ${customerNames} → ${(0, helpers_1.parseFullName)(agent.firstName, agent.lastName)}`,
+            ip: req.ip || 'system',
+            adminId,
+        });
+        return res.status(200).json({ success: true, message: `Successfully assigned cases for ${customerNames} to ${(0, helpers_1.parseFullName)(agent.firstName, agent.lastName)}` });
+    }
+    catch (error) {
+        return (0, helpers_1.apiError)(res, 'Failed to assign cases', 500, error);
+    }
+};
+exports.assignBulkCases = assignBulkCases;
+const batchAssignCases = async (req, res) => {
+    try {
+        const adminId = req.user?.id;
+        const { assignments } = req.body;
+        if (!assignments || typeof assignments !== 'object' || Object.keys(assignments).length === 0) {
+            return res.status(400).json({ success: false, message: 'No assignments provided' });
+        }
+        const caseIds = Object.keys(assignments);
+        const agentIds = Array.from(new Set(Object.values(assignments)));
+        const [agents, casesData] = await Promise.all([
+            db_1.default.user.findMany({
+                where: { id: { in: agentIds }, role: 'FIELD_AGENT', adminId }
+            }),
+            db_1.default.verificationCase.findMany({
+                where: { id: { in: caseIds }, adminId },
+                include: { customer: true }
+            })
+        ]);
+        const agentMap = new Map(agents.map(a => [a.id, a]));
+        const caseMap = new Map(casesData.map(c => [c.id, c]));
+        const updates = caseIds.map(async (caseId) => {
+            const agentId = assignments[caseId];
+            if (!agentMap.has(agentId) || !caseMap.has(caseId))
+                return null;
+            return db_1.default.verificationCase.update({
+                where: { id: caseId },
+                data: { agentId, status: 'ASSIGNED' }
+            });
+        });
+        await Promise.all(updates);
+        const logDetails = caseIds
+            .map((caseId) => {
+            const c = caseMap.get(caseId);
+            const a = agentMap.get(assignments[caseId]);
+            if (!c || !a)
+                return null;
+            return `${(0, helpers_1.parseFullName)(c.customer.firstName, c.customer.lastName)} → ${(0, helpers_1.parseFullName)(a.firstName, a.lastName)}`;
+        })
+            .filter(Boolean)
+            .join(', ');
+        await (0, helpers_1.createAuditLog)({
+            actor: `Admin (${adminId})`,
+            action: 'Batch assigned cases to agents',
+            entity: `Assignments: ${logDetails}`,
+            ip: req.ip || 'system',
+            adminId,
+        });
+        return res.status(200).json({
+            success: true,
+            message: `Successfully saved ${caseIds.length} agent assignments!`
+        });
+    }
+    catch (error) {
+        return (0, helpers_1.apiError)(res, 'Failed to batch assign cases', 500, error);
+    }
+};
+exports.batchAssignCases = batchAssignCases;

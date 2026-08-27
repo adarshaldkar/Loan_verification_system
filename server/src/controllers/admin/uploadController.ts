@@ -186,7 +186,7 @@ export const getBatchStatus = async (req: AuthRequest, res: Response) => {
     const adminId = req.user?.id;
     if (!adminId) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-    const { batchId } = req.params;
+    const batchId = req.params.batchId as string;
 
     const progress = activeBatches.get(batchId);
     if (progress) {

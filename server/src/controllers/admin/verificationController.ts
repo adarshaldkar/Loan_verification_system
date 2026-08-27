@@ -124,7 +124,7 @@ export const getVerificationDetail = async (req: AuthRequest, res: Response) => 
 export const reviewCase = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
-    const caseId = req.params.caseId;
+    const caseId = req.params.caseId as string;
     const { decision, adminRemarks } = req.body; // decision: 'APPROVED' | 'REJECTED' | 'NEEDS_REVISION'
 
     if (!['APPROVED', 'REJECTED', 'NEEDS_REVISION'].includes(decision)) {

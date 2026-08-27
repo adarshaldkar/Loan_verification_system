@@ -79,7 +79,7 @@ export const updateAdmin = async (req: Request, res: Response) => {
       return res.status(403).json({ success: false, message: 'Forbidden. Only Super Admins can edit Admins.' });
     }
 
-    const adminId = req.params.adminId;
+    const adminId = req.params.adminId as string;
     const { email, password, firstName, lastName, phone, branch, isActive } = req.body;
 
     const existingAdmin = await prisma.user.findUnique({ where: { id: adminId } });
