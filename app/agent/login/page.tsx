@@ -24,14 +24,13 @@ export default function AgentLoginPage() {
     setLoading(true);
     try {
       const res = await agentLoginApi(email, password);
-      const { user } = res.data;
+      const { user, token } = res.data;
       // Verify the logged-in user is actually a FIELD_AGENT
       if (user.role !== "FIELD_AGENT") {
         setError("Access denied. This portal is for Field Agents only.");
         setLoading(false);
         return;
       }
-      const { user, token } = res.data;
       if (token) localStorage.setItem("lvms_token", token);
       localStorage.setItem("lvms_agent", JSON.stringify(user));
       toast.success(`Welcome back, ${user.firstName}!`);
