@@ -10,7 +10,7 @@
   --accent-glow: rgba(0, 212, 170, 0.2);
   --card-bg: rgba(255, 255, 255, 0.04);
   --card-border: rgba(255, 255, 255, 0.08);
-  --glass: rgba(255, 255, 255, 0.05);
+  --glass: rgba(255, 255, 255, 0);
   --glass-border: rgba(255, 255, 255, 0.12);
 }
 

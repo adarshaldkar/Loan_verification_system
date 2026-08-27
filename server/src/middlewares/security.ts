@@ -80,7 +80,13 @@ export const ipBlacklistHandler = async (req: Request, res: Response, next: Next
 };
 
 // 5. Track Security Failures (401/403/404) to trigger IP Blacklist
+// Only active in production to avoid self-blacklisting during dev/testing
 export const trackSecurityFailures = (req: Request, res: Response, next: NextFunction) => {
+  // Skip tracking in development mode
+  if (process.env.NODE_ENV !== 'production') {
+    return next();
+  }
+
   const ip = req.ip;
 
   res.on('finish', async () => {

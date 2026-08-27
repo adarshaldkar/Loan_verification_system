@@ -8,83 +8,66 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  firstName String
-  lastName  String
-  phone     String?
-  role      String   @default("FIELD_AGENT")
-  branch    String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                      String             @id @default(uuid())
+  email                   String             @unique
+  password                String
+  firstName               String
+  lastName                String
+  phone                   String?
+  role                    String             @default("FIELD_AGENT")
+  branch                  String?
+  isActive                Boolean            @default(true)
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  adminId                 String?
   resetPasswordOtp        String?
   resetPasswordOtpExpires DateTime?
-
-  // Multi-tenant: FIELD_AGENT belongs to an ADMIN
-  adminId String?
-  admin   User?   @relation("AgentAdmin", fields: [adminId], references: [id])
-  agents  User[]  @relation("AgentAdmin")
-
-  assignedCases     VerificationCase[] @relation("AgentCases")
-  createdCustomers  Customer[]
-  createdCases      VerificationCase[] @relation("AdminCases")
-  rides             AgentRide[]        @relation("AgentRides")
+  rides                   AgentRide[]        @relation("AgentRides")
+  createdCustomers        Customer[]
+  admin                   User?              @relation("AgentAdmin", fields: [adminId], references: [id])
+  agents                  User[]             @relation("AgentAdmin")
+  createdCases            VerificationCase[] @relation("AdminCases")
+  assignedCases           VerificationCase[] @relation("AgentCases")
 }
 
 model Customer {
-  id            String   @id @default(uuid())
-  applicationId String   @unique
-  firstName     String
-  lastName      String
-  phone         String?
-  email         String?
-  address       String
-  loanType      String   @default("Home Loan")
-  loanAmount    Float
-  businessName  String?
-  branch        String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Multi-tenant: which admin created this customer
-  adminId String?
-  admin   User?   @relation(fields: [adminId], references: [id])
-
+  id                String             @id @default(uuid())
+  applicationId     String             @unique
+  firstName         String
+  lastName          String
+  phone             String?
+  email             String?
+  address           String
+  loanType          String             @default("Home Loan")
+  loanAmount        Float
+  businessName      String?
+  branch            String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  adminId           String?
+  admin             User?              @relation(fields: [adminId], references: [id])
   verificationCases VerificationCase[]
 }
 
 model VerificationCase {
-  id     String  @id @default(uuid())
-  status String  @default("PENDING")
-  type   String
-  branch String?
-
-  // Relations
-  customerId String
-  customer   Customer @relation(fields: [customerId], references: [id])
-
-  agentId String?
-  agent   User?   @relation("AgentCases", fields: [agentId], references: [id])
-
-  // Multi-tenant: which admin owns this case
-  adminId String?
-  admin   User?   @relation("AdminCases", fields: [adminId], references: [id])
-
-  // Data filled by agent
+  id           String    @id @default(uuid())
+  status       String    @default("PENDING")
+  type         String
+  branch       String?
+  customerId   String
+  agentId      String?
+  adminId      String?
   gpsLatitude  Float?
   gpsLongitude Float?
   remarks      String?
-
-  // Profile data (JSON stored as Text for flexibility)
-  profileData String?
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  completedAt DateTime?
-
-  media Media[]
+  profileData  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  completedAt  DateTime?
+  media        Media[]
+  admin        User?     @relation("AdminCases", fields: [adminId], references: [id])
+  agent        User?     @relation("AgentCases", fields: [agentId], references: [id])
+  customer     Customer  @relation(fields: [customerId], references: [id])
 }
 
 model Branch {
@@ -95,9 +78,7 @@ model Branch {
   phone     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  // Multi-tenant: which admin owns this branch
-  adminId String?
+  adminId   String?
 }
 
 model Report {
@@ -154,34 +135,31 @@ model Media {
   url                String
   publicId           String
   type               String
-
   verificationCaseId String
+  createdAt          DateTime         @default(now())
   verificationCase   VerificationCase @relation(fields: [verificationCaseId], references: [id])
-
-  createdAt DateTime @default(now())
 }
 
 model AgentRide {
   id            String          @id @default(uuid())
   agentId       String
-  agent         User            @relation("AgentRides", fields: [agentId], references: [id], onDelete: Cascade)
   adminId       String
   startTime     DateTime        @default(now())
   endTime       DateTime?
-  status        String          @default("STARTED") // STARTED, COMPLETED
-  totalDistance Float           @default(0)         // Accumulated distance in kilometers
-  locations     AgentLocation[] @relation("RideLocations")
-
+  status        String          @default("STARTED")
+  totalDistance Float           @default(0)
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+  locations     AgentLocation[] @relation("RideLocations")
+  agent         User            @relation("AgentRides", fields: [agentId], references: [id], onDelete: Cascade)
 }
 
 model AgentLocation {
   id        String    @id @default(uuid())
   rideId    String
-  ride      AgentRide @relation("RideLocations", fields: [rideId], references: [id], onDelete: Cascade)
   latitude  Float
   longitude Float
   speed     Float?
   timestamp DateTime  @default(now())
+  ride      AgentRide @relation("RideLocations", fields: [rideId], references: [id], onDelete: Cascade)
 }
