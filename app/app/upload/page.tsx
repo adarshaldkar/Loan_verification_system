@@ -233,21 +233,55 @@ export default function UploadPage() {
             variant="outline"
             className="gap-2 text-sm"
             onClick={() => {
-              const ws = XLSX.utils.json_to_sheet([{
-                "Customer Name": "John Doe",
-                "Phone Number": "9876543210",
-                "Address": "123 Main St, Bangalore",
-                "Loan Amount": 50000,
-                "Loan Type": "Personal",
-                "Case Type": "RESIDENTIAL"
-              }]);
+              const ws = XLSX.utils.json_to_sheet([
+                {
+                  "Customer Name": "Ramesh Sharma",
+                  "Phone Number": "9876543210",
+                  "Address": "123 Main St, Bangalore",
+                  "Loan Amount": 500000,
+                  "Loan Type": "Home Loan",
+                  "Case Type": "RESIDENTIAL"
+                },
+                {
+                  "Customer Name": "Vikas Enterprises",
+                  "Phone Number": "9845123456",
+                  "Address": "Shop 4, Commercial St, Chennai",
+                  "Loan Amount": 1200000,
+                  "Loan Type": "Business Loan",
+                  "Case Type": "BUSINESS"
+                },
+                {
+                  "Customer Name": "Priya Sundaram",
+                  "Phone Number": "9789123456",
+                  "Address": "IT Park Road, Coimbatore",
+                  "Loan Amount": 350000,
+                  "Loan Type": "Personal Loan",
+                  "Case Type": "OFFICE_PAYSLIP"
+                },
+                {
+                  "Customer Name": "Muthusamy Agri Farms",
+                  "Phone Number": "9443123456",
+                  "Address": "South Village, Trichy",
+                  "Loan Amount": 450000,
+                  "Loan Type": "Agri Loan",
+                  "Case Type": "AGRICULTURE"
+                },
+                {
+                  "Customer Name": "Sri Balaji Prime Plot",
+                  "Phone Number": "9940123456",
+                  "Address": "Survey No 42, Bypass Road, Madurai",
+                  "Loan Amount": 2500000,
+                  "Loan Type": "Plot Loan",
+                  "Case Type": "PROPERTY"
+                }
+              ]);
               const wb = XLSX.utils.book_new();
-              XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-              XLSX.writeFile(wb, "sample_leads.xlsx");
+              XLSX.utils.book_append_sheet(wb, ws, "Leads");
+              XLSX.writeFile(wb, "lvms_bulk_verification_template.xlsx");
             }}
           >
             <FiDownload className="w-4 h-4" />
-            Sample Excel Template (.xlsx)
+            Download Excel Template (.xlsx)
           </Button>
         }
       />

@@ -29,7 +29,7 @@ export const getAgentCases = async (req: AuthRequest, res: Response) => {
         customer: c.customer ? parseFullName(c.customer.firstName, c.customer.lastName) : 'Unknown Customer',
         phone: c.customer?.phone ?? '',
         address: c.customer?.address ?? 'No Address',
-        type: c.type === 'RESIDENTIAL' ? 'RESIDENTIAL' : 'BUSINESS',
+        type: c.type || 'RESIDENTIAL',
         loanType: c.customer?.loanType ?? 'N/A',
         loanAmount: c.customer?.loanAmount ?? 0,
         status: c.status,
@@ -132,7 +132,7 @@ export const submitVerification = async (req: AuthRequest, res: Response) => {
   try {
     const agentId = req.user?.id as string;
     const id = req.params.id as string;
-    const { remarks, gpsLatitude, gpsLongitude, profileData } = req.body;
+    const { type, remarks, gpsLatitude, gpsLongitude, profileData } = req.body;
 
     const existing = await prisma.verificationCase.findFirst({ where: { id, agentId } });
     if (!existing) {
@@ -142,6 +142,7 @@ export const submitVerification = async (req: AuthRequest, res: Response) => {
     const updated = await prisma.verificationCase.update({
       where: { id },
       data: {
+        type: type ? String(type).toUpperCase() : existing.type,
         remarks,
         gpsLatitude: gpsLatitude ? Number(gpsLatitude) : undefined,
         gpsLongitude: gpsLongitude ? Number(gpsLongitude) : undefined,

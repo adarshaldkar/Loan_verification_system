@@ -147,10 +147,12 @@ export const updateAgentCaseStatusApi = (id: string, status: string) =>
   api.patch(`/agent/cases/${id}/status`, { status });
 
 export const submitVerificationApi = (id: string, data: {
+  type?: string;
   remarks?: string;
   gpsLatitude?: number;
   gpsLongitude?: number;
   profileData?: any;
+  photos?: string[];
 }) => api.post(`/agent/cases/${id}/submit`, data);
 
 export const getAgentProfileApi = () =>

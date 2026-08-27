@@ -7,9 +7,10 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentCasesApi } from "@/lib/api";
 import { toast } from "sonner";
+import { getProfileByCode } from "@/lib/verificationProfiles";
 
 type CaseStatus = "ASSIGNED" | "PENDING" | "TRAVELLING" | "AT_LOCATION" | "IN_PROGRESS" | "SUBMITTED" | "COMPLETED" | "RE_VERIFICATION" | "REJECTED";
-type CaseType   = "RESIDENTIAL" | "BUSINESS" | "ADDRESS";
+type CaseType   = string;
 
 type AgentCase = {
   id: string;
@@ -247,10 +248,10 @@ export default function AssignedCasesPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className={cn(
-                      "text-[10px] font-semibold px-2 py-0.5 rounded-full",
-                      c.type === "RESIDENTIAL" || c.type === "ADDRESS" ? "bg-blue-50 text-blue-700" : "bg-purple-50 text-purple-700"
+                      "text-[10px] font-semibold px-2 py-0.5 rounded-full border",
+                      getProfileByCode(c.type).badgeColor
                     )}>
-                      {c.type === "BUSINESS" ? "Business" : "Residential"}
+                      {getProfileByCode(c.type).name}
                     </span>
                     <span className={cn(
                       "text-[10px] font-semibold px-2 py-0.5 rounded-full",

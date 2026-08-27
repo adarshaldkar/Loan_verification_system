@@ -30,7 +30,7 @@ const getAgentCases = async (req, res) => {
                 customer: c.customer ? (0, helpers_1.parseFullName)(c.customer.firstName, c.customer.lastName) : 'Unknown Customer',
                 phone: c.customer?.phone ?? '',
                 address: c.customer?.address ?? 'No Address',
-                type: c.type === 'RESIDENTIAL' ? 'RESIDENTIAL' : 'BUSINESS',
+                type: c.type || 'RESIDENTIAL',
                 loanType: c.customer?.loanType ?? 'N/A',
                 loanAmount: c.customer?.loanAmount ?? 0,
                 status: c.status,
@@ -127,7 +127,7 @@ const submitVerification = async (req, res) => {
     try {
         const agentId = req.user?.id;
         const id = req.params.id;
-        const { remarks, gpsLatitude, gpsLongitude, profileData } = req.body;
+        const { type, remarks, gpsLatitude, gpsLongitude, profileData } = req.body;
         const existing = await db_1.default.verificationCase.findFirst({ where: { id, agentId } });
         if (!existing) {
             return res.status(404).json({ success: false, message: 'Case not found or not assigned to you' });
@@ -135,6 +135,7 @@ const submitVerification = async (req, res) => {
         const updated = await db_1.default.verificationCase.update({
             where: { id },
             data: {
+                type: type ? String(type).toUpperCase() : existing.type,
                 remarks,
                 gpsLatitude: gpsLatitude ? Number(gpsLatitude) : undefined,
                 gpsLongitude: gpsLongitude ? Number(gpsLongitude) : undefined,

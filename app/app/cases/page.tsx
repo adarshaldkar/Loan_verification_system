@@ -14,11 +14,12 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { getCasesApi, getAgentsApi, batchAssignCasesApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { VERIFICATION_PROFILES, getProfileByCode } from "@/lib/verificationProfiles";
 
 type Case = {
   id: string;
   customer: string;
-  type: "Residential" | "Business";
+  type: string;
   status: VerificationStatus;
   agent: string;
   agentId: string | null;
@@ -206,13 +207,16 @@ export default function CasesPage() {
           </SelectContent>
         </Select>
         <Select value={typeFilter} onValueChange={(v) => v && setTypeFilter(v)}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-48">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="All">All Types</SelectItem>
-            <SelectItem value="Residential">Residential</SelectItem>
-            <SelectItem value="Business">Business</SelectItem>
+            <SelectItem value="All">All 12 Types</SelectItem>
+            {VERIFICATION_PROFILES.map((p) => (
+              <SelectItem key={p.code} value={p.code}>
+                {p.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -222,7 +226,7 @@ export default function CasesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-slate-50 dark:bg-slate-900/50">
-                {["Case ID", "Customer", "Type", "Status", "Assigned Agent", "Branch", "SLA Due", ""].map((h) => (
+                {["Case ID", "Customer", "Profile Type", "Status", "Assigned Agent", "Branch", "SLA Due", ""].map((h) => (
                   <th key={h} className="px-5 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
                     {h}
                   </th>
@@ -253,6 +257,7 @@ export default function CasesPage() {
                 currentCases.map((c) => {
                   const hasUnsavedChange = pendingAssignments[c.id] !== undefined && pendingAssignments[c.id] !== (c.agentId || "unassigned");
                   const displayName = getAgentDisplayName(c.id, c.agentId, c.agent);
+                  const prof = getProfileByCode(c.type);
 
                   return (
                     <tr
@@ -270,7 +275,11 @@ export default function CasesPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3.5 font-medium text-slate-900 dark:text-slate-200">{c.customer}</td>
-                      <td className="px-5 py-3.5 text-slate-500">{c.type}</td>
+                      <td className="px-5 py-3.5">
+                        <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full border", prof.badgeColor)}>
+                          {prof.name}
+                        </span>
+                      </td>
                       <td className="px-5 py-3.5"><StatusBadge status={c.status} /></td>
                       <td className="px-5 py-3.5">
                         <Select
