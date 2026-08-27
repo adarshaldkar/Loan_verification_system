@@ -275,7 +275,7 @@ export default function CasesPage() {
                       <td className="px-5 py-3.5">
                         <Select
                           value={pendingAssignments[c.id] || c.agentId || "unassigned"}
-                          onValueChange={(val) => handleSelectPendingAgent(c.id, val)}
+                          onValueChange={(val) => val && handleSelectPendingAgent(c.id, val)}
                         >
                           <SelectTrigger
                             className={cn(

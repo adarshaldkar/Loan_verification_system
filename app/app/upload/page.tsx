@@ -476,7 +476,7 @@ export default function UploadPage() {
                 <FiUsers className="w-5 h-5 text-blue-600" />
                 Assign all {batchProgress?.validRows} cases to one agent
               </div>
-              <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
+              <Select value={selectedAgentId} onValueChange={(v) => v && setSelectedAgentId(v)}>
                 <SelectTrigger className="w-full bg-white justify-between">
                   <span>
                     {selectedAgentId

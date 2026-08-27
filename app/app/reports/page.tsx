@@ -292,7 +292,7 @@ export default function ReportsPage() {
             <FiTrendingUp className="w-5 h-5 text-blue-600" />
             Verification Metrics
           </h3>
-          <Select value={metricsTimeframe} onValueChange={handleTimeframeChange}>
+          <Select value={metricsTimeframe} onValueChange={(val) => val && handleTimeframeChange(val)}>
             <SelectTrigger className="w-40 bg-slate-50">
               <SelectValue placeholder="Timeframe" />
             </SelectTrigger>
