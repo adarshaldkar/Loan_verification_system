@@ -49,8 +49,13 @@ app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
 app.use((0, cookie_parser_1.default)());
 app.use(globalLimiter);
-// API Routes (all routes prefixed with /api/v1)
+// Root Health Endpoint
+app.get('/', (req, res) => {
+    res.status(200).json({ status: 'ok', service: 'Loan Verification Management System API', timestamp: new Date().toISOString() });
+});
+// API Routes (support both /api and /api/v1 prefixes)
 app.use('/api/v1', routes_1.default);
+app.use('/api', routes_1.default);
 // Global Error Handling Middleware
 app.use((err, req, res, next) => {
     console.error(err.stack);

@@ -50,8 +50,14 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(globalLimiter);
 
-// API Routes (all routes prefixed with /api/v1)
+// Root Health Endpoint
+app.get('/', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok', service: 'Loan Verification Management System API', timestamp: new Date().toISOString() });
+});
+
+// API Routes (support both /api and /api/v1 prefixes)
 app.use('/api/v1', routes);
+app.use('/api', routes);
 
 // Global Error Handling Middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
