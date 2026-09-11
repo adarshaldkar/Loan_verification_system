@@ -56,6 +56,8 @@ const healthCheckHandler = (req: Request, res: Response) => {
 
 app.get('/health', healthCheckHandler);
 app.get('/ping', healthCheckHandler);
+app.get('/api', healthCheckHandler);
+app.get('/api/v1', healthCheckHandler);
 app.get('/api/health', healthCheckHandler);
 app.get('/api/v1/health', healthCheckHandler);
 
