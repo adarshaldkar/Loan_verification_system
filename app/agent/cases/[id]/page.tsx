@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentCaseByIdApi, updateAgentCaseStatusApi } from "@/lib/api";
 import { STATUS_COLORS } from "@/lib/constants";
+import { geocodeAddressDynamically } from "@/lib/geocoding";
 
 type CaseStatus = "ASSIGNED" | "TRAVELLING" | "AT_LOCATION" | "IN_PROGRESS" | "SUBMITTED" | "COMPLETED" | "RE_VERIFICATION";
 
@@ -29,15 +30,25 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
       try {
         const res = await getAgentCaseByIdApi(id);
         const fetched = res.data.data;
+        const address = fetched.customer?.address || "No address provided";
+        let lat = fetched.gpsLatitude;
+        let lng = fetched.gpsLongitude;
+
+        if (!lat || !lng) {
+          const resolved = await geocodeAddressDynamically(address);
+          lat = resolved.lat;
+          lng = resolved.lng;
+        }
+
         // Map database fields to front-end schema
         setCaseData({
           id: fetched.id,
           customer: fetched.customer?.name || "Unknown",
           phone: fetched.customer?.phone || "N/A",
           email: fetched.customer?.email || "N/A",
-          address: fetched.customer?.address || "No address provided",
-          lat: fetched.gpsLatitude || 12.9716,
-          lng: fetched.gpsLongitude || 77.5946,
+          address: address,
+          lat: lat,
+          lng: lng,
           loanType: fetched.customer?.loanType || "Verification Loan",
           loanAmount: fetched.customer?.loanAmount ? `₹${fetched.customer.loanAmount.toLocaleString()}` : "N/A",
           verType: fetched.type,

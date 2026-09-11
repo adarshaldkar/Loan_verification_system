@@ -11,43 +11,16 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import ScheduleRouteMap from "@/components/shared/ScheduleRouteMap";
 import { startRideApi, endRideApi, logLocationPingApi } from "@/lib/api";
+import { geocodeAddressDynamically } from "@/lib/geocoding";
 
-/* ─── Mock Data ──────────────────────────────────────────────────────────── */
-
-type CaseStatus = "Pending" | "In Progress" | "Completed" | "Rejected";
-type Priority = "High" | "Medium" | "Low";
-
-interface CaseItem {
-  id: string;
-  customer: string;
-  type: string;
-  address: string;
-  priority: Priority;
-  distance: string;
-  status: CaseStatus;
-  time?: string;
-  order: number;
-}
-
-const initialCases: CaseItem[] = [
-  { order: 1, id: "CASE-2026-0891", customer: "Ramesh Kumar", type: "Residential Verification", address: "123, 4th Cross Street, Anna Nagar, Trichy - 620018", priority: "High", distance: "2.3 km away", status: "Pending", time: "10:30 AM" },
-  { order: 2, id: "CASE-2026-0892", customer: "Lakshmi Devi", type: "Business Verification", address: "56, Bharathi Nagar, Woraiyur, Trichy - 620003", priority: "Medium", distance: "5.6 km away", status: "Pending", time: "12:00 PM" },
-  { order: 3, id: "CASE-2026-0893", customer: "Vijay Enterprises", type: "Business Verification", address: "18, Lawspet Road, Lawspet, Pondicherry - 605008", priority: "Medium", distance: "8.1 km away", status: "In Progress", time: "02:30 PM" },
-  { order: 4, id: "CASE-2026-0894", customer: "Suresh Babu", type: "Residential Verification", address: "9, East Street, Srirangam, Trichy - 620006", priority: "Low", distance: "12.4 km away", status: "Pending", time: "04:30 PM" },
-  { order: 5, id: "CASE-2026-0895", customer: "Karthik Traders", type: "Business Verification", address: "77, Main Road, Thanjavur - 613001", priority: "Low", distance: "18.7 km away", status: "Pending", time: "05:00 PM" },
-  { order: 6, id: "CASE-2026-0888", customer: "Anjali Rao", type: "Residential Verification", address: "14, Vasanth Nagar, Bangalore", priority: "High", distance: "4.2 km away", status: "Completed", time: "09:00 AM" },
-  { order: 7, id: "CASE-2026-0889", customer: "Vikram Malhotra", type: "Business Verification", address: "404, Prestige Towers, Bangalore", priority: "Medium", distance: "6.0 km away", status: "Completed", time: "10:00 AM" },
-  { order: 8, id: "CASE-2026-0890", customer: "Sunil Dutt", type: "Residential Verification", address: "12, Outer Ring Road, Bangalore", priority: "Low", distance: "11.1 km away", status: "Rejected", time: "11:30 AM" }
-];
+/* ─── Agent Dashboard ─────────────────────────────────────────────────────── */
 
 export default function AgentDashboard() {
   const router = useRouter();
   
   const [loading, setLoading] = useState(true);
-  const [cases, setCases] = useState<CaseItem[]>(initialCases);
   const [selectedFilter, setSelectedFilter] = useState<"All" | "Pending" | "In Progress" | "High Priority">("All");
   const [activeKpi, setActiveKpi] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -190,43 +163,11 @@ export default function AgentDashboard() {
       
       for (const s of dashboardData.todaySchedule) {
         if (!s.address) continue;
-        try {
-          const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(s.address)}&limit=1`;
-          const res = await fetch(url);
-          const data = await res.json();
-          if (data && data.length > 0) {
-            coords[s.id] = {
-              lat: parseFloat(data[0].lat),
-              lng: parseFloat(data[0].lon)
-            };
-          } else {
-            // Fallback: Deterministic offset
-            let hash = 0;
-            const str = s.name || s.address || "";
-            for (let i = 0; i < str.length; i++) {
-              hash = str.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            const latOffset = ((Math.abs(hash) % 100) / 4000) - 0.0125;
-            const lngOffset = (((Math.abs(hash) >> 8) % 100) / 4000) - 0.0125;
-            coords[s.id] = {
-              lat: agentCoords.lat + latOffset,
-              lng: agentCoords.lng + lngOffset
-            };
-          }
-        } catch (e) {
-          // Fallback on network error/CORS
-          let hash = 0;
-          const str = s.name || s.address || "";
-          for (let i = 0; i < str.length; i++) {
-            hash = str.charCodeAt(i) + ((hash << 5) - hash);
-          }
-          const latOffset = ((Math.abs(hash) % 100) / 4000) - 0.0125;
-          const lngOffset = (((Math.abs(hash) >> 8) % 100) / 4000) - 0.0125;
-          coords[s.id] = {
-            lat: agentCoords.lat + latOffset,
-            lng: agentCoords.lng + lngOffset
-          };
-        }
+        const resolved = await geocodeAddressDynamically(s.address, {
+          lat: agentCoords.lat,
+          lng: agentCoords.lng
+        });
+        coords[s.id] = resolved;
       }
       setCaseCoords(coords);
     }
