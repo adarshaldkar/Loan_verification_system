@@ -8,7 +8,7 @@ import { getAgents, toggleAgentStatus, updateAgent } from '../controllers/admin/
 import { getCases, assignCase, assignBulkCases, batchAssignCases, updateCaseStatus, getCaseById } from '../controllers/admin/caseController';
 import { getCompletedCases, getVerificationDetail, reviewCase } from '../controllers/admin/verificationController';
 import { getBranches, createBranch } from '../controllers/admin/branchController';
-import { getReports, generateReport, getReportMetrics } from '../controllers/admin/reportController';
+import { getReports, generateReport, getReportMetrics, downloadCaseRcuDocx, downloadCaseRcuPdf, exportRcuBatchPdf } from '../controllers/admin/reportController';
 import { getAuditLogs } from '../controllers/admin/auditLogController';
 import { getSettings, updateSettings } from '../controllers/admin/settingsController';
 import { getProfile, updateProfile, updatePassword } from '../controllers/admin/profileController';
@@ -78,6 +78,9 @@ router.post('/branches', createBranch);
 router.get('/reports', getReports);
 router.get('/reports/metrics', getReportMetrics);
 router.post('/reports/generate', generateReport);
+router.get('/reports/export/pdf', exportRcuBatchPdf);
+router.get('/reports/case/:caseId/docx', downloadCaseRcuDocx);
+router.get('/reports/case/:caseId/pdf', downloadCaseRcuPdf);
 
 // ── Audit Logs ─────────────────────────────────────────────────────────────
 router.get('/audit-logs', getAuditLogs);
@@ -99,8 +102,9 @@ router.post('/admins/register', validate(registerAdminSchema), registerAdmin);
 router.put('/admins/:adminId', validate(updateAdminSchema), updateAdmin);
 
 // ── Tracking ───────────────────────────────────────────────────────────────
-import { getActiveRides, getRideHistory } from '../controllers/admin/trackingController';
+import { getActiveRides, getRideHistory, forceEndRide } from '../controllers/admin/trackingController';
 router.get('/tracking/active', getActiveRides);
 router.get('/tracking/history/:rideId', getRideHistory);
+router.post('/tracking/rides/:rideId/end', forceEndRide);
 
 export default router;

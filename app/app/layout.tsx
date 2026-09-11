@@ -23,7 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { getAuditLogsApi, getSettingsApi } from "@/lib/api";
+import { getAuditLogsApi, getSettingsApi, getProfileApi } from "@/lib/api";
 
 /* ─── Nav Items ──────────────────────────────────────────────────────────── */
 
@@ -146,15 +146,15 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
     }
 
     // Profile setup
-    fetch('http://localhost:5000/api/v1/admin/profile', { credentials: 'include' })
-      .then(r => r.json())
+    getProfileApi()
       .then(res => {
-        if (res.success && res.data) {
-          const firstName = res.data.firstName || '';
-          const lastName = res.data.lastName || '';
-          const name = res.data.name || `${firstName} ${lastName}`.trim() || 'Admin';
+        if (res.data.success && res.data.data) {
+          const d = res.data.data;
+          const firstName = d.firstName || '';
+          const lastName = d.lastName || '';
+          const name = d.name || `${firstName} ${lastName}`.trim() || 'Admin';
           const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || 'AD';
-          setAdminProfile({ name, email: res.data.email || '', initials });
+          setAdminProfile({ name, email: d.email || '', initials });
         }
       })
       .catch(() => {});
@@ -417,7 +417,7 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
             <div className="hidden md:block text-left">
               <p className="text-[13px] font-semibold text-slate-900 dark:text-slate-100 leading-tight">{adminProfile?.name || 'Admin'}</p>
               <p className="text-[11px] text-slate-400 leading-tight">
-                {adminProfile?.email === 'akshaya@gmail.com' || adminProfile?.email === 'adarshaldkar@gmail.com' ? 'Super Admin' : 'Admin'}
+                {'Admin'}
               </p>
             </div>
             <FiChevronRight className="w-4 h-4 text-slate-400 hidden md:block" />

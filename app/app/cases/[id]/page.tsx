@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getCaseByIdAdminApi, updateCaseStatusApi } from "@/lib/api";
+import { getCaseByIdAdminApi, updateCaseStatusApi, downloadCaseRcuDocxApi, downloadCaseRcuPdfApi } from "@/lib/api";
 import { toast } from "sonner";
 import { getProfileByCode } from "@/lib/verificationProfiles";
 import StructuredProfileReview from "@/components/verification/StructuredProfileReview";
@@ -53,6 +53,35 @@ export default function CaseDetailPage({
       .catch(() => toast.error("Failed to load case"))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  const handleDownloadRcuPdf = async () => {
+    try {
+      setDownloadingPdf(true);
+      toast.info("Generating official RCU PDF report...");
+      const res = await downloadCaseRcuPdfApi(id);
+      const blob = new Blob([res.data], {
+        type: "application/pdf",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeName = (c?.customer?.name || c?.name || "Applicant").replace(/[^a-zA-Z0-9_]/g, "_");
+      a.download = `RCU_REPORT_${safeName}_${c?.customer?.applicationId || id.slice(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+      toast.success("RCU PDF Report downloaded successfully! 📄");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to download RCU PDF report");
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   const handleStatusChange = async (newStatus: "COMPLETED" | "REJECTED") => {
     try {
@@ -119,6 +148,17 @@ export default function CaseDetailPage({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={downloadingPdf}
+            className="border-blue-200 text-blue-700 hover:bg-blue-50 text-xs gap-1.5 font-semibold"
+            onClick={handleDownloadRcuPdf}
+          >
+            <FiDownload className={cn("w-3.5 h-3.5", downloadingPdf && "animate-bounce")} />
+            {downloadingPdf ? "Generating PDF..." : "Download RCU Report (PDF)"}
+          </Button>
+
           {c.status !== "Completed" && c.status !== "APPROVED" && (
             <Button
               size="sm"

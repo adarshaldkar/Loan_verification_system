@@ -29,6 +29,8 @@ import {
   getCompletedCasesApi,
   getVerificationDetailApi,
   reviewCaseApi,
+  downloadCaseRcuDocxApi,
+  downloadCaseRcuPdfApi,
 } from "@/lib/api";
 import {
   VERIFICATION_PROFILES,
@@ -185,8 +187,11 @@ export default function VerificationPage() {
     }
   };
 
-  /* Download report */
-  const downloadReport = (c: CaseSummary | CaseDetail) => {
+  const [downloadingCaseId, setDownloadingCaseId] = useState<string | null>(null);
+
+  /* Download dynamic RCU PDF document */
+  const downloadReport = async (c: CaseSummary | CaseDetail, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     const custName =
       "customer" in c && typeof c.customer === "object"
         ? c.customer.name
@@ -196,24 +201,30 @@ export default function VerificationPage() {
         ? c.customer.applicationId
         : (c as CaseSummary).applicationId;
 
-    const content = `LVMS — Field Verification Report
-=========================================
-Application ID  : ${appId}
-Customer Name   : ${custName}
-Profile Type    : ${c.type} (${getProfileByCode(c.type).name})
-Status          : ${c.status}
-Submitted At    : ${c.submittedAt}
-Report Date     : ${new Date().toLocaleString("en-IN")}
------------------------------------------
-Verified via LVMS Multi-Profile System.
-`;
-    const blob = new Blob([content], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `LVMS_${appId}_Report.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      setDownloadingCaseId(c.id);
+      showToast("Generating official RCU PDF report...", "info");
+      const res = await downloadCaseRcuPdfApi(c.id);
+      const blob = new Blob([res.data], {
+        type: "application/pdf",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const safeName = (custName || "Applicant").replace(/[^a-zA-Z0-9_]/g, "_");
+      a.download = `RCU_REPORT_${safeName}_${appId || c.id.slice(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+      showToast("RCU PDF Report downloaded successfully! 📄", "success");
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || "Failed to download RCU PDF report", "error");
+    } finally {
+      setDownloadingCaseId(null);
+    }
   };
 
   return (
@@ -454,11 +465,13 @@ Verified via LVMS Multi-Profile System.
               <div style={{ display: "flex", gap: 8 }}>
                 {selectedCase && (
                   <button
-                    className="close-btn"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800 text-xs font-semibold transition-colors disabled:opacity-50"
+                    disabled={downloadingCaseId === selectedCase.id}
                     onClick={() => downloadReport(selectedCase)}
-                    title="Download Report"
+                    title="Download Official RCU Report (PDF)"
                   >
-                    <FiDownload size={15} />
+                    <FiDownload size={14} className={downloadingCaseId === selectedCase.id ? "animate-bounce" : ""} />
+                    <span>{downloadingCaseId === selectedCase.id ? "Generating PDF…" : "Download RCU Report (PDF)"}</span>
                   </button>
                 )}
                 <button className="close-btn" onClick={() => setSelectedCase(null)}>

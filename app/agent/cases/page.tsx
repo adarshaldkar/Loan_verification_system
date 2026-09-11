@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentCasesApi } from "@/lib/api";
 import { toast } from "sonner";
 import { getProfileByCode } from "@/lib/verificationProfiles";
+import { STATUS_COLORS } from "@/lib/constants";
 
 type CaseStatus = "ASSIGNED" | "PENDING" | "TRAVELLING" | "AT_LOCATION" | "IN_PROGRESS" | "SUBMITTED" | "COMPLETED" | "RE_VERIFICATION" | "REJECTED";
 type CaseType   = string;
@@ -25,18 +26,6 @@ type AgentCase = {
 };
 
 const STATUS_FILTERS = ["All", "ASSIGNED", "IN_PROGRESS", "SUBMITTED", "COMPLETED", "REJECTED"] as const;
-
-const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
-  PENDING:         { label: "Pending",     color: "#7C3AED", bg: "#EDE9FE" },
-  ASSIGNED:        { label: "Assigned",    color: "#1E3A5F", bg: "#EEF2FF" },
-  TRAVELLING:      { label: "Travelling",  color: "#7C3AED", bg: "#EDE9FE" },
-  AT_LOCATION:     { label: "At Location", color: "#0D9488", bg: "#CCFBF1" },
-  IN_PROGRESS:     { label: "In Progress", color: "#D97706", bg: "#FEF3C7" },
-  SUBMITTED:       { label: "Submitted",   color: "#2563EB", bg: "#DBEAFE" },
-  COMPLETED:       { label: "Completed",   color: "#0D9488", bg: "#CCFBF1" },
-  RE_VERIFICATION: { label: "Re-verify",   color: "#DC2626", bg: "#FEE2E2" },
-  REJECTED:        { label: "Rejected",    color: "#DC2626", bg: "#FEE2E2" },
-};
 
 function getPriority(status: CaseStatus): "High" | "Medium" | "Low" {
   if (status === "PENDING" || status === "ASSIGNED") return "High";
@@ -198,7 +187,7 @@ export default function AssignedCasesPage() {
             )}
             style={filter === f ? { background: "#1E3A5F" } : {}}
           >
-            {f === "All" ? "All" : STATUS_STYLE[f]?.label ?? f}
+            {f === "All" ? "All" : STATUS_COLORS[f]?.label ?? f}
           </button>
         ))}
       </div>
@@ -215,7 +204,7 @@ export default function AssignedCasesPage() {
           </div>
         ) : (
           filtered.map((c) => {
-            const style = STATUS_STYLE[c.status] || STATUS_STYLE.ASSIGNED;
+            const style = STATUS_COLORS[c.status] || STATUS_COLORS.ASSIGNED;
             return (
               <button
                 key={c.id}

@@ -3,8 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
-import rateLimit from 'express-rate-limit';
 import routes from './routes';
+import { globalLimiter, ipBlacklistHandler, trackSecurityFailures } from './middlewares/security';
 
 // Load environment variables FIRST
 dotenv.config();
@@ -34,25 +34,39 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
 }));
 
-// Global Rate Limiter (1000 requests per 15 minutes)
-const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
-  message: { success: false, message: 'Too many requests from this IP, please try again after 15 minutes' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 // Security & Parsing Middlewares
 app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(ipBlacklistHandler);
 app.use(globalLimiter);
+app.use(trackSecurityFailures);
 
-// Root Health Endpoint
+// ─── Health & Keep-Alive / Wake-up Endpoints (Bypasses rate limiting) ───────
+const healthCheckHandler = (req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'healthy',
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    service: 'LVMS Backend API',
+    message: 'Server is awake and active 🚀',
+  });
+};
+
+app.get('/health', healthCheckHandler);
+app.get('/ping', healthCheckHandler);
+app.get('/api/health', healthCheckHandler);
+app.get('/api/v1/health', healthCheckHandler);
+
+// Root Endpoint
 app.get('/', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'ok', service: 'Loan Verification Management System API', timestamp: new Date().toISOString() });
+  res.status(200).json({
+    status: 'ok',
+    service: 'Loan Verification Management System API',
+    timestamp: new Date().toISOString(),
+    healthEndpoint: '/health',
+  });
 });
 
 // API Routes (support both /api and /api/v1 prefixes)

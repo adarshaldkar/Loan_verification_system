@@ -105,7 +105,7 @@ export const assignCaseApi = (caseId: string, agentId: string) => api.put(`/admi
 export const assignBulkCasesApi = (caseIds: string[], agentId: string) => api.put(`/admin/cases/bulk-assign`, { caseIds, agentId });
 export const batchAssignCasesApi = (assignments: Record<string, string>) => api.put(`/admin/cases/batch-assign`, { assignments });
 export const updateCaseStatusApi = (caseId: string, status: string) => api.put(`/admin/cases/${caseId}/status`, { status });
-export const uploadBulkCasesApi = (fileName: string, rows: any[]) =>
+export const uploadBulkCasesApi = (fileName: string, rows: Record<string, string | number>[]) =>
   api.post("/admin/upload/bulk", { fileName, rows });
 
 export const getBatchStatusApi = (batchId: string) =>
@@ -123,6 +123,19 @@ export const getReportMetricsApi = (timeframe: string) => api.get(`/admin/report
 export const generateReportApi = (data: {
   reportType: string; format: string; dateRange?: string;
 }) => api.post("/admin/reports/generate", data);
+export const downloadCaseRcuDocxApi = (caseId: string) =>
+  api.get(`/admin/reports/case/${caseId}/docx`, {
+    responseType: 'blob',
+  });
+export const downloadCaseRcuPdfApi = (caseId: string) =>
+  api.get(`/admin/reports/case/${caseId}/pdf`, {
+    responseType: 'blob',
+  });
+export const exportRcuBatchPdfApi = (reportType?: string, dateRange?: string) =>
+  api.get(`/admin/reports/export/pdf`, {
+    params: { reportType, dateRange },
+    responseType: 'blob',
+  });
 
 // ─── Audit Logs ───────────────────────────────────────────────────────────
 export const getAuditLogsApi = () => api.get("/admin/audit-logs");
@@ -132,7 +145,7 @@ export const getProfileApi = () => api.get("/admin/profile");
 export const updateProfileApi = (data: { firstName: string; lastName: string; phone?: string }) => api.put("/admin/profile", data);
 export const updatePasswordApi = (data: { oldPassword: string; newPassword: string }) => api.put("/admin/profile/password", data);
 export const getSettingsApi = () => api.get("/admin/settings");
-export const updateSettingsApi = (data: any) => api.put("/admin/settings", data);
+export const updateSettingsApi = (data: { orgName?: string; adminEmail?: string; slaDays?: number; emailOverdue?: boolean; emailDigest?: boolean; notifyNewUpload?: boolean; notifyCaseComplete?: boolean }) => api.put("/admin/settings", data);
 
 // ─── Agent Panel APIs ──────────────────────────────────────────────────────
 export const agentLoginApi = (email: string, password: string) =>
@@ -163,7 +176,7 @@ export const submitVerificationApi = (id: string, data: {
   remarks?: string;
   gpsLatitude?: number;
   gpsLongitude?: number;
-  profileData?: any;
+  profileData?: Record<string, unknown>;
   photos?: string[];
 }) => api.post(`/agent/cases/${id}/submit`, data);
 
@@ -204,3 +217,7 @@ export const reviewCaseApi = (caseId: string, data: {
   decision: "APPROVED" | "REJECTED" | "NEEDS_REVISION";
   adminRemarks?: string;
 }) => api.post(`/admin/verification/${caseId}/review`, data);
+
+// ─── Admin Ride Termination ───────────────────────────────────────────────
+export const forceEndRideApi = (rideId: string) =>
+  api.post(`/admin/tracking/rides/${rideId}/end`);

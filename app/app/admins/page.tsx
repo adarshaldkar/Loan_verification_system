@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/sheet";
 import { Separator } from "@/components/ui/separator";
 import { PageHeader } from "@/components/shared/page-header";
-import { getAdminsApi, registerAdminApi, updateAdminApi } from "@/lib/api";
+import { getAdminsApi, registerAdminApi, updateAdminApi, getProfileApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { z } from "zod";
 
@@ -36,6 +36,7 @@ export default function AdminsPage() {
 
   // Current User / Super Admin check
   const [currentUserEmail, setCurrentUserEmail] = useState("");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   // Add Admin Form State
   const [addOpen, setAddOpen] = useState(false);
@@ -75,17 +76,15 @@ export default function AdminsPage() {
 
   useEffect(() => {
     fetchAdmins();
-    fetch('http://localhost:5000/api/v1/admin/profile', { credentials: 'include' })
-      .then(r => r.json())
+    getProfileApi()
       .then(res => {
-        if (res.success && res.data) {
-          setCurrentUserEmail(res.data.email || "");
+        if (res.data.success && res.data.data) {
+          setCurrentUserEmail(res.data.data.email || "");
+          setIsSuperAdmin(res.data.data.role === "SUPER_ADMIN");
         }
       })
       .catch(() => {});
   }, []);
-
-  const isSuperAdmin = currentUserEmail === "akshaya@gmail.com" || currentUserEmail === "adarshaldkar@gmail.com";
 
   const validateField = (name: string, value: any, isEdit = false) => {
     let schema;

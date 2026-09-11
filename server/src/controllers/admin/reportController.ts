@@ -2,6 +2,9 @@ import { Response } from 'express';
 import prisma from '../../config/db';
 import { AuthRequest } from '../../middlewares/auth';
 import { formatDateTime, apiError } from '../../utils/helpers';
+import { generateRcuDocxReport } from '../../utils/rcuReportGenerator';
+import { generateRcuPdfReport } from '../../utils/rcuPdfReportGenerator';
+import { generateConsolidatedRcuPdf } from '../../utils/rcuBatchPdfReportGenerator';
 
 export const getReports = async (req: AuthRequest, res: Response) => {
   try {
@@ -93,5 +96,121 @@ export const generateReport = async (req: AuthRequest, res: Response) => {
     return res.status(201).json({ success: true, message: 'Report generated successfully', data: generatedReport });
   } catch (error: any) {
     return apiError(res, 'Failed to generate report', 500, error);
+  }
+};
+
+// ─── Download Full Dynamic RCU Word Document ────────────────────────────────
+export const downloadCaseRcuDocx = async (req: AuthRequest, res: Response) => {
+  try {
+    const adminId = req.user?.id;
+    const caseId = req.params.caseId as string;
+
+    const requester = await prisma.user.findUnique({ where: { id: adminId } });
+    const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+
+    const caseData = await (prisma.verificationCase as any).findFirst({
+      where: isSuperAdmin ? { id: caseId } : { id: caseId, adminId },
+      include: {
+        customer: true,
+        agent: true,
+        admin: true,
+        media: true,
+      },
+    });
+
+    if (!caseData) {
+      return res.status(404).json({ success: false, message: 'Case not found or unauthorized' });
+    }
+
+    const docxBuffer = await generateRcuDocxReport(caseData);
+
+    const safeApplicant = `${caseData.customer.firstName}_${caseData.customer.lastName}`.replace(/[^a-zA-Z0-9_]/g, '');
+    const filename = `RCU_REPORT_${safeApplicant}_${caseData.customer.applicationId || caseId.slice(0, 8)}.docx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', docxBuffer.length);
+
+    return res.status(200).send(docxBuffer);
+  } catch (error: any) {
+    console.error('Error generating RCU Docx report:', error);
+    return apiError(res, 'Failed to generate RCU report document', 500, error);
+  }
+};
+
+// ─── Download Full Dynamic RCU PDF Document ─────────────────────────────────
+export const downloadCaseRcuPdf = async (req: AuthRequest, res: Response) => {
+  try {
+    const adminId = req.user?.id;
+    const caseId = req.params.caseId as string;
+
+    const requester = await prisma.user.findUnique({ where: { id: adminId } });
+    const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+
+    const caseData = await (prisma.verificationCase as any).findFirst({
+      where: isSuperAdmin ? { id: caseId } : { id: caseId, adminId },
+      include: {
+        customer: true,
+        agent: true,
+        admin: true,
+        media: true,
+      },
+    });
+
+    if (!caseData) {
+      return res.status(404).json({ success: false, message: 'Case not found or unauthorized' });
+    }
+
+    const pdfBuffer = await generateRcuPdfReport(caseData);
+
+    const safeApplicant = `${caseData.customer.firstName}_${caseData.customer.lastName}`.replace(/[^a-zA-Z0-9_]/g, '');
+    const filename = `RCU_REPORT_${safeApplicant}_${caseData.customer.applicationId || caseId.slice(0, 8)}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    return res.status(200).send(pdfBuffer);
+  } catch (error: any) {
+    console.error('Error generating RCU PDF report:', error);
+    return apiError(res, 'Failed to generate RCU PDF report document', 500, error);
+  }
+};
+
+// ─── Export Consolidated RCU Detailed Cases PDF ─────────────────────────────
+export const exportRcuBatchPdf = async (req: AuthRequest, res: Response) => {
+  try {
+    const adminId = req.user?.id;
+    const { reportType, dateRange } = req.query;
+
+    const requester = await prisma.user.findUnique({ where: { id: adminId } });
+    const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+
+    const cases = await prisma.verificationCase.findMany({
+      where: isSuperAdmin ? {} : { adminId },
+      include: {
+        customer: true,
+        agent: true,
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 25,
+    });
+
+    const reportTitle = typeof reportType === 'string' ? reportType : 'RCU Detailed Verification Cases Summary';
+    const dateRangeStr = typeof dateRange === 'string' ? dateRange : '07 Jul – 13 Jul 2026';
+
+    const pdfBuffer = await generateConsolidatedRcuPdf(reportTitle, dateRangeStr, cases as any);
+
+    const safeTitle = (reportTitle || 'RCU_Report').replace(/[^a-zA-Z0-9_]/g, '_');
+    const filename = `${safeTitle}_Detailed_Audit_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    return res.status(200).send(pdfBuffer);
+  } catch (error: any) {
+    console.error('Error generating consolidated RCU PDF report:', error);
+    return apiError(res, 'Failed to generate batch RCU PDF report', 500, error);
   }
 };

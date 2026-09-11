@@ -82,3 +82,33 @@ export const getRideHistory = async (req: AuthRequest, res: Response) => {
     return apiError(res, 'Failed to get ride history', 500, error);
   }
 };
+
+export const forceEndRide = async (req: AuthRequest, res: Response) => {
+  try {
+    const adminId = req.user?.id;
+    const { rideId } = req.params;
+
+    const ride = await prisma.agentRide.findUnique({ where: { id: rideId } });
+    if (!ride || ride.adminId !== adminId) {
+      return res.status(404).json({ success: false, message: 'Ride not found' });
+    }
+
+    if (ride.status !== 'STARTED') {
+      return res.status(400).json({ success: false, message: 'Ride is not active' });
+    }
+
+    // Update DB first (fixes race condition)
+    await prisma.agentRide.update({
+      where: { id: rideId },
+      data: { status: 'COMPLETED', endTime: new Date() },
+    });
+
+    // Then clean Redis
+    await redisClient.del(`ride:data:${rideId}`);
+    await redisClient.del(`ride:latest:${rideId}`);
+
+    return res.status(200).json({ success: true, message: 'Ride ended successfully' });
+  } catch (error: any) {
+    return apiError(res, 'Failed to end ride', 500, error);
+  }
+};

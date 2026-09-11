@@ -21,7 +21,7 @@ import { StatusBadge, type VerificationStatus } from "@/components/shared/status
 import { SectionCard } from "@/components/shared/section-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
-import { getAnalyticsApi, getDashboardApi } from "@/lib/api";
+import { getAnalyticsApi, getDashboardApi, getProfileApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /* ─── Static fallback activity icons map ─────────────────────────────────── */
@@ -98,14 +98,15 @@ export default function DashboardPage() {
   const [adminName, setAdminName] = useState('Admin');
   const [currentUserEmail, setCurrentUserEmail] = useState("");
   const [adminPerformance, setAdminPerformance] = useState<any[]>([]);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/v1/admin/profile', { credentials: 'include' })
-      .then(r => r.json())
+    getProfileApi()
       .then(res => {
-        if (res.success && res.data) {
-          setAdminName(res.data.firstName || res.data.name?.split(' ')[0] || 'Admin');
-          setCurrentUserEmail(res.data.email || "");
+        if (res.data.success && res.data.data) {
+          setAdminName(res.data.data.firstName || res.data.data.name?.split(' ')[0] || 'Admin');
+          setCurrentUserEmail(res.data.data.email || "");
+          setIsSuperAdmin(res.data.data.role === "SUPER_ADMIN");
         }
       })
       .catch(() => {});
@@ -141,8 +142,6 @@ export default function DashboardPage() {
                        (analytics?.caseBreakdown?.find((c: any) => c.status === "ASSIGNED")?.count ?? 0);
   const completedCount = (analytics?.caseBreakdown?.find((c: any) => c.status === "COMPLETED")?.count ?? 0) +
                          (analytics?.caseBreakdown?.find((c: any) => c.status === "APPROVED")?.count ?? 0);
-
-  const isSuperAdmin = currentUserEmail === "akshaya@gmail.com" || currentUserEmail === "adarshaldkar@gmail.com";
 
   const kpiData = [
     { label: "Total Customers", value: analytics?.totalCustomers ?? 0,  icon: <FiUsers />,        iconBg: "bg-blue-50 dark:bg-slate-800",    trend: 15.3 },

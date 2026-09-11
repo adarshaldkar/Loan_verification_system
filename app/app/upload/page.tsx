@@ -159,7 +159,7 @@ export default function UploadPage() {
     setProgress(0);
 
     try {
-      const res = await uploadBulkCasesApi(file!.name, validRows);
+      const res = await uploadBulkCasesApi(file!.name, validRows as any);
       const bId = res.data.batchId;
       setBatchId(bId);
       

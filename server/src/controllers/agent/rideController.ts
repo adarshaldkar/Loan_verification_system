@@ -25,20 +25,20 @@ export const startRide = async (req: AuthRequest, res: Response) => {
     const agent = await prisma.user.findUnique({ where: { id: agentId } });
     if (!agent || !agent.adminId) return res.status(400).json({ success: false, message: 'Invalid agent' });
 
-    // Close any previous pending rides for this agent
+    // Close any previous pending rides for this agent (DB FIRST, then Redis to avoid race condition)
     const activeRides = await prisma.agentRide.findMany({
       where: { agentId, status: 'STARTED' }
+    });
+
+    await prisma.agentRide.updateMany({
+      where: { agentId, status: 'STARTED' },
+      data: { status: 'COMPLETED', endTime: new Date() },
     });
 
     for (const r of activeRides) {
       await redisClient.del(`ride:data:${r.id}`);
       await redisClient.del(`ride:latest:${r.id}`);
     }
-
-    await prisma.agentRide.updateMany({
-      where: { agentId, status: 'STARTED' },
-      data: { status: 'COMPLETED', endTime: new Date() },
-    });
 
     const newRide = await prisma.agentRide.create({
       data: {
@@ -47,6 +47,9 @@ export const startRide = async (req: AuthRequest, res: Response) => {
         status: 'STARTED',
       }
     });
+
+    // Prime Redis cache for the new ride
+    await redisClient.set(`ride:data:${newRide.id}`, JSON.stringify(newRide), 'EX', 300);
 
     return res.status(201).json({ success: true, data: newRide });
   } catch (error: any) {

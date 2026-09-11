@@ -6,7 +6,11 @@ import crypto from 'crypto';
 import prisma from '../config/db';
 import { AuthRequest } from '../middlewares/auth';
 
-const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder');
+const resendApiKey = process.env.RESEND_API_KEY;
+if (!resendApiKey) {
+  console.warn('WARNING: RESEND_API_KEY is not set. Password reset emails will fail.');
+}
+const resend = new Resend(resendApiKey || '');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {

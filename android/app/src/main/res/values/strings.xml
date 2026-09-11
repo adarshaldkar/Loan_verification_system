@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">LVMS Field Agent</string>
+    <string name="title_activity_main">LVMS Field Agent</string>
+    <string name="package_name">com.lvms.loanverification</string>
+    <string name="custom_url_scheme">com.lvms.loanverification</string>
+</resources>

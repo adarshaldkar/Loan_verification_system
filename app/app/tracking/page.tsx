@@ -45,6 +45,7 @@ export default function TrackingPage() {
   const [selectedHistory, setSelectedHistory] = useState<any | null>(null);
   
   const mapRef = useRef<MapRef | null>(null);
+  const prevRideCountRef = useRef(0);
 
   // Load Active Rides dynamically
   useEffect(() => {
@@ -67,6 +68,12 @@ export default function TrackingPage() {
   useEffect(() => {
     if (!mapRef.current || activeRides.length === 0 || selectedRideId) return;
 
+    // Only re-fit when new rides appear (count increases), not on every poll
+    const isNewRide = activeRides.length > prevRideCountRef.current;
+    prevRideCountRef.current = activeRides.length;
+    
+    if (!isNewRide && prevRideCountRef.current > 1) return;
+
     const bounds = new maplibregl.LngLatBounds();
     let hasPoints = false;
 
@@ -79,7 +86,6 @@ export default function TrackingPage() {
     });
 
     if (hasPoints) {
-      // Small timeout to allow map instance sizing to complete
       setTimeout(() => {
         mapRef.current?.fitBounds(bounds, { padding: 50, maxZoom: 14 });
       }, 200);
@@ -161,7 +167,7 @@ export default function TrackingPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     <FiNavigation />
-                    <span>{ride.locations[0]?.speed ? `${(ride.locations[0].speed * 3.6).toFixed(1)} km/h` : 'Stopped'}</span>
+                    <span>{ride.locations[0]?.speed && ride.locations[0].speed > 0 ? `${(ride.locations[0].speed * 3.6).toFixed(1)} km/h` : 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -206,7 +212,7 @@ export default function TrackingPage() {
                 <MarkerPopup>
                   <div className="p-2 text-sm text-slate-800">
                     <div className="font-bold mb-1">{ride.agent.firstName} {ride.agent.lastName}</div>
-                    <div className="text-xs text-slate-500">Speed: {loc.speed ? (loc.speed * 3.6).toFixed(1) : 0} km/h</div>
+                    <div className="text-xs text-slate-500">Speed: {loc.speed && loc.speed > 0 ? `${(loc.speed * 3.6).toFixed(1)} km/h` : 'N/A'}</div>
                     <div className="text-xs text-slate-500">Distance: {ride.totalDistance.toFixed(2)} km</div>
                   </div>
                 </MarkerPopup>

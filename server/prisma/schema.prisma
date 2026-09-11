@@ -152,6 +152,10 @@ model AgentRide {
   updatedAt     DateTime        @updatedAt
   locations     AgentLocation[] @relation("RideLocations")
   agent         User            @relation("AgentRides", fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([agentId, status])
+  @@index([adminId, status])
 }
 
 model AgentLocation {

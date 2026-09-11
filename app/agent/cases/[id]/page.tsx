@@ -11,77 +11,9 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentCaseByIdApi, updateAgentCaseStatusApi } from "@/lib/api";
+import { STATUS_COLORS } from "@/lib/constants";
 
 type CaseStatus = "ASSIGNED" | "TRAVELLING" | "AT_LOCATION" | "IN_PROGRESS" | "SUBMITTED" | "COMPLETED" | "RE_VERIFICATION";
-
-const CASES: Record<string, {
-  id: string; customer: string; phone: string; email: string;
-  address: string; lat: number; lng: number;
-  loanType: string; loanAmount: string; verType: "RESIDENTIAL" | "BUSINESS";
-  branch: string; priority: string; assignedOn: string;
-  status: CaseStatus; agentNote?: string;
-}> = {
-  "CASE-2026-0891": {
-    id: "CASE-2026-0891", customer: "Ramesh Kumar",
-    phone: "+91 98765 43210", email: "ramesh.k@email.com",
-    address: "123, 4th Cross Street, Anna Nagar, Trichy - 620018",
-    lat: 10.8049, lng: 78.6872,
-    loanType: "Personal Loan", loanAmount: "₹5,00,000",
-    verType: "RESIDENTIAL", branch: "Trichy HQ",
-    priority: "High", assignedOn: "Today, 10:30 AM",
-    status: "ASSIGNED",
-  },
-  "CASE-2026-0892": {
-    id: "CASE-2026-0892", customer: "Lakshmi Devi",
-    phone: "+91 99887 76655", email: "lakshmi.d@email.com",
-    address: "56, Bharathi Nagar, Woraiyur, Trichy - 620003",
-    lat: 10.8142, lng: 78.6744,
-    loanType: "Business Loan", loanAmount: "₹15,00,000",
-    verType: "BUSINESS", branch: "Trichy HQ",
-    priority: "Medium", assignedOn: "Today, 12:00 PM",
-    status: "ASSIGNED",
-  },
-  "CASE-2026-0893": {
-    id: "CASE-2026-0893", customer: "Vijay Enterprises",
-    phone: "+91 98765 09876", email: "vijay.ent@email.com",
-    address: "18, Lawspet Road, Lawspet, Pondicherry - 605008",
-    lat: 11.9542, lng: 79.8214,
-    loanType: "Commercial Loan", loanAmount: "₹50,00,000",
-    verType: "BUSINESS", branch: "Pondicherry Branch",
-    priority: "Medium", assignedOn: "Today, 02:30 PM",
-    status: "IN_PROGRESS",
-  },
-  "CASE-2026-0894": {
-    id: "CASE-2026-0894", customer: "Suresh Babu",
-    phone: "+91 88776 65544", email: "suresh.b@email.com",
-    address: "9, East Street, Srirangam, Trichy - 620006",
-    lat: 10.8624, lng: 78.6908,
-    loanType: "Home Loan", loanAmount: "₹25,00,000",
-    verType: "RESIDENTIAL", branch: "Trichy HQ",
-    priority: "Low", assignedOn: "Yesterday",
-    status: "ASSIGNED",
-  },
-  "CASE-2026-0895": {
-    id: "CASE-2026-0895", customer: "Karthik Traders",
-    phone: "+91 77665 54433", email: "karthik.t@email.com",
-    address: "77, Main Road, Thanjavur - 613001",
-    lat: 10.7870, lng: 79.1378,
-    loanType: "Business Loan", loanAmount: "₹10,00,000",
-    verType: "BUSINESS", branch: "Thanjavur Branch",
-    priority: "Low", assignedOn: "06 Jul 2026",
-    status: "ASSIGNED",
-  },
-};
-
-const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
-  ASSIGNED:        { label: "Assigned",    color: "#1E3A5F", bg: "#EEF2FF" },
-  TRAVELLING:      { label: "Travelling",  color: "#7C3AED", bg: "#EDE9FE" },
-  AT_LOCATION:     { label: "At Location", color: "#0D9488", bg: "#CCFBF1" },
-  IN_PROGRESS:     { label: "In Progress", color: "#D97706", bg: "#FEF3C7" },
-  SUBMITTED:       { label: "Submitted",   color: "#2563EB", bg: "#DBEAFE" },
-  COMPLETED:       { label: "Completed",   color: "#0D9488", bg: "#CCFBF1" },
-  RE_VERIFICATION: { label: "Re-verify",   color: "#DC2626", bg: "#FEE2E2" },
-};
 
 export default function CaseDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id }  = use(params);
@@ -118,13 +50,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
         setStatus(fetched.status);
       } catch (err: any) {
         console.error("Error loading case details via API:", err);
-        const mock = CASES[id];
-        if (mock) {
-          setCaseData(mock);
-          setStatus(mock.status);
-        } else {
-          toast.error("Failed to load case data");
-        }
+        toast.error("Failed to load case data. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -181,7 +107,7 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  const s = STATUS_STYLE[status] || { label: status, color: "#1E3A5F", bg: "#EEF2FF" };
+  const s = STATUS_COLORS[status] || { label: status, color: "#1E3A5F", bg: "#EEF2FF" };
 
   // ── Action handlers ──
   function handleCallCustomer() {
@@ -365,9 +291,9 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
           <div className="text-center py-2">
             <span
               className="text-sm font-semibold px-4 py-2 rounded-xl"
-              style={{ color: (STATUS_STYLE[status] || STATUS_STYLE.COMPLETED).color, background: (STATUS_STYLE[status] || STATUS_STYLE.COMPLETED).bg }}
+              style={{ color: (STATUS_COLORS[status] || STATUS_COLORS.COMPLETED).color, background: (STATUS_COLORS[status] || STATUS_COLORS.COMPLETED).bg }}
             >
-              {(STATUS_STYLE[status] || STATUS_STYLE.COMPLETED).label} — No further action needed
+              {(STATUS_COLORS[status] || STATUS_COLORS.COMPLETED).label} — No further action needed
             </span>
           </div>
         ) : (

@@ -71,6 +71,7 @@ export default function AgentDashboard() {
       setRideDuration((prev) => prev + 1);
     }, 1000);
 
+    let pingFailCount = 0;
     const pinger = setInterval(() => {
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(async (pos) => {
@@ -81,7 +82,14 @@ export default function AgentDashboard() {
               longitude: pos.coords.longitude,
               speed: pos.coords.speed || 0,
             });
-          } catch (e) {}
+            pingFailCount = 0;
+          } catch (e) {
+            pingFailCount++;
+            if (pingFailCount >= 3) {
+              toast.error("GPS tracking interrupted. Please check your connection.");
+              pingFailCount = 0;
+            }
+          }
         });
       }
     }, 10000); // ping every 10s

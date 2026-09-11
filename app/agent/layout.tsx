@@ -13,8 +13,6 @@ import { cn } from "@/lib/utils";
 import { agentLogoutApi } from "@/lib/api";
 import { toast } from "sonner";
 
-const AGENT = { name: "Arun Kumar", id: "AGT-1024", initials: "AK" };
-
 interface NavItem {
   label: string;
   href: string;
@@ -40,7 +38,7 @@ const navSections: NavSection[] = [
   {
     title: "ACTIVITY",
     items: [
-      { label: "Notifications",       href: "/agent/notifications", icon: FiBell, badge: 2 },
+      { label: "Notifications",       href: "/agent/notifications", icon: FiBell },
     ],
   },
   {
@@ -134,7 +132,7 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
             <span className="w-2 h-2 rounded-full bg-green-500" />
             <span className="text-xs text-gray-500 dark:text-slate-400">Online</span>
           </div>
-          <span className="text-[10px] text-gray-400 dark:text-slate-500">Last sync: 2 mins ago</span>
+          <span className="text-[10px] text-gray-400 dark:text-slate-500">Online</span>
           <button className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-400">
             <FiRefreshCw className="w-3.5 h-3.5" />
           </button>
@@ -231,7 +229,6 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
       {/* Bell */}
       <Link href="/agent/notifications" className="relative p-2 text-gray-500 dark:text-slate-400 hover:text-gray-800 dark:text-slate-200">
         <FiBell className="w-5 h-5" />
-        <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">2</span>
       </Link>
 
       {/* Avatar */}

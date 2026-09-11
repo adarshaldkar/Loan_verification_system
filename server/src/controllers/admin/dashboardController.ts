@@ -7,7 +7,7 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
     const requester = await prisma.user.findUnique({ where: { id: adminId } });
-    const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+    const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
 
     const filter = isSuperAdmin ? {} : { adminId };
     const agentFilter = isSuperAdmin ? { role: 'FIELD_AGENT' } : { role: 'FIELD_AGENT', adminId };
@@ -211,7 +211,7 @@ export const getAnalytics = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
     const requester = await prisma.user.findUnique({ where: { id: adminId } });
-    const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+    const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
 
     const filter = isSuperAdmin ? {} : { adminId };
     const agentFilter = isSuperAdmin ? { role: 'FIELD_AGENT', isActive: true } : { role: 'FIELD_AGENT', isActive: true, adminId };

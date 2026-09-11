@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 import "./globals.css";
 
 /* ─── Font Definitions ───────────────────────────────────────────────────── */
@@ -26,6 +27,16 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+/* ─── Viewport Configuration ─────────────────────────────────────────────── */
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#1e3a5f",
+};
+
 /* ─── Metadata ───────────────────────────────────────────────────────────── */
 
 export const metadata: Metadata = {
@@ -35,6 +46,16 @@ export const metadata: Metadata = {
   },
   description:
     "Enterprise loan verification platform for field operations and admin management.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "LVMS Agent",
+  },
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/icon-192.png",
+  },
 };
 
 /* ─── Root Layout ────────────────────────────────────────────────────────── */
@@ -54,9 +75,11 @@ export default function RootLayout({
       <body className="h-full antialiased" suppressHydrationWarning>
         <TooltipProvider>
           {children}
+          <PwaInstallPrompt />
           <Toaster position="top-right" />
         </TooltipProvider>
       </body>
     </html>
   );
 }
+

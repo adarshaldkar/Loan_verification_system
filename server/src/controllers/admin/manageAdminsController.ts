@@ -7,7 +7,7 @@ export const registerAdmin = async (req: Request, res: Response) => {
   try {
     const requesterId = (req as any).user?.id;
     const requester = await prisma.user.findUnique({ where: { id: requesterId } });
-    if (!requester || (requester.email !== 'akshaya@gmail.com' && requester.email !== 'adarshaldkar@gmail.com')) {
+    if (!requester || (requester as any).role !== 'SUPER_ADMIN') {
       return res.status(403).json({ success: false, message: 'Forbidden. Only Super Admins can register new Admins.' });
     }
 
@@ -75,7 +75,7 @@ export const updateAdmin = async (req: Request, res: Response) => {
   try {
     const requesterId = (req as any).user?.id;
     const requester = await prisma.user.findUnique({ where: { id: requesterId } });
-    if (!requester || (requester.email !== 'akshaya@gmail.com' && requester.email !== 'adarshaldkar@gmail.com')) {
+    if (!requester || (requester as any).role !== 'SUPER_ADMIN') {
       return res.status(403).json({ success: false, message: 'Forbidden. Only Super Admins can edit Admins.' });
     }
 
