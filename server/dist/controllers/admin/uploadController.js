@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getBatchStatus = exports.bulkUploadCases = exports.activeBatches = void 0;
 const db_1 = __importDefault(require("../../config/db"));
 const helpers_1 = require("../../utils/helpers");
+const geocoder_1 = require("../../utils/geocoder");
 // Memory cache to store active batch progress updates
 exports.activeBatches = new Map();
 const bulkUploadCases = async (req, res) => {
@@ -95,12 +96,28 @@ const bulkUploadCases = async (req, res) => {
                             }
                         });
                     }
+                    // Geocode address before creating the case (throttled to 1 req/sec; Redis-cached)
+                    let addrLat = null;
+                    let addrLng = null;
+                    let addrAcc = null;
+                    try {
+                        const r = await (0, geocoder_1.geocodeAddress)(String(row.address).trim());
+                        if (r.lat != null && r.lng != null) {
+                            addrLat = r.lat;
+                            addrLng = r.lng;
+                            addrAcc = r.accuracy === 'unknown' ? null : r.accuracy;
+                        }
+                    }
+                    catch { /* non-fatal — leave null */ }
                     const newCase = await db_1.default.verificationCase.create({
                         data: {
                             customerId: customer.id,
                             status: 'PENDING',
                             type: String(row.type).toUpperCase() === 'BUSINESS' ? 'BUSINESS' : 'RESIDENTIAL',
                             adminId,
+                            addressLatitude: addrLat ?? undefined,
+                            addressLongitude: addrLng ?? undefined,
+                            addressAccuracy: addrAcc ?? undefined,
                         }
                     });
                     createdCaseIds.push(newCase.id);

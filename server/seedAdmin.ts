@@ -15,13 +15,13 @@ async function seedAdmin() {
 
     const admin = await prisma.user.upsert({
       where: { email: 'admin@loanverify.com' },
-      update: {},
+      update: { role: 'SUPER_ADMIN' },
       create: {
         email: 'admin@loanverify.com',
         password: hashedPassword,
         firstName: 'Super',
         lastName: 'Admin',
-        role: 'ADMIN',
+        role: 'SUPER_ADMIN',
       },
     });
 

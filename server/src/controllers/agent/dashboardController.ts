@@ -70,6 +70,9 @@ export const getAgentDashboard = async (req: AuthRequest, res: Response) => {
       status: c.status,
       priority: c.status === 'PENDING' ? 'High' : c.status === 'IN_PROGRESS' ? 'Medium' : 'Low',
       updatedOn: formatDateTime(c.updatedAt),
+      addressLatitude: c.addressLatitude ?? null,
+      addressLongitude: c.addressLongitude ?? null,
+      addressAccuracy: c.addressAccuracy ?? null,
     }));
 
     // Today's schedule based on active/pending cases
@@ -87,6 +90,9 @@ export const getAgentDashboard = async (req: AuthRequest, res: Response) => {
           time: times[index] || 'Today',
           status: c.status === 'IN_PROGRESS' ? 'In Progress' : 'Pending',
           bg: c.status === 'IN_PROGRESS' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700',
+          addressLatitude: c.addressLatitude ?? null,
+          addressLongitude: c.addressLongitude ?? null,
+          addressAccuracy: c.addressAccuracy ?? null,
         };
       });
 

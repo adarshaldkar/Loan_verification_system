@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createCustomerAndCase = exports.getCustomers = void 0;
 const db_1 = __importDefault(require("../../config/db"));
 const helpers_1 = require("../../utils/helpers");
+const geocoder_1 = require("../../utils/geocoder");
 const getCustomers = async (req, res) => {
     try {
         const adminId = req.user?.id;
@@ -44,7 +45,23 @@ const createCustomerAndCase = async (req, res) => {
         const adminId = req.user?.id;
         if (!adminId)
             return res.status(401).json({ success: false, message: 'Unauthorized' });
-        const { firstName, lastName, email, phone, address, loanAmount, businessName, type, loanType, branch } = req.body;
+        const { firstName, lastName, email, phone, address, loanAmount, businessName, type, loanType, branch, addressLatitude: bodyLat, addressLongitude: bodyLng, addressAccuracy: bodyAcc } = req.body;
+        let addrLat = bodyLat != null ? Number(bodyLat) : null;
+        let addrLng = bodyLng != null ? Number(bodyLng) : null;
+        let addrAcc = bodyAcc ?? null;
+        if (addrLat == null || addrLng == null) {
+            try {
+                const r = await (0, geocoder_1.geocodeAddress)(String(address || '').trim());
+                if (r.lat != null && r.lng != null) {
+                    addrLat = r.lat;
+                    addrLng = r.lng;
+                    addrAcc = r.accuracy === 'unknown' ? null : r.accuracy;
+                }
+            }
+            catch {
+                // non-fatal — coordinates stay null
+            }
+        }
         const customer = await db_1.default.customer.create({
             data: {
                 applicationId: `APP-${Date.now()}`,
@@ -64,6 +81,9 @@ const createCustomerAndCase = async (req, res) => {
                         status: 'PENDING',
                         branch,
                         adminId,
+                        addressLatitude: addrLat ?? undefined,
+                        addressLongitude: addrLng ?? undefined,
+                        addressAccuracy: addrAcc ?? undefined,
                     },
                 },
             },

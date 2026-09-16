@@ -86,7 +86,7 @@ export const getRideHistory = async (req: AuthRequest, res: Response) => {
 export const forceEndRide = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
-    const { rideId } = req.params;
+    const rideId = req.params.rideId as string;
 
     const ride = await prisma.agentRide.findUnique({ where: { id: rideId } });
     if (!ride || ride.adminId !== adminId) {

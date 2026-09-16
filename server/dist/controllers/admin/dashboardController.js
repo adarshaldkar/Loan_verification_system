@@ -10,7 +10,7 @@ const getDashboard = async (req, res) => {
     try {
         const adminId = req.user?.id;
         const requester = await db_1.default.user.findUnique({ where: { id: adminId } });
-        const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+        const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
         const filter = isSuperAdmin ? {} : { adminId };
         const agentFilter = isSuperAdmin ? { role: 'FIELD_AGENT' } : { role: 'FIELD_AGENT', adminId };
         const [customers, cases, agents, logs, branches] = await Promise.all([
@@ -202,7 +202,7 @@ const getAnalytics = async (req, res) => {
     try {
         const adminId = req.user?.id;
         const requester = await db_1.default.user.findUnique({ where: { id: adminId } });
-        const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+        const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
         const filter = isSuperAdmin ? {} : { adminId };
         const agentFilter = isSuperAdmin ? { role: 'FIELD_AGENT', isActive: true } : { role: 'FIELD_AGENT', isActive: true, adminId };
         const [totalAgents, totalCustomers, totalBranches, casesByStatus, allCases] = await Promise.all([

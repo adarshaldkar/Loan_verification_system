@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import authRoutes from './auth';
 import adminRoutes from './admin';
 import agentRoutes from './agent';
+import geocodeRoutes from './geocode';
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.get('/health', (req: Request, res: Response) => {
 router.use('/auth', authRoutes);
 router.use('/admin', adminRoutes);
 router.use('/agent', agentRoutes); // ← Field Agent API (FIELD_AGENT role only)
+router.use('/', geocodeRoutes);    // ← Shared geocoding (both roles, auth required)
 
 export default router;
 

@@ -175,14 +175,18 @@ export const endRide = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ success: false, message: 'Invalid ride' });
     }
 
-    // Clean up Redis Cache keys
-    await redisClient.del(`ride:data:${rideId}`);
-    await redisClient.del(`ride:latest:${rideId}`);
-
+    // Update DB first, then clean up Redis cache keys (race-condition safe).
+    // getActiveRides reads the DB as the source of truth, so committing the
+    // status change BEFORE removing the cache guarantees the admin never sees
+    // a ghost ride for a ride that has already ended. A leftover ride:latest
+    // key is harmless (a new ride always gets a fresh id).
     const updatedRide = await prisma.agentRide.update({
       where: { id: rideId },
       data: { status: 'COMPLETED', endTime: new Date() }
     });
+
+    await redisClient.del(`ride:data:${rideId}`);
+    await redisClient.del(`ride:latest:${rideId}`);
 
     return res.status(200).json({ success: true, data: updatedRide });
   } catch (error: any) {

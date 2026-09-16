@@ -11,7 +11,7 @@ const registerAdmin = async (req, res) => {
     try {
         const requesterId = req.user?.id;
         const requester = await db_1.default.user.findUnique({ where: { id: requesterId } });
-        if (!requester || (requester.email !== 'akshaya@gmail.com' && requester.email !== 'adarshaldkar@gmail.com')) {
+        if (!requester || requester.role !== 'SUPER_ADMIN') {
             return res.status(403).json({ success: false, message: 'Forbidden. Only Super Admins can register new Admins.' });
         }
         const { email, password, firstName, lastName, phone, branch } = req.body;
@@ -74,7 +74,7 @@ const updateAdmin = async (req, res) => {
     try {
         const requesterId = req.user?.id;
         const requester = await db_1.default.user.findUnique({ where: { id: requesterId } });
-        if (!requester || (requester.email !== 'akshaya@gmail.com' && requester.email !== 'adarshaldkar@gmail.com')) {
+        if (!requester || requester.role !== 'SUPER_ADMIN') {
             return res.status(403).json({ success: false, message: 'Forbidden. Only Super Admins can edit Admins.' });
         }
         const adminId = req.params.adminId;

@@ -59,6 +59,9 @@ model VerificationCase {
   adminId      String?
   gpsLatitude  Float?
   gpsLongitude Float?
+  addressLatitude  Float?
+  addressLongitude Float?
+  addressAccuracy  String?
   remarks      String?
   profileData  String?
   createdAt    DateTime  @default(now())

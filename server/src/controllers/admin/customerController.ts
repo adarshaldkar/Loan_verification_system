@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../../config/db';
 import { AuthRequest } from '../../middlewares/auth';
 import { parseFullName, resolveCaseStatus, formatDateTime, apiError, createAuditLog } from '../../utils/helpers';
+import { geocodeAddress } from '../../utils/geocoder';
 
 export const getCustomers = async (req: AuthRequest, res: Response) => {
   try {
@@ -43,7 +44,25 @@ export const createCustomerAndCase = async (req: AuthRequest, res: Response) => 
     const adminId = req.user?.id;
     if (!adminId) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-    const { firstName, lastName, email, phone, address, loanAmount, businessName, type, loanType, branch } = req.body;
+    const { firstName, lastName, email, phone, address, loanAmount, businessName, type, loanType, branch,
+      addressLatitude: bodyLat, addressLongitude: bodyLng, addressAccuracy: bodyAcc } = req.body;
+
+    let addrLat: number | null = bodyLat != null ? Number(bodyLat) : null;
+    let addrLng: number | null = bodyLng != null ? Number(bodyLng) : null;
+    let addrAcc: string | null = bodyAcc ?? null;
+
+    if (addrLat == null || addrLng == null) {
+      try {
+        const r = await geocodeAddress(String(address || '').trim());
+        if (r.lat != null && r.lng != null) {
+          addrLat = r.lat;
+          addrLng = r.lng;
+          addrAcc = r.accuracy === 'unknown' ? null : r.accuracy;
+        }
+      } catch {
+        // non-fatal — coordinates stay null
+      }
+    }
 
     const customer = await (prisma.customer as any).create({
       data: {
@@ -64,6 +83,9 @@ export const createCustomerAndCase = async (req: AuthRequest, res: Response) => 
             status: 'PENDING',
             branch,
             adminId,
+            addressLatitude: addrLat ?? undefined,
+            addressLongitude: addrLng ?? undefined,
+            addressAccuracy: addrAcc ?? undefined,
           },
         },
       },

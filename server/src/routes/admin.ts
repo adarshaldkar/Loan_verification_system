@@ -39,9 +39,9 @@ const updateAdminSchema = z.object({
 
 const router = Router();
 
-// All admin routes require a valid JWT + ADMIN or MANAGER role
+// All admin routes require a valid JWT + ADMIN, MANAGER or SUPER_ADMIN role
 router.use(authenticateToken);
-router.use(requireRole(['ADMIN', 'MANAGER']));
+router.use(requireRole(['ADMIN', 'MANAGER', 'SUPER_ADMIN']));
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
 router.get('/dashboard', getDashboard);

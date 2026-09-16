@@ -29,5 +29,5 @@ router.post('/forgot-password', security_1.forgotPasswordLimiter, (0, validate_1
 router.post('/verify-otp', authController_1.verifyResetOtp);
 router.post('/reset-password', authController_1.resetPassword);
 // Protected Routes
-router.post('/register', auth_1.authenticateToken, (0, auth_1.requireRole)(['ADMIN', 'MANAGER']), (0, validate_1.validate)(registerSchema), authController_1.registerAgent);
+router.post('/register', auth_1.authenticateToken, (0, auth_1.requireRole)(['ADMIN', 'MANAGER', 'SUPER_ADMIN']), (0, validate_1.validate)(registerSchema), authController_1.registerAgent);
 exports.default = router;

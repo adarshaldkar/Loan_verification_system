@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getRideHistory = exports.getActiveRides = void 0;
+exports.forceEndRide = exports.getRideHistory = exports.getActiveRides = void 0;
 const db_1 = __importDefault(require("../../config/db"));
 const helpers_1 = require("../../utils/helpers");
 const redis_1 = __importDefault(require("../../config/redis"));
@@ -81,3 +81,29 @@ const getRideHistory = async (req, res) => {
     }
 };
 exports.getRideHistory = getRideHistory;
+const forceEndRide = async (req, res) => {
+    try {
+        const adminId = req.user?.id;
+        const rideId = req.params.rideId;
+        const ride = await db_1.default.agentRide.findUnique({ where: { id: rideId } });
+        if (!ride || ride.adminId !== adminId) {
+            return res.status(404).json({ success: false, message: 'Ride not found' });
+        }
+        if (ride.status !== 'STARTED') {
+            return res.status(400).json({ success: false, message: 'Ride is not active' });
+        }
+        // Update DB first (fixes race condition)
+        await db_1.default.agentRide.update({
+            where: { id: rideId },
+            data: { status: 'COMPLETED', endTime: new Date() },
+        });
+        // Then clean Redis
+        await redis_1.default.del(`ride:data:${rideId}`);
+        await redis_1.default.del(`ride:latest:${rideId}`);
+        return res.status(200).json({ success: true, message: 'Ride ended successfully' });
+    }
+    catch (error) {
+        return (0, helpers_1.apiError)(res, 'Failed to end ride', 500, error);
+    }
+};
+exports.forceEndRide = forceEndRide;

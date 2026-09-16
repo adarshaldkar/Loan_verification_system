@@ -9,7 +9,7 @@ export const getAuditLogs = async (req: AuthRequest, res: Response) => {
     if (!adminId) return res.status(401).json({ success: false, message: 'Unauthorized' });
 
     const requester = await prisma.user.findUnique({ where: { id: adminId } });
-    const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+    const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
 
     const logs = await (prisma.auditLog as any).findMany({
       where: isSuperAdmin ? {} : { adminId },

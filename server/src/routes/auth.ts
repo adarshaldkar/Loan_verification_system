@@ -33,7 +33,7 @@ router.post('/verify-otp', verifyResetOtp);
 router.post('/reset-password', resetPassword);
 
 // Protected Routes
-router.post('/register', authenticateToken, requireRole(['ADMIN', 'MANAGER']), validate(registerSchema), registerAgent);
+router.post('/register', authenticateToken, requireRole(['ADMIN', 'MANAGER', 'SUPER_ADMIN']), validate(registerSchema), registerAgent);
 
 export default router;
 

@@ -8,8 +8,8 @@ const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
-const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const routes_1 = __importDefault(require("./routes"));
+const security_1 = require("./middlewares/security");
 // Load environment variables FIRST
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -35,23 +35,38 @@ app.use((0, cors_1.default)({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
 }));
-// Global Rate Limiter (1000 requests per 15 minutes)
-const globalLimiter = (0, express_rate_limit_1.default)({
-    windowMs: 15 * 60 * 1000,
-    max: 1000,
-    message: { success: false, message: 'Too many requests from this IP, please try again after 15 minutes' },
-    standardHeaders: true,
-    legacyHeaders: false,
-});
 // Security & Parsing Middlewares
 app.use((0, helmet_1.default)({ crossOriginResourcePolicy: false }));
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
 app.use((0, cookie_parser_1.default)());
-app.use(globalLimiter);
-// Root Health Endpoint
+app.use(security_1.ipBlacklistHandler);
+app.use(security_1.globalLimiter);
+app.use(security_1.trackSecurityFailures);
+// ─── Health & Keep-Alive / Wake-up Endpoints (Bypasses rate limiting) ───────
+const healthCheckHandler = (req, res) => {
+    res.status(200).json({
+        status: 'healthy',
+        uptimeSeconds: Math.floor(process.uptime()),
+        timestamp: new Date().toISOString(),
+        service: 'LVMS Backend API',
+        message: 'Server is awake and active 🚀',
+    });
+};
+app.get('/health', healthCheckHandler);
+app.get('/ping', healthCheckHandler);
+app.get('/api', healthCheckHandler);
+app.get('/api/v1', healthCheckHandler);
+app.get('/api/health', healthCheckHandler);
+app.get('/api/v1/health', healthCheckHandler);
+// Root Endpoint
 app.get('/', (req, res) => {
-    res.status(200).json({ status: 'ok', service: 'Loan Verification Management System API', timestamp: new Date().toISOString() });
+    res.status(200).json({
+        status: 'ok',
+        service: 'Loan Verification Management System API',
+        timestamp: new Date().toISOString(),
+        healthEndpoint: '/health',
+    });
 });
 // API Routes (support both /api and /api/v1 prefixes)
 app.use('/api/v1', routes_1.default);

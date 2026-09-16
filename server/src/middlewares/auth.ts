@@ -27,7 +27,12 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
 
 export const requireRole = (roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+    // Allow if role is explicitly in allowed list OR if user is SUPER_ADMIN accessing admin roles
+    const hasRole = roles.includes(req.user.role) || (req.user.role === 'SUPER_ADMIN' && roles.some(r => ['ADMIN', 'MANAGER'].includes(r)));
+    if (!hasRole && req.user.role !== 'SUPER_ADMIN') {
       return res.status(403).json({ success: false, message: 'Forbidden. You do not have the required role.' });
     }
     next();

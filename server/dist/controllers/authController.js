@@ -9,7 +9,11 @@ const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const resend_1 = require("resend");
 const crypto_1 = __importDefault(require("crypto"));
 const db_1 = __importDefault(require("../config/db"));
-const resend = new resend_1.Resend(process.env.RESEND_API_KEY || 're_placeholder');
+const resendApiKey = process.env.RESEND_API_KEY;
+if (!resendApiKey) {
+    console.warn('WARNING: RESEND_API_KEY is not set. Password reset emails will fail.');
+}
+const resend = new resend_1.Resend(resendApiKey || '');
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
     console.error('CRITICAL: JWT_SECRET is not defined in environment variables.');

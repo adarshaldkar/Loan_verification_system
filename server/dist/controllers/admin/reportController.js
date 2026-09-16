@@ -3,14 +3,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateReport = exports.getReportMetrics = exports.getReports = void 0;
+exports.exportRcuBatchPdf = exports.downloadCaseRcuPdf = exports.downloadCaseRcuDocx = exports.generateReport = exports.getReportMetrics = exports.getReports = void 0;
 const db_1 = __importDefault(require("../../config/db"));
 const helpers_1 = require("../../utils/helpers");
+const rcuReportGenerator_1 = require("../../utils/rcuReportGenerator");
+const rcuPdfReportGenerator_1 = require("../../utils/rcuPdfReportGenerator");
+const rcuBatchPdfReportGenerator_1 = require("../../utils/rcuBatchPdfReportGenerator");
 const getReports = async (req, res) => {
     try {
         const adminId = req.user?.id;
         const requester = await db_1.default.user.findUnique({ where: { id: adminId } });
-        const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+        const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
         const reports = await db_1.default.report.findMany({
             where: isSuperAdmin ? {} : { adminId },
             orderBy: { createdAt: 'desc' }
@@ -26,7 +29,7 @@ const getReportMetrics = async (req, res) => {
     try {
         const adminId = req.user?.id;
         const requester = await db_1.default.user.findUnique({ where: { id: adminId } });
-        const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+        const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
         const { timeframe } = req.query; // 'daily', 'weekly', 'monthly'
         let startDate = new Date();
         if (timeframe === 'weekly') {
@@ -94,3 +97,101 @@ const generateReport = async (req, res) => {
     }
 };
 exports.generateReport = generateReport;
+// ─── Download Full Dynamic RCU Word Document ────────────────────────────────
+const downloadCaseRcuDocx = async (req, res) => {
+    try {
+        const adminId = req.user?.id;
+        const caseId = req.params.caseId;
+        const requester = await db_1.default.user.findUnique({ where: { id: adminId } });
+        const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
+        const caseData = await db_1.default.verificationCase.findFirst({
+            where: isSuperAdmin ? { id: caseId } : { id: caseId, adminId },
+            include: {
+                customer: true,
+                agent: true,
+                admin: true,
+                media: true,
+            },
+        });
+        if (!caseData) {
+            return res.status(404).json({ success: false, message: 'Case not found or unauthorized' });
+        }
+        const docxBuffer = await (0, rcuReportGenerator_1.generateRcuDocxReport)(caseData);
+        const safeApplicant = `${caseData.customer.firstName}_${caseData.customer.lastName}`.replace(/[^a-zA-Z0-9_]/g, '');
+        const filename = `RCU_REPORT_${safeApplicant}_${caseData.customer.applicationId || caseId.slice(0, 8)}.docx`;
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', docxBuffer.length);
+        return res.status(200).send(docxBuffer);
+    }
+    catch (error) {
+        console.error('Error generating RCU Docx report:', error);
+        return (0, helpers_1.apiError)(res, 'Failed to generate RCU report document', 500, error);
+    }
+};
+exports.downloadCaseRcuDocx = downloadCaseRcuDocx;
+// ─── Download Full Dynamic RCU PDF Document ─────────────────────────────────
+const downloadCaseRcuPdf = async (req, res) => {
+    try {
+        const adminId = req.user?.id;
+        const caseId = req.params.caseId;
+        const requester = await db_1.default.user.findUnique({ where: { id: adminId } });
+        const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
+        const caseData = await db_1.default.verificationCase.findFirst({
+            where: isSuperAdmin ? { id: caseId } : { id: caseId, adminId },
+            include: {
+                customer: true,
+                agent: true,
+                admin: true,
+                media: true,
+            },
+        });
+        if (!caseData) {
+            return res.status(404).json({ success: false, message: 'Case not found or unauthorized' });
+        }
+        const pdfBuffer = await (0, rcuPdfReportGenerator_1.generateRcuPdfReport)(caseData);
+        const safeApplicant = `${caseData.customer.firstName}_${caseData.customer.lastName}`.replace(/[^a-zA-Z0-9_]/g, '');
+        const filename = `RCU_REPORT_${safeApplicant}_${caseData.customer.applicationId || caseId.slice(0, 8)}.pdf`;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        return res.status(200).send(pdfBuffer);
+    }
+    catch (error) {
+        console.error('Error generating RCU PDF report:', error);
+        return (0, helpers_1.apiError)(res, 'Failed to generate RCU PDF report document', 500, error);
+    }
+};
+exports.downloadCaseRcuPdf = downloadCaseRcuPdf;
+// ─── Export Consolidated RCU Detailed Cases PDF ─────────────────────────────
+const exportRcuBatchPdf = async (req, res) => {
+    try {
+        const adminId = req.user?.id;
+        const { reportType, dateRange } = req.query;
+        const requester = await db_1.default.user.findUnique({ where: { id: adminId } });
+        const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
+        const cases = await db_1.default.verificationCase.findMany({
+            where: isSuperAdmin ? {} : { adminId },
+            include: {
+                customer: true,
+                agent: true,
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: 25,
+        });
+        const reportTitle = typeof reportType === 'string' ? reportType : 'RCU Detailed Verification Cases Summary';
+        const dateRangeStr = typeof dateRange === 'string' ? dateRange : '07 Jul – 13 Jul 2026';
+        const pdfBuffer = await (0, rcuBatchPdfReportGenerator_1.generateConsolidatedRcuPdf)(reportTitle, dateRangeStr, cases);
+        const safeTitle = (reportTitle || 'RCU_Report').replace(/[^a-zA-Z0-9_]/g, '_');
+        const filename = `${safeTitle}_Detailed_Audit_${new Date().toISOString().slice(0, 10)}.pdf`;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', pdfBuffer.length);
+        return res.status(200).send(pdfBuffer);
+    }
+    catch (error) {
+        console.error('Error generating consolidated RCU PDF report:', error);
+        return (0, helpers_1.apiError)(res, 'Failed to generate batch RCU PDF report', 500, error);
+    }
+};
+exports.exportRcuBatchPdf = exportRcuBatchPdf;

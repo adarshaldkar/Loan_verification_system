@@ -1,0 +1,191 @@
+◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+🚀 Server running on http://localhost:5000
+⚠️ Redis connection failed or not configured. Falling back to Mock In-Memory Store.
+3:03:42 pm [tsx] change in ./src\routes\index.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+🚀 Server running on http://localhost:5000
+⚠️ Redis connection failed or not configured. Falling back to Mock In-Memory Store.
+3:03:47 pm [tsx] change in ./src\routes\index.ts Restarting...
+c◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+🚀 Server running on http://localhost:5000
+⚠️ Redis connection failed or not configured. Falling back to Mock In-Memory Store.
+3:03:55 pm [tsx] change in ./src\controllers\admin\customerController.ts Restarting...
+c◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+🚀 Server running on http://localhost:5000
+⚠️ Redis connection failed or not configured. Falling back to Mock In-Memory Store.
+3:04:20 pm [tsx] change in ./src\controllers\admin\customerController.ts Restarting...
+c◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+🚀 Server running on http://localhost:5000
+⚠️ Redis connection failed or not configured. Falling back to Mock In-Memory Store.
+3:04:35 pm [tsx] change in ./src\controllers\admin\uploadController.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+🚀 Server running on http://localhost:5000
+⚠️ Redis connection failed or not configured. Falling back to Mock In-Memory Store.
+3:05:05 pm [tsx] change in ./src\controllers\admin\uploadController.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+🚀 Server running on http://localhost:5000
+⚠️ Redis connection failed or not configured. Falling back to Mock In-Memory Store.
+3:05:19 pm [tsx] change in ./src\controllers\agent\caseController.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+🚀 Server running on http://localhost:5000
+⚠️ Redis connection failed or not configured. Falling back to Mock In-Memory Store.
+3:05:30 pm [tsx] change in ./src\controllers\agent\dashboardController.ts Restarting...
+c◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+🚀 Server running on http://localhost:5000
+⚠️ Redis connection failed or not configured. Falling back to Mock In-Memory Store.
+3:05:37 pm [tsx] change in ./src\controllers\agent\dashboardController.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+🚀 Server running on http://localhost:5000
+⚠️ Redis connection failed or not configured. Falling back to Mock In-Memory Store.
+3:05:47 pm [tsx] change in ./src\controllers\admin\caseController.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+🚀 Server running on http://localhost:5000
+⚠️ Redis connection failed or not configured. Falling back to Mock In-Memory Store.
+prisma:query SELECT 1
+3:09:55 pm [tsx] change in ./src\routes\admin.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
+🚀 Server running on http://localhost:5000
+⚠️ Redis connection failed or not configured. Falling back to Mock In-Memory Store.
+3:10:02 pm [tsx] change in ./src\routes\auth.ts Restarting...
+c◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+🚀 Server running on http://localhost:5000
+⚠️ Redis connection failed or not configured. Falling back to Mock In-Memory Store.
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:error 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+Timed out fetching a new connection from the connection pool. More info: http://pris.ly/d/connection-pool (Current connection pool timeout: 10, connection limit: 25)
+[DB Keep-Alive] Ping failed: PrismaClientKnownRequestError: 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+Timed out fetching a new connection from the connection pool. More info: http://pris.ly/d/connection-pool (Current connection pool timeout: 10, connection limit: 25)
+    at $n.handleRequestError (C:\Users\shrut\Desktop\Loan_verification_system\server\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (C:\Users\shrut\Desktop\Loan_verification_system\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\shrut\Desktop\Loan_verification_system\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\shrut\Desktop\Loan_verification_system\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Timeout._onTimeout (C:\Users\shrut\Desktop\Loan_verification_system\server\src\config\db.ts:21:7) {
+  code: 'P2024',
+  clientVersion: '5.22.0',
+  meta: { connection_limit: 25, timeout: 10 }
+}
+prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:error Error in PostgreSQL connection: Error { kind: Io, cause: Some(Os { code: 10054, kind: ConnectionReset, message: "An existing connection was forcibly closed by the remote host." }) }
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:error 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+Can't reach database server at `ep-wandering-art-atgg456j-pooler.c-9.us-east-1.aws.neon.tech:5432`
+
+Please make sure your database server is running at `ep-wandering-art-atgg456j-pooler.c-9.us-east-1.aws.neon.tech:5432`.
+[DB Keep-Alive] Ping failed: PrismaClientKnownRequestError: 
+Invalid `prisma.$queryRaw()` invocation:
+
+
+Can't reach database server at `ep-wandering-art-atgg456j-pooler.c-9.us-east-1.aws.neon.tech:5432`
+
+Please make sure your database server is running at `ep-wandering-art-atgg456j-pooler.c-9.us-east-1.aws.neon.tech:5432`.
+    at $n.handleRequestError (C:\Users\shrut\Desktop\Loan_verification_system\server\node_modules\@prisma\client\runtime\library.js:121:7315)
+    at $n.handleAndLogRequestError (C:\Users\shrut\Desktop\Loan_verification_system\server\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\shrut\Desktop\Loan_verification_system\server\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\shrut\Desktop\Loan_verification_system\server\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async Timeout._onTimeout (C:\Users\shrut\Desktop\Loan_verification_system\server\src\config\db.ts:21:7) {
+  code: 'P1001',
+  clientVersion: '5.22.0',
+  meta: {
+    database_host: 'ep-wandering-art-atgg456j-pooler.c-9.us-east-1.aws.neon.tech',
+    database_port: 5432
+  }
+}
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1
+prisma:query SELECT 1

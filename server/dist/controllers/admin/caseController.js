@@ -44,7 +44,7 @@ const getCases = async (req, res) => {
                 id: item.id,
                 customer: (0, helpers_1.parseFullName)(item.customer.firstName, item.customer.lastName),
                 type: item.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
-                status: isRevision ? 'RE_VERIFICATION' : (0, helpers_1.resolveCaseStatus)(item.status),
+                status: isRevision ? (0, helpers_1.resolveCaseStatus)('RE_VERIFICATION') : (0, helpers_1.resolveCaseStatus)(item.status),
                 agent: (0, helpers_1.resolveAgentName)(item.agent ?? null),
                 agentId: item.agentId,
                 branch: item.branch ?? item.agent?.branch ?? item.customer.branch ?? 'Unassigned',
@@ -140,10 +140,16 @@ const getCaseById = async (req, res) => {
             agent: (0, helpers_1.resolveAgentName)(caseData.agent ?? null),
             branch: caseData.branch ?? caseData.agent?.branch ?? caseData.customer.branch ?? 'Unassigned',
             submittedAt: caseData.completedAt ? (0, helpers_1.formatDateTime)(caseData.completedAt) : 'Pending',
-            gps: { lat: `${caseData.gpsLatitude || '0'}° N`, lng: `${caseData.gpsLongitude || '0'}° E` },
+            gps: { lat: `${caseData.gpsLatitude || '0'} N`, lng: `${caseData.gpsLongitude || '0'} E` },
             profileData: caseData.profileData ? JSON.parse(caseData.profileData) : null,
             remarks: caseData.remarks || 'No remarks provided.',
             media: caseData.media.map((m) => ({ id: m.id, url: m.url, type: m.type })),
+            address: {
+                text: caseData.customer?.address || '',
+                latitude: caseData.addressLatitude ?? null,
+                longitude: caseData.addressLongitude ?? null,
+                accuracy: caseData.addressAccuracy ?? null,
+            },
         };
         return res.status(200).json({ success: true, data });
     }

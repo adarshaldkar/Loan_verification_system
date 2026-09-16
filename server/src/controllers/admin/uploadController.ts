@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../../config/db';
 import { AuthRequest } from '../../middlewares/auth';
 import { apiError, createAuditLog } from '../../utils/helpers';
+import { geocodeAddress } from '../../utils/geocoder';
 
 // Memory cache to store active batch progress updates
 export const activeBatches = new Map<string, {
@@ -114,12 +115,28 @@ export const bulkUploadCases = async (req: AuthRequest, res: Response) => {
             });
           }
 
+          // Geocode address before creating the case (throttled to 1 req/sec; Redis-cached)
+          let addrLat: number | null = null;
+          let addrLng: number | null = null;
+          let addrAcc: string | null = null;
+          try {
+            const r = await geocodeAddress(String(row.address).trim());
+            if (r.lat != null && r.lng != null) {
+              addrLat = r.lat;
+              addrLng = r.lng;
+              addrAcc = r.accuracy === 'unknown' ? null : r.accuracy;
+            }
+          } catch { /* non-fatal — leave null */ }
+
           const newCase = await prisma.verificationCase.create({
             data: {
               customerId: customer.id,
               status: 'PENDING',
               type: String(row.type).toUpperCase() === 'BUSINESS' ? 'BUSINESS' : 'RESIDENTIAL',
               adminId,
+              addressLatitude: addrLat ?? undefined,
+              addressLongitude: addrLng ?? undefined,
+              addressAccuracy: addrAcc ?? undefined,
             }
           });
 

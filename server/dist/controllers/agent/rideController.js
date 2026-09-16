@@ -26,18 +26,18 @@ const startRide = async (req, res) => {
         const agent = await db_1.default.user.findUnique({ where: { id: agentId } });
         if (!agent || !agent.adminId)
             return res.status(400).json({ success: false, message: 'Invalid agent' });
-        // Close any previous pending rides for this agent
+        // Close any previous pending rides for this agent (DB FIRST, then Redis to avoid race condition)
         const activeRides = await db_1.default.agentRide.findMany({
             where: { agentId, status: 'STARTED' }
+        });
+        await db_1.default.agentRide.updateMany({
+            where: { agentId, status: 'STARTED' },
+            data: { status: 'COMPLETED', endTime: new Date() },
         });
         for (const r of activeRides) {
             await redis_1.default.del(`ride:data:${r.id}`);
             await redis_1.default.del(`ride:latest:${r.id}`);
         }
-        await db_1.default.agentRide.updateMany({
-            where: { agentId, status: 'STARTED' },
-            data: { status: 'COMPLETED', endTime: new Date() },
-        });
         const newRide = await db_1.default.agentRide.create({
             data: {
                 agentId,
@@ -45,6 +45,8 @@ const startRide = async (req, res) => {
                 status: 'STARTED',
             }
         });
+        // Prime Redis cache for the new ride
+        await redis_1.default.set(`ride:data:${newRide.id}`, JSON.stringify(newRide), 'EX', 300);
         return res.status(201).json({ success: true, data: newRide });
     }
     catch (error) {
@@ -159,13 +161,17 @@ const endRide = async (req, res) => {
         if (!ride || ride.agentId !== agentId) {
             return res.status(403).json({ success: false, message: 'Invalid ride' });
         }
-        // Clean up Redis Cache keys
-        await redis_1.default.del(`ride:data:${rideId}`);
-        await redis_1.default.del(`ride:latest:${rideId}`);
+        // Update DB first, then clean up Redis cache keys (race-condition safe).
+        // getActiveRides reads the DB as the source of truth, so committing the
+        // status change BEFORE removing the cache guarantees the admin never sees
+        // a ghost ride for a ride that has already ended. A leftover ride:latest
+        // key is harmless (a new ride always gets a fresh id).
         const updatedRide = await db_1.default.agentRide.update({
             where: { id: rideId },
             data: { status: 'COMPLETED', endTime: new Date() }
         });
+        await redis_1.default.del(`ride:data:${rideId}`);
+        await redis_1.default.del(`ride:latest:${rideId}`);
         return res.status(200).json({ success: true, data: updatedRide });
     }
     catch (error) {

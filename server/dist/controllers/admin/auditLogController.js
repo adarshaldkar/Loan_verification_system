@@ -12,7 +12,7 @@ const getAuditLogs = async (req, res) => {
         if (!adminId)
             return res.status(401).json({ success: false, message: 'Unauthorized' });
         const requester = await db_1.default.user.findUnique({ where: { id: adminId } });
-        const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+        const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
         const logs = await db_1.default.auditLog.findMany({
             where: isSuperAdmin ? {} : { adminId },
             orderBy: { createdAt: 'desc' },

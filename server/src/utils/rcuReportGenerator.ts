@@ -416,6 +416,7 @@ export async function generateRcuDocxReport(caseData: ReportCaseData): Promise<B
         const runs: any[] = [
           new ImageRun({
             data: first.buffer,
+            type: 'jpg',
             transformation: { width: 260, height: 195 },
           }),
         ];
@@ -425,6 +426,7 @@ export async function generateRcuDocxReport(caseData: ReportCaseData): Promise<B
           runs.push(
             new ImageRun({
               data: second.buffer,
+              type: 'jpg',
               transformation: { width: 260, height: 195 },
             })
           );

@@ -36,9 +36,9 @@ const updateAdminSchema = zod_1.z.object({
     isActive: zod_1.z.boolean().optional(),
 });
 const router = (0, express_1.Router)();
-// All admin routes require a valid JWT + ADMIN or MANAGER role
+// All admin routes require a valid JWT + ADMIN, MANAGER or SUPER_ADMIN role
 router.use(auth_1.authenticateToken);
-router.use((0, auth_1.requireRole)(['ADMIN', 'MANAGER']));
+router.use((0, auth_1.requireRole)(['ADMIN', 'MANAGER', 'SUPER_ADMIN']));
 // ── Dashboard ──────────────────────────────────────────────────────────────
 router.get('/dashboard', dashboardController_1.getDashboard);
 router.get('/analytics', dashboardController_1.getAnalytics);
@@ -68,6 +68,9 @@ router.post('/branches', branchController_1.createBranch);
 router.get('/reports', reportController_1.getReports);
 router.get('/reports/metrics', reportController_1.getReportMetrics);
 router.post('/reports/generate', reportController_1.generateReport);
+router.get('/reports/export/pdf', reportController_1.exportRcuBatchPdf);
+router.get('/reports/case/:caseId/docx', reportController_1.downloadCaseRcuDocx);
+router.get('/reports/case/:caseId/pdf', reportController_1.downloadCaseRcuPdf);
 // ── Audit Logs ─────────────────────────────────────────────────────────────
 router.get('/audit-logs', auditLogController_1.getAuditLogs);
 // ── Profile & Settings ─────────────────────────────────────────────────────
@@ -87,4 +90,5 @@ router.put('/admins/:adminId', (0, validate_1.validate)(updateAdminSchema), mana
 const trackingController_1 = require("../controllers/admin/trackingController");
 router.get('/tracking/active', trackingController_1.getActiveRides);
 router.get('/tracking/history/:rideId', trackingController_1.getRideHistory);
+router.post('/tracking/rides/:rideId/end', trackingController_1.forceEndRide);
 exports.default = router;

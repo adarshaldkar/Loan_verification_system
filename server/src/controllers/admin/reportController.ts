@@ -10,7 +10,7 @@ export const getReports = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
     const requester = await prisma.user.findUnique({ where: { id: adminId } });
-    const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+    const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
 
     const reports = await prisma.report.findMany({
       where: isSuperAdmin ? {} : { adminId },
@@ -27,7 +27,7 @@ export const getReportMetrics = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
     const requester = await prisma.user.findUnique({ where: { id: adminId } });
-    const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+    const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
 
     const { timeframe } = req.query; // 'daily', 'weekly', 'monthly'
     let startDate = new Date();
@@ -106,7 +106,7 @@ export const downloadCaseRcuDocx = async (req: AuthRequest, res: Response) => {
     const caseId = req.params.caseId as string;
 
     const requester = await prisma.user.findUnique({ where: { id: adminId } });
-    const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+    const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
 
     const caseData = await (prisma.verificationCase as any).findFirst({
       where: isSuperAdmin ? { id: caseId } : { id: caseId, adminId },
@@ -145,7 +145,7 @@ export const downloadCaseRcuPdf = async (req: AuthRequest, res: Response) => {
     const caseId = req.params.caseId as string;
 
     const requester = await prisma.user.findUnique({ where: { id: adminId } });
-    const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+    const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
 
     const caseData = await (prisma.verificationCase as any).findFirst({
       where: isSuperAdmin ? { id: caseId } : { id: caseId, adminId },
@@ -184,7 +184,7 @@ export const exportRcuBatchPdf = async (req: AuthRequest, res: Response) => {
     const { reportType, dateRange } = req.query;
 
     const requester = await prisma.user.findUnique({ where: { id: adminId } });
-    const isSuperAdmin = requester && (requester.email === 'akshaya@gmail.com' || requester.email === 'adarshaldkar@gmail.com');
+    const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
 
     const cases = await prisma.verificationCase.findMany({
       where: isSuperAdmin ? {} : { adminId },

@@ -43,7 +43,7 @@ export const getCases = async (req: AuthRequest, res: Response) => {
         id: item.id,
         customer: parseFullName(item.customer.firstName, item.customer.lastName),
         type: item.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
-        status: isRevision ? 'RE_VERIFICATION' : resolveCaseStatus(item.status),
+        status: isRevision ? resolveCaseStatus('RE_VERIFICATION') : resolveCaseStatus(item.status),
         agent: resolveAgentName(item.agent ?? null),
         agentId: item.agentId,
         branch: item.branch ?? item.agent?.branch ?? item.customer.branch ?? 'Unassigned',
@@ -147,10 +147,16 @@ export const getCaseById = async (req: AuthRequest, res: Response) => {
       agent: resolveAgentName(caseData.agent ?? null),
       branch: caseData.branch ?? caseData.agent?.branch ?? caseData.customer.branch ?? 'Unassigned',
       submittedAt: caseData.completedAt ? formatDateTime(caseData.completedAt) : 'Pending',
-      gps: { lat: `${caseData.gpsLatitude || '0'}° N`, lng: `${caseData.gpsLongitude || '0'}° E` },
+      gps: { lat: `${caseData.gpsLatitude || '0'} N`, lng: `${caseData.gpsLongitude || '0'} E` },
       profileData: caseData.profileData ? JSON.parse(caseData.profileData) : null,
       remarks: caseData.remarks || 'No remarks provided.',
       media: caseData.media.map((m: any) => ({ id: m.id, url: m.url, type: m.type })),
+      address: {
+        text: caseData.customer?.address || '',
+        latitude: caseData.addressLatitude ?? null,
+        longitude: caseData.addressLongitude ?? null,
+        accuracy: caseData.addressAccuracy ?? null,
+      },
     };
 
     return res.status(200).json({ success: true, data });
