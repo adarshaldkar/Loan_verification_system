@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { FiShield, FiMail, FiLock, FiEye, FiEyeOff, FiAlertCircle } from "react-icons/fi";
 import { toast } from "sonner";
 import { agentLoginApi } from "@/lib/api";
+import { STORAGE_KEYS } from "@/lib/constants";
 
 export default function AgentLoginPage() {
   const router = useRouter();
@@ -23,18 +24,19 @@ export default function AgentLoginPage() {
     }
     setLoading(true);
     try {
-      const res = await agentLoginApi(email, password);
+      const res = await agentLoginApi(email.trim().toLowerCase(), password);
       const { user, token } = res.data;
-      // Verify the logged-in user is actually a FIELD_AGENT
-      if (user.role !== "FIELD_AGENT") {
-        setError("Access denied. This portal is for Field Agents only.");
-        setLoading(false);
-        return;
+      if (token) localStorage.setItem(STORAGE_KEYS.TOKEN, token);
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+
+      if (user.role === "FIELD_AGENT") {
+        localStorage.setItem(STORAGE_KEYS.AGENT, JSON.stringify(user));
+        toast.success(`Welcome back, ${user.firstName}!`);
+        router.push("/agent");
+      } else {
+        toast.success(`Welcome back, ${user.firstName}!`);
+        router.push("/app");
       }
-      if (token) localStorage.setItem("lvms_token", token);
-      localStorage.setItem("lvms_agent", JSON.stringify(user));
-      toast.success(`Welcome back, ${user.firstName}!`);
-      router.push("/agent");
     } catch (err: any) {
       setError(err?.response?.data?.message || "Invalid email or password.");
       setLoading(false);

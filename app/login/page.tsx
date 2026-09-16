@@ -33,11 +33,12 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const res = await loginApi(email, password);
+      const res = await loginApi(email.trim().toLowerCase(), password);
       const { user, token } = res.data;
       if (token) localStorage.setItem(STORAGE_KEYS.TOKEN, token);
       localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
 
+      // Smart Universal Role-Based Redirection
       if (user.role === "FIELD_AGENT") {
         localStorage.setItem(STORAGE_KEYS.AGENT, JSON.stringify(user));
         router.push("/agent");

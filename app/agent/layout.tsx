@@ -11,6 +11,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { agentLogoutApi } from "@/lib/api";
+import { STORAGE_KEYS } from "@/lib/constants";
 import { toast } from "sonner";
 
 interface NavItem {
@@ -152,11 +153,11 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const storedTheme = localStorage.getItem("theme") || "light";
+      const storedTheme = localStorage.getItem(STORAGE_KEYS.THEME) || "light";
       setTheme(storedTheme);
       if (storedTheme === "dark") document.documentElement.classList.add("dark");
 
-      const storedAgent = localStorage.getItem("lvms_agent");
+      const storedAgent = localStorage.getItem(STORAGE_KEYS.AGENT);
       if (storedAgent) {
         try {
           const user = JSON.parse(storedAgent);
@@ -173,7 +174,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
+    localStorage.setItem(STORAGE_KEYS.THEME, newTheme);
     if (newTheme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
@@ -267,11 +268,25 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
       setCheckingAuth(false);
       return;
     }
-    const agentStr = localStorage.getItem("lvms_agent");
-    if (!agentStr) {
-      router.push("/agent/login");
-    } else {
+    const agentStr = localStorage.getItem(STORAGE_KEYS.AGENT);
+    const userStr = localStorage.getItem(STORAGE_KEYS.USER);
+
+    if (agentStr) {
       setCheckingAuth(false);
+    } else if (userStr) {
+      try {
+        const u = JSON.parse(userStr);
+        if (u.role === "FIELD_AGENT") {
+          localStorage.setItem(STORAGE_KEYS.AGENT, userStr);
+          setCheckingAuth(false);
+        } else {
+          router.push("/app");
+        }
+      } catch {
+        router.push("/login");
+      }
+    } else {
+      router.push("/login");
     }
   }, [pathname, router]);
 
@@ -348,7 +363,8 @@ export default function AgentLayout({ children }: { children: React.ReactNode })
                   } catch (e) {
                     console.error("Error calling logout api:", e);
                   }
-                  localStorage.removeItem("lvms_agent");
+                  localStorage.removeItem(STORAGE_KEYS.AGENT);
+                  localStorage.removeItem(STORAGE_KEYS.TOKEN);
                   setShowLogoutDialog(false);
                   router.push("/agent/login");
                   toast.success("Successfully logged out");
