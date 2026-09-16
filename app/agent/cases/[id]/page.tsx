@@ -31,10 +31,10 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
         const res = await getAgentCaseByIdApi(id);
         const fetched = res.data.data;
         const address = fetched.customer?.address || "No address provided";
-        let lat = fetched.gpsLatitude;
-        let lng = fetched.gpsLongitude;
+        let lat = fetched.addressLatitude ?? null;
+        let lng = fetched.addressLongitude ?? null;
 
-        if (!lat || !lng) {
+        if (lat == null || lng == null) {
           const resolved = await geocodeAddressDynamically(address);
           lat = resolved.lat;
           lng = resolved.lng;
@@ -275,16 +275,28 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
               style={{ border: 0 }}
               loading="lazy"
               allowFullScreen
-              src={`https://www.google.com/maps?q=${caseData.lat},${caseData.lng}&z=15&output=embed`}
+              src={
+                typeof caseData.lat === "number" && typeof caseData.lng === "number"
+                  ? `https://www.google.com/maps?q=${caseData.lat},${caseData.lng}&z=15&output=embed`
+                  : `https://www.google.com/maps?q=${encodeURIComponent(caseData.address)}&z=15&output=embed`
+              }
             />
           </div>
           <div className="px-4 py-3 flex items-center justify-between bg-slate-50">
             <div>
               <p className="text-xs font-medium text-slate-700">{caseData.address}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Lat: {caseData.lat} · Lng: {caseData.lng}</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                {typeof caseData.lat === "number" && typeof caseData.lng === "number"
+                  ? `Lat: ${caseData.lat} · Lng: ${caseData.lng}`
+                  : "Coordinates resolved automatically by Google Maps"}
+              </p>
             </div>
             <a
-              href={`https://www.google.com/maps/dir/?api=1&destination=${caseData.lat},${caseData.lng}`}
+              href={
+                typeof caseData.lat === "number" && typeof caseData.lng === "number"
+                  ? `https://www.google.com/maps/dir/?api=1&destination=${caseData.lat},${caseData.lng}`
+                  : `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(caseData.address)}`
+              }
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg"

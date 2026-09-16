@@ -11,9 +11,9 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import ScheduleRouteMap from "@/components/shared/ScheduleRouteMap";
-import { startRideApi, endRideApi, logLocationPingApi } from "@/lib/api";
-import { geocodeAddressDynamically } from "@/lib/geocoding";
+import { startRideApi, endRideApi, logLocationPingApi, geocodeCasesApi } from "@/lib/api";
 
 /* ─── Agent Dashboard ─────────────────────────────────────────────────────── */
 
@@ -153,39 +153,55 @@ export default function AgentDashboard() {
     return R * c;
   }
 
-  const [caseCoords, setCaseCoords] = useState<Record<string, { lat: number; lng: number }>>({});
+  const [caseCoords, setCaseCoords] = useState<Record<string, { lat: number | null; lng: number | null }>>({});
 
+  // Resolve schedule locations: use stored coordinates when available,
+  // otherwise batch-geocode the missing ones once per dashboard load.
   useEffect(() => {
     if (!dashboardData?.todaySchedule) return;
-    
-    async function geocodeSchedules() {
-      const coords: Record<string, { lat: number; lng: number }> = {};
-      
-      for (const s of dashboardData.todaySchedule) {
-        if (!s.address) continue;
-        const resolved = await geocodeAddressDynamically(s.address, {
-          lat: agentCoords.lat,
-          lng: agentCoords.lng
-        });
-        coords[s.id] = resolved;
+
+    const coords: Record<string, { lat: number | null; lng: number | null }> = {};
+    const needGeocode: string[] = [];
+
+    for (const s of dashboardData.todaySchedule) {
+      if (s.addressLatitude != null && s.addressLongitude != null) {
+        coords[s.id] = { lat: s.addressLatitude, lng: s.addressLongitude };
+      } else if (s.address) {
+        needGeocode.push(s.id);
       }
-      setCaseCoords(coords);
     }
-    
-    geocodeSchedules();
-  }, [dashboardData, agentCoords.lat, agentCoords.lng]);
+
+    setCaseCoords(coords);
+    if (!needGeocode.length) return;
+
+    (async () => {
+      try {
+        const res = await geocodeCasesApi(needGeocode);
+        const data = res.data?.data ?? {};
+        setCaseCoords((prev) => {
+          const next = { ...prev };
+          Object.keys(data).forEach((id) => {
+            const r = data[id];
+            if (r && typeof r.lat === "number" && typeof r.lng === "number") {
+              next[id] = { lat: r.lat, lng: r.lng };
+            }
+          });
+          return next;
+        });
+      } catch (err) {
+        console.warn("Failed to geocode schedule locations:", err);
+      }
+    })();
+  }, [dashboardData]);
 
   const destinations = dashboardData?.todaySchedule?.map((s: any, idx: number) => {
-    const coords = caseCoords[s.id] || {
-      lat: agentCoords.lat,
-      lng: agentCoords.lng
-    };
+    const known = caseCoords[s.id];
     return {
       id: s.id,
       name: s.name,
       address: s.address || "No address provided",
-      lat: coords.lat,
-      lng: coords.lng,
+      lat: known?.lat ?? null,
+      lng: known?.lng ?? null,
     };
   }) || [];
 
@@ -297,26 +313,19 @@ export default function AgentDashboard() {
     }
 
     return result.map(c => {
-      const coords = caseCoords[c.id] || (() => {
-        let hash = 0;
-        const str = c.customer || c.address || "";
-        for (let i = 0; i < str.length; i++) {
-          hash = str.charCodeAt(i) + ((hash << 5) - hash);
-        }
-        const latOffset = ((Math.abs(hash) % 100) / 4000) - 0.0125;
-        const lngOffset = (((Math.abs(hash) >> 8) % 100) / 4000) - 0.0125;
-        return {
-          lat: agentCoords.lat + latOffset,
-          lng: agentCoords.lng + lngOffset
-        };
-      })();
-      
-      const distanceVal = haversineDistance(agentCoords.lat, agentCoords.lng, coords.lat, coords.lng);
+      const coords = caseCoords[c.id];
+
+      let distance = "Location unknown";
+      if (coords && typeof coords.lat === "number" && typeof coords.lng === "number") {
+        const distanceVal = haversineDistance(agentCoords.lat, agentCoords.lng, coords.lat, coords.lng);
+        distance = `${distanceVal.toFixed(1)} km away`;
+      }
+
       return {
         ...c,
-        distance: `${distanceVal.toFixed(1)} km away`,
-        lat: coords.lat,
-        lng: coords.lng,
+        distance,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
       };
     });
   };
@@ -384,23 +393,28 @@ export default function AgentDashboard() {
       toast.error("No active verifications scheduled to view route.");
       return;
     }
-    // Starting coordinates
-    const origin = `${agentCoords.lat},${agentCoords.lng}`;
-    // Last stop coordinates
-    const lastStop = destinations[destinations.length - 1];
-    const destination = `${lastStop.lat},${lastStop.lng}`;
-    // Intermediate stops
-    const waypoints = destinations
+    const knownStops = destinations.filter(
+      (d: any) => typeof d.lat === "number" && typeof d.lng === "number"
+    );
+    if (knownStops.length === 0) {
+      toast.error("Locations are still being resolved. Try again in a moment.");
+      return;
+    }
+    const coordToStr = (d: any) => `${d.lat},${d.lng}`;
+    const startingPoint = coordToStr(knownStops[0]);
+    const lastStop = knownStops[knownStops.length - 1];
+    const destination = coordToStr(lastStop);
+    const waypoints = knownStops
       .slice(0, -1)
-      .map((d: any) => `${d.lat},${d.lng}`)
+      .map(coordToStr)
       .join('|');
-      
-    let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(startingPoint)}&destination=${encodeURIComponent(destination)}`;
     if (waypoints) {
       url += `&waypoints=${encodeURIComponent(waypoints)}`;
     }
-    
-    toast.success(`Opening Google Maps route with ${destinations.length} stops...`);
+
+    toast.success(`Opening Google Maps route with ${knownStops.length} stops...`);
     window.open(url, "_blank");
   };
 

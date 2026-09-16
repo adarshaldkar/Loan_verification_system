@@ -74,6 +74,15 @@ export default function CaseVerificationFormPage({
     [selectedProfileCode]
   );
 
+  // Seed the location picker with the case's stored address coordinates when available
+  const defaultAddressCoords = useMemo(() => {
+    const c = currentCase as any;
+    const lat = c?.addressLatitude != null ? Number(c.addressLatitude) : null;
+    const lng = c?.addressLongitude != null ? Number(c.addressLongitude) : null;
+    if (lat != null && lng != null) return { lat, lng };
+    return null;
+  }, [currentCase]);
+
   // Handle Form Submission for this specific case
   const handleSubmitCase = async (data: {
     profileType: string;
@@ -202,6 +211,8 @@ export default function CaseVerificationFormPage({
         applicantDefaultAddress={currentCase.customer?.address || currentCase.address}
         initialData={currentCase.profileData ? JSON.parse(currentCase.profileData) : {}}
         isSubmitting={submitting}
+        defaultLat={defaultAddressCoords?.lat}
+        defaultLng={defaultAddressCoords?.lng}
         onSubmit={handleSubmitCase}
       />
     </div>

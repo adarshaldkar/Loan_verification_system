@@ -7,8 +7,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 interface Destination {
   id: string;
   name: string;
-  lat: number;
-  lng: number;
+  lat: number | null;
+  lng: number | null;
   address: string;
 }
 
@@ -103,10 +103,12 @@ export default function ScheduleRouteMap({ agentLat, agentLng, destinations }: S
 
     markersRef.current.push(agentMarker);
 
-    // 2. Add Destination Markers (Numbered Red/Amber Pins)
+    // 2. Add Destination Markers (Numbered Red/Amber Pins) — only for known coordinates
     const coordinates: [number, number][] = [[agentLng, agentLat]];
 
     destinations.forEach((dest, idx) => {
+      if (typeof dest.lat !== "number" || typeof dest.lng !== "number") return;
+
       const colors = ["#EF4444", "#F59E0B", "#2563EB", "#6B7280"];
       const color = colors[idx] || "#EF4444";
 

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { getActiveRidesApi, getRideHistoryApi } from "@/lib/api";
+import { getActiveRidesApi, getRideHistoryApi, forceEndRideApi } from "@/lib/api";
 import { toast } from "sonner";
-import { FiMapPin, FiNavigation, FiClock, FiActivity } from "react-icons/fi";
+import { FiMapPin, FiNavigation, FiClock, FiActivity, FiStopCircle } from "react-icons/fi";
 import maplibregl from "maplibre-gl";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -116,6 +116,25 @@ export default function TrackingPage() {
     }
   };
 
+  const handleEndRide = async (rideId: string) => {
+    const ride = activeRides.find((r) => r.id === rideId);
+    const agentName = ride ? `${ride.agent?.firstName ?? ""} ${ride.agent?.lastName ?? ""}`.trim() : "this agent";
+    if (!window.confirm(`End ${agentName}'s ride? GPS tracking will stop and cannot be resumed.`)) {
+      return;
+    }
+    try {
+      await forceEndRideApi(rideId);
+      toast.success(`${agentName}'s ride ended successfully`);
+      setActiveRides((prev) => prev.filter((r) => r.id !== rideId));
+      if (selectedRideId === rideId) {
+        setSelectedRideId(null);
+        setSelectedHistory(null);
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to end ride");
+    }
+  };
+
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col md:flex-row gap-6">
       
@@ -156,8 +175,21 @@ export default function TrackingPage() {
               >
                 <div className="flex justify-between items-start mb-2">
                   <div className="font-bold text-slate-800 dark:text-slate-200">{ride.agent.firstName} {ride.agent.lastName}</div>
-                  <div className="text-xs font-mono bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded">
-                    {ride.totalDistance.toFixed(2)} km
+                  <div className="flex items-center gap-2">
+                    <div className="text-xs font-mono bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded">
+                      {ride.totalDistance.toFixed(2)} km
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        handleEndRide(ride.id);
+                      }}
+                      title="End ride"
+                      className="w-6 h-6 rounded-full bg-red-50 dark:bg-red-950/40 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 flex items-center justify-center transition-colors"
+                    >
+                      <FiStopCircle className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-slate-500">

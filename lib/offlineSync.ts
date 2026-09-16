@@ -4,6 +4,8 @@
  * and provides automatic sync when network connectivity is restored.
  */
 
+import { STORAGE_KEYS } from './constants';
+
 export interface OfflineVerificationDraft {
   id: string; // caseId
   caseType: string;
@@ -26,7 +28,7 @@ export interface OfflineVerificationDraft {
   error?: string;
 }
 
-const STORAGE_KEY = 'lvms_agent_offline_queue_v1';
+const STORAGE_KEY = STORAGE_KEYS.OFFLINE_QUEUE;
 
 export class OfflineSyncManager {
   /**

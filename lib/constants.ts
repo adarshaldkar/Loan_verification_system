@@ -43,6 +43,7 @@ export const STORAGE_KEYS = {
   THEME: 'theme',
   ORG: 'lvms_org',
   SUBMITTED_VERIFICATIONS: 'lvms_submitted_verifications',
+  OFFLINE_QUEUE: 'lvms_agent_offline_queue_v1',
 } as const;
 
 // ─── API Config ────────────────────────────────────────────────────────────

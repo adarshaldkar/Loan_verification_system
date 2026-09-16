@@ -40,6 +40,8 @@ export interface DynamicVerificationFormProps {
   applicantDefaultName?: string;
   applicantDefaultPhone?: string;
   applicantDefaultAddress?: string;
+  defaultLat?: number;
+  defaultLng?: number;
   isSubmitting?: boolean;
   onSubmit: (formData: {
     profileType: string;
@@ -58,6 +60,8 @@ export default function DynamicVerificationForm({
   applicantDefaultPhone,
   applicantDefaultAddress,
   isSubmitting = false,
+  defaultLat,
+  defaultLng,
   onSubmit,
 }: DynamicVerificationFormProps) {
   const profile = useMemo(() => getProfileByCode(profileCode), [profileCode]);
@@ -68,9 +72,9 @@ export default function DynamicVerificationForm({
   const [photos, setPhotos] = useState<{ url: string; name: string }[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  // GPS Location State
-  const [lat, setLat] = useState<number>(12.9716);
-  const [lng, setLng] = useState<number>(77.5946);
+  // GPS Location State — seed from stored/case address coordinates first; browser GPS overrides
+  const [lat, setLat] = useState<number>(defaultLat ?? 12.9716);
+  const [lng, setLng] = useState<number>(defaultLng ?? 77.5946);
   const [gpsLocked, setGpsLocked] = useState(false);
   const [gpsAccuracy, setGpsAccuracy] = useState<string>("Detecting...");
 

@@ -88,7 +88,7 @@ export default function CaseDetailPage({
       await updateCaseStatusApi(id, newStatus);
       setC((prev: any) => ({
         ...prev,
-        status: newStatus === "COMPLETED" ? "Completed" : "Rejected",
+        status: newStatus,
       }));
       toast.success(`Case ${newStatus === "COMPLETED" ? "Approved" : "Rejected"}`);
     } catch {
@@ -159,7 +159,7 @@ export default function CaseDetailPage({
             {downloadingPdf ? "Generating PDF..." : "Download RCU Report (PDF)"}
           </Button>
 
-          {c.status !== "Completed" && c.status !== "APPROVED" && (
+          {c.status !== "COMPLETED" && c.status !== "APPROVED" && (
             <Button
               size="sm"
               className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1.5"
@@ -168,7 +168,7 @@ export default function CaseDetailPage({
               <FiCheckCircle className="w-3.5 h-3.5" /> Approve Case
             </Button>
           )}
-          {c.status !== "Rejected" && c.status !== "REJECTED" && (
+          {c.status !== "REJECTED" && (
             <Button
               size="sm"
               variant="outline"
@@ -201,7 +201,61 @@ export default function CaseDetailPage({
 
             {/* Right Col: GPS & Agent Remarks */}
             <div className="space-y-6">
-              {/* GPS Info */}
+{/* Address Location */}
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
+                  <FiMapPin className="w-4 h-4 text-blue-600" />
+                  <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                    Customer Address Location
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300">{c.address?.text || "—"}</p>
+                {c.address?.latitude != null && c.address?.longitude != null ? (
+                  <>
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="bg-slate-50 dark:bg-slate-800 p-2.5 rounded-lg">
+                        <p className="text-[10px] text-slate-400 font-semibold mb-0.5">LATITUDE</p>
+                        <p className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                          {Number(c.address.latitude).toFixed(6)}
+                        </p>
+                      </div>
+                      <div className="bg-slate-50 dark:bg-slate-800 p-2.5 rounded-lg">
+                        <p className="text-[10px] text-slate-400 font-semibold mb-0.5">LONGITUDE</p>
+                        <p className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                          {Number(c.address.longitude).toFixed(6)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-sky-50 dark:bg-slate-800 text-sky-700 dark:text-sky-300">
+                        {c.address.accuracy ? `${c.address.accuracy}-level` : "resolved"}
+                      </span>
+                      <a
+                        href={`https://www.google.com/maps?q=${c.address.latitude},${c.address.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-semibold text-blue-600 hover:underline"
+                      >
+                        Google Maps ↗
+                      </a>
+                      <a
+                        href={`https://www.openstreetmap.org/?mlat=${c.address.latitude}&mlon=${c.address.longitude}#map=17/${c.address.latitude}/${c.address.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-semibold text-emerald-600 hover:underline"
+                      >
+                        OpenStreetMap ↗
+                      </a>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                    Address location not resolved yet — it appears automatically after processing.
+                  </p>
+                )}
+              </div>
+
+              {/* GPS Info (verification capture) */}
               <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
                 <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
                   <FiMapPin className="w-4 h-4 text-emerald-600" />

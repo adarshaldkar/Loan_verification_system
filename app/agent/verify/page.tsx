@@ -27,6 +27,7 @@ import {
   VerificationProfileConfig,
 } from "@/lib/verificationProfiles";
 import DynamicVerificationForm from "@/components/verification/DynamicVerificationForm";
+import { STORAGE_KEYS } from "@/lib/constants";
 
 const CATEGORIES = ["All", "Residential", "Business", "Commercial", "DSA", "Property", "Asset"] as const;
 
@@ -42,7 +43,7 @@ export default function VerificationProcessPage() {
   useEffect(() => {
     // Load local history
     try {
-      const stored = localStorage.getItem("lvms_submitted_verifications");
+      const stored = localStorage.getItem(STORAGE_KEYS.SUBMITTED_VERIFICATIONS);
       if (stored) setSubmittedForms(JSON.parse(stored));
     } catch {
       // Ignore storage errors
@@ -98,7 +99,7 @@ export default function VerificationProcessPage() {
 
       const updated = [newSubmission, ...submittedForms];
       setSubmittedForms(updated);
-      localStorage.setItem("lvms_submitted_verifications", JSON.stringify(updated));
+      localStorage.setItem(STORAGE_KEYS.SUBMITTED_VERIFICATIONS, JSON.stringify(updated));
 
       toast.success(`Verification Form submitted successfully: ${activeProfile.name}`);
     } finally {
@@ -289,7 +290,7 @@ export default function VerificationProcessPage() {
                   onClick={() => {
                     if (confirm("Clear local submission history?")) {
                       setSubmittedForms([]);
-                      localStorage.removeItem("lvms_submitted_verifications");
+                      localStorage.removeItem(STORAGE_KEYS.SUBMITTED_VERIFICATIONS);
                     }
                   }}
                   className="text-xs text-red-500 hover:underline"
