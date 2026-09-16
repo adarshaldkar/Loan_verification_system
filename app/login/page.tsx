@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { loginApi } from "@/lib/api";
+import { STORAGE_KEYS } from "@/lib/constants";
 
 /* ─── Login Page ─────────────────────────────────────────────────────────── */
 
@@ -34,9 +35,15 @@ export default function LoginPage() {
     try {
       const res = await loginApi(email, password);
       const { user, token } = res.data;
-      if (token) localStorage.setItem("lvms_token", token);
-      localStorage.setItem("lvms_user", JSON.stringify(user));
-      router.push("/app");
+      if (token) localStorage.setItem(STORAGE_KEYS.TOKEN, token);
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+
+      if (user.role === "FIELD_AGENT") {
+        localStorage.setItem(STORAGE_KEYS.AGENT, JSON.stringify(user));
+        router.push("/agent");
+      } else {
+        router.push("/app");
+      }
     } catch (err: any) {
       setError(
         err?.response?.data?.message || "Invalid email or password. Please try again."

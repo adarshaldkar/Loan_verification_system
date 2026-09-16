@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { getAuditLogsApi, getSettingsApi, getProfileApi } from "@/lib/api";
+import { STORAGE_KEYS } from "@/lib/constants";
 
 /* ─── Nav Items ──────────────────────────────────────────────────────────── */
 
@@ -139,7 +140,7 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
 
   useEffect(() => {
     // Theme setup
-    const saved = localStorage.getItem("theme");
+    const saved = localStorage.getItem(STORAGE_KEYS.THEME);
     if (saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
       setTheme("dark");
       document.documentElement.classList.add("dark");
@@ -163,7 +164,7 @@ function TopBar({ onMenuClick }: { onMenuClick: () => void }) {
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
+    localStorage.setItem(STORAGE_KEYS.THEME, newTheme);
     if (newTheme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
@@ -468,16 +469,26 @@ export default function AdminLayout({
   const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
-    const userStr = localStorage.getItem("lvms_user");
+    const userStr = localStorage.getItem(STORAGE_KEYS.USER);
     if (!userStr) {
       router.push("/login");
     } else {
-      setCheckingAuth(false);
+      try {
+        const u = JSON.parse(userStr);
+        if (u.role === "FIELD_AGENT") {
+          router.push("/agent");
+        } else {
+          setCheckingAuth(false);
+        }
+      } catch (e) {
+        setCheckingAuth(false);
+      }
     }
   }, [router]);
 
   function handleLogout() {
-    localStorage.removeItem("lvms_user");
+    localStorage.removeItem(STORAGE_KEYS.USER);
+    localStorage.removeItem(STORAGE_KEYS.TOKEN);
     router.push("/login");
   }
 
