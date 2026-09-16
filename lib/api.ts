@@ -1,4 +1,5 @@
 import axios from "axios";
+import { STORAGE_KEYS } from "./constants";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
@@ -11,7 +12,7 @@ const api = axios.create({
 // Request interceptor to attach Bearer token for cross-origin hosting
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("lvms_token");
+    const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -23,21 +24,26 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const isLoginEndpoint = error.config?.url?.includes("/auth/login");
     const msg = error.response?.data?.message?.toLowerCase() || "";
     const isAuthError =
-      error.response?.status === 401 ||
-      (error.response?.status === 403 &&
-        (msg.includes("role") ||
-          msg.includes("forbidden") ||
-          msg.includes("token") ||
-          msg.includes("access denied")));
+      !isLoginEndpoint &&
+      (error.response?.status === 401 ||
+        (error.response?.status === 403 &&
+          (msg.includes("role") ||
+            msg.includes("forbidden") ||
+            msg.includes("token") ||
+            msg.includes("access denied"))));
 
     if (isAuthError && typeof window !== "undefined") {
-      localStorage.removeItem("lvms_user");
-      localStorage.removeItem("lvms_agent");
-      localStorage.removeItem("lvms_token");
-      const isAgentPath = window.location.pathname.startsWith("/agent");
-      window.location.href = isAgentPath ? "/agent/login" : "/login";
+      const isAlreadyOnLogin = window.location.pathname === "/login" || window.location.pathname === "/agent/login";
+      if (!isAlreadyOnLogin) {
+        localStorage.removeItem(STORAGE_KEYS.USER);
+        localStorage.removeItem(STORAGE_KEYS.AGENT);
+        localStorage.removeItem(STORAGE_KEYS.TOKEN);
+        const isAgentPath = window.location.pathname.startsWith("/agent");
+        window.location.href = isAgentPath ? "/agent/login" : "/login";
+      }
     }
     return Promise.reject(error);
   }
@@ -221,3 +227,10 @@ export const reviewCaseApi = (caseId: string, data: {
 // ─── Admin Ride Termination ───────────────────────────────────────────────
 export const forceEndRideApi = (rideId: string) =>
   api.post(`/admin/tracking/rides/${rideId}/end`);
+
+// ─── Geocoding (OSM Nominatim server-side proxy) ──────────────────────────
+export const geocodeAddressApi = (address: string) =>
+  api.post("/geocode", { address });
+
+export const geocodeCasesApi = (caseIds: string[]) =>
+  api.post("/geocode/cases", { caseIds });
