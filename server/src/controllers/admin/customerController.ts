@@ -7,9 +7,15 @@ import { geocodeAddress } from '../../utils/geocoder';
 export const getCustomers = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
+
+    const whereClause: any = {};
+    if (!isSuperAdmin) {
+      whereClause.adminId = adminId;
+    }
 
     const customers = await (prisma.customer as any).findMany({
-      where: { adminId },
+      where: whereClause,
       include: {
         verificationCases: {
           orderBy: { createdAt: 'desc' },

@@ -12,11 +12,15 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ success: false, message: 'Profile not found' });
 
+    const isSuperAdmin = user.role === 'SUPER_ADMIN';
+    const filter = isSuperAdmin ? {} : { adminId: userId };
+    const agentFilter = isSuperAdmin ? { role: 'FIELD_AGENT', isActive: true } : { role: 'FIELD_AGENT', isActive: true, adminId: userId };
+
     const [activeAgents, managedCases, reportsGenerated, uploadsProcessed] = await Promise.all([
-      (prisma.user as any).count({ where: { role: 'FIELD_AGENT', isActive: true, adminId: userId } }),
-      (prisma.verificationCase as any).count({ where: { adminId: userId } }),
-      prisma.report.count({ where: { adminId: userId } }),
-      prisma.uploadBatch.count({ where: { adminId: userId } }),
+      (prisma.user as any).count({ where: agentFilter }),
+      (prisma.verificationCase as any).count({ where: filter }),
+      prisma.report.count({ where: filter }),
+      prisma.uploadBatch.count({ where: filter }),
     ]);
 
     return res.status(200).json({

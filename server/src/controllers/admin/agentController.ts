@@ -7,9 +7,15 @@ import { parseFullName, apiError } from '../../utils/helpers';
 export const getAgents = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
+
+    const whereClause: any = { role: 'FIELD_AGENT' };
+    if (!isSuperAdmin) {
+      whereClause.adminId = adminId;
+    }
 
     const agents = await (prisma.user as any).findMany({
-      where: { role: 'FIELD_AGENT', adminId },
+      where: whereClause,
       include: { assignedCases: true },
       orderBy: { createdAt: 'asc' },
     });
@@ -53,9 +59,15 @@ export const getAgents = async (req: AuthRequest, res: Response) => {
 export const toggleAgentStatus = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
     const agentId = req.params.agentId as string;
 
-    const agent = await (prisma.user as any).findFirst({ where: { id: agentId, adminId } });
+    const whereClause: any = { id: agentId, role: 'FIELD_AGENT' };
+    if (!isSuperAdmin) {
+      whereClause.adminId = adminId;
+    }
+
+    const agent = await (prisma.user as any).findFirst({ where: whereClause });
     if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
 
     const updated = await prisma.user.update({
@@ -72,10 +84,16 @@ export const toggleAgentStatus = async (req: AuthRequest, res: Response) => {
 export const updateAgent = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
     const agentId = req.params.agentId as string;
     const { firstName, lastName, email, phone, branch, password } = req.body;
 
-    const agent = await (prisma.user as any).findFirst({ where: { id: agentId, adminId } });
+    const whereClause: any = { id: agentId, role: 'FIELD_AGENT' };
+    if (!isSuperAdmin) {
+      whereClause.adminId = adminId;
+    }
+
+    const agent = await (prisma.user as any).findFirst({ where: whereClause });
     if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
 
     const updateData: any = {

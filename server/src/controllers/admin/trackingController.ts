@@ -7,13 +7,16 @@ import redisClient from '../../config/redis';
 export const getActiveRides = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
+
+    const whereClause: any = { status: 'STARTED' };
+    if (!isSuperAdmin) {
+      whereClause.adminId = adminId;
+    }
     
-    // Fetch rides that are STARTED belonging to this admin
+    // Fetch rides that are STARTED
     const activeRides = await prisma.agentRide.findMany({
-      where: {
-        adminId,
-        status: 'STARTED',
-      },
+      where: whereClause,
       include: {
         agent: {
           select: { id: true, firstName: true, lastName: true, phone: true }
@@ -59,6 +62,7 @@ export const getActiveRides = async (req: AuthRequest, res: Response) => {
 export const getRideHistory = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
     const rideId = req.params.rideId as string;
 
     const ride = await prisma.agentRide.findUnique({
@@ -73,7 +77,7 @@ export const getRideHistory = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    if (!ride || ride.adminId !== adminId) {
+    if (!ride || (!isSuperAdmin && ride.adminId !== adminId)) {
       return res.status(404).json({ success: false, message: 'Ride not found' });
     }
 
@@ -86,10 +90,11 @@ export const getRideHistory = async (req: AuthRequest, res: Response) => {
 export const forceEndRide = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
     const rideId = req.params.rideId as string;
 
     const ride = await prisma.agentRide.findUnique({ where: { id: rideId } });
-    if (!ride || ride.adminId !== adminId) {
+    if (!ride || (!isSuperAdmin && ride.adminId !== adminId)) {
       return res.status(404).json({ success: false, message: 'Ride not found' });
     }
 

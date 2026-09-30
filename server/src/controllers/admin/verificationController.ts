@@ -7,12 +7,16 @@ import { parseFullName, resolveCaseStatus, resolveAgentName, formatDateTime, api
 export const getCompletedCases = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const role = req.user?.role;
+
+    // SUPER_ADMIN sees all completed cases; ADMIN/MANAGER see only their own
+    const whereClause: any = { status: 'COMPLETED' };
+    if (role !== 'SUPER_ADMIN') {
+      whereClause.adminId = adminId;
+    }
 
     const cases = await prisma.verificationCase.findMany({
-      where: {
-        adminId,
-        status: 'COMPLETED',
-      },
+      where: whereClause,
       include: {
         customer: true,
         agent: { select: { id: true, firstName: true, lastName: true, branch: true, email: true } },
@@ -48,10 +52,17 @@ export const getCompletedCases = async (req: AuthRequest, res: Response) => {
 export const getVerificationDetail = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const role = req.user?.role;
     const caseId = req.params.caseId;
 
+    // SUPER_ADMIN can view any case; others only their own
+    const whereClause: any = { id: caseId };
+    if (role !== 'SUPER_ADMIN') {
+      whereClause.adminId = adminId;
+    }
+
     const caseData = await (prisma.verificationCase as any).findFirst({
-      where: { id: caseId, adminId },
+      where: whereClause,
       include: {
         customer: true,
         agent: { select: { id: true, firstName: true, lastName: true, branch: true, email: true, phone: true } },
@@ -132,8 +143,14 @@ export const reviewCase = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'Invalid decision. Must be APPROVED, REJECTED, or NEEDS_REVISION.' });
     }
 
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
+    const whereClause: any = { id: caseId };
+    if (!isSuperAdmin) {
+      whereClause.adminId = adminId;
+    }
+
     const existingCase = await (prisma.verificationCase as any).findFirst({
-      where: { id: caseId, adminId },
+      where: whereClause,
       include: {
         agent: { select: { id: true, firstName: true, lastName: true } },
         customer: { select: { firstName: true, lastName: true, applicationId: true } },

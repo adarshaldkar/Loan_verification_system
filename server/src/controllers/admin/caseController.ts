@@ -6,9 +6,13 @@ import { parseFullName, resolveCaseStatus, resolveAgentName, formatDateTime, api
 export const getCases = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
     const { status } = req.query;
 
-    const whereClause: any = { adminId };
+    const whereClause: any = {};
+    if (!isSuperAdmin) {
+      whereClause.adminId = adminId;
+    }
     if (status && status !== 'RE-VERIFICATION') whereClause.status = status as string;
 
     let cases = await prisma.verificationCase.findMany({
@@ -61,15 +65,23 @@ export const getCases = async (req: AuthRequest, res: Response) => {
 export const assignCase = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
     const caseId = req.params.caseId as string;
     const agentId = req.body.agentId as string;
 
+    const caseWhere: any = { id: caseId };
+    const agentWhere: any = { id: agentId, role: 'FIELD_AGENT' };
+    if (!isSuperAdmin) {
+      caseWhere.adminId = adminId;
+      agentWhere.adminId = adminId;
+    }
+
     const [existingCase, agent] = await Promise.all([
       (prisma.verificationCase as any).findFirst({
-        where: { id: caseId, adminId },
+        where: caseWhere,
         include: { customer: true }
       }),
-      (prisma.user as any).findFirst({ where: { id: agentId, role: 'FIELD_AGENT', adminId } }),
+      (prisma.user as any).findFirst({ where: agentWhere }),
     ]);
 
     if (!existingCase) return res.status(404).json({ success: false, message: 'Case not found' });
@@ -100,6 +112,7 @@ export const assignCase = async (req: AuthRequest, res: Response) => {
 export const updateCaseStatus = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
     const caseId = req.params.caseId as string;
     const { status } = req.body;
 
@@ -107,7 +120,12 @@ export const updateCaseStatus = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'Invalid status update' });
     }
 
-    const existing = await (prisma.verificationCase as any).findFirst({ where: { id: caseId, adminId } });
+    const caseWhere: any = { id: caseId };
+    if (!isSuperAdmin) {
+      caseWhere.adminId = adminId;
+    }
+
+    const existing = await (prisma.verificationCase as any).findFirst({ where: caseWhere });
     if (!existing) return res.status(404).json({ success: false, message: 'Case not found' });
 
     const updatedCase = await prisma.verificationCase.update({
@@ -124,10 +142,16 @@ export const updateCaseStatus = async (req: AuthRequest, res: Response) => {
 export const getCaseById = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
     const caseId = req.params.caseId as string;
 
+    const caseWhere: any = { id: caseId };
+    if (!isSuperAdmin) {
+      caseWhere.adminId = adminId;
+    }
+
     const caseData = await (prisma.verificationCase as any).findFirst({
-      where: { id: caseId, adminId },
+      where: caseWhere,
       include: {
         customer: true,
         agent: { select: { firstName: true, lastName: true, branch: true } },
@@ -168,6 +192,7 @@ export const getCaseById = async (req: AuthRequest, res: Response) => {
 export const assignBulkCases = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
     const { caseIds, agentId } = req.body;
 
     if (!caseIds || !Array.isArray(caseIds) || caseIds.length === 0) {
@@ -178,10 +203,17 @@ export const assignBulkCases = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ success: false, message: 'Agent ID is required' });
     }
 
+    const agentWhere: any = { id: agentId, role: 'FIELD_AGENT' };
+    const casesWhere: any = { id: { in: caseIds } };
+    if (!isSuperAdmin) {
+      agentWhere.adminId = adminId;
+      casesWhere.adminId = adminId;
+    }
+
     const [agent, casesToAssign] = await Promise.all([
-      (prisma.user as any).findFirst({ where: { id: agentId, role: 'FIELD_AGENT', adminId } }),
+      (prisma.user as any).findFirst({ where: agentWhere }),
       prisma.verificationCase.findMany({
-        where: { id: { in: caseIds }, adminId },
+        where: casesWhere,
         include: { customer: true }
       })
     ]);
@@ -189,7 +221,7 @@ export const assignBulkCases = async (req: AuthRequest, res: Response) => {
     if (!agent) return res.status(404).json({ success: false, message: 'Field Agent not found under your account' });
 
     const updated = await prisma.verificationCase.updateMany({
-      where: { id: { in: caseIds }, adminId },
+      where: casesWhere,
       data: { agentId, status: 'ASSIGNED' }
     });
 
@@ -212,6 +244,7 @@ export const assignBulkCases = async (req: AuthRequest, res: Response) => {
 export const batchAssignCases = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
+    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
     const { assignments } = req.body;
 
     if (!assignments || typeof assignments !== 'object' || Object.keys(assignments).length === 0) {
@@ -221,12 +254,19 @@ export const batchAssignCases = async (req: AuthRequest, res: Response) => {
     const caseIds = Object.keys(assignments);
     const agentIds = Array.from(new Set(Object.values(assignments))) as string[];
 
+    const agentWhere: any = { id: { in: agentIds }, role: 'FIELD_AGENT' };
+    const casesWhere: any = { id: { in: caseIds } };
+    if (!isSuperAdmin) {
+      agentWhere.adminId = adminId;
+      casesWhere.adminId = adminId;
+    }
+
     const [agents, casesData] = await Promise.all([
       prisma.user.findMany({
-        where: { id: { in: agentIds }, role: 'FIELD_AGENT', adminId }
+        where: agentWhere
       }),
       prisma.verificationCase.findMany({
-        where: { id: { in: caseIds }, adminId },
+        where: casesWhere,
         include: { customer: true }
       })
     ]);
