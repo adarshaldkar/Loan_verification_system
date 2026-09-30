@@ -74,6 +74,7 @@ export default function DynamicVerificationForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [photos, setPhotos] = useState<{ url: string; name: string }[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoError, setPhotoError] = useState(false);
 
   // Voice notes: { [sectionTitle | "overall"]: { url, section } }
   const [voiceNotes, setVoiceNotes] = useState<Record<string, { url: string; section?: string }>>({});
@@ -201,16 +202,19 @@ export default function DynamicVerificationForm({
           const res = await uploadEvidenceApi(caseId, fd);
           if (res.data?.success && res.data?.data?.url) {
             setPhotos((prev) => [...prev, { url: res.data.data.url, name: file.name }]);
+            setPhotoError(false);
           }
         } else {
           const reader = new FileReader();
           reader.onload = (uploadEvent) => {
             const url = uploadEvent.target?.result as string;
             setPhotos((prev) => [...prev, { url, name: file.name }]);
+            setPhotoError(false);
           };
           reader.readAsDataURL(file);
         }
       }
+      setPhotoError(false);
       toast.success("Photo(s) added successfully");
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Failed to upload photo");
@@ -221,7 +225,13 @@ export default function DynamicVerificationForm({
   };
 
   const handleRemovePhoto = (index: number) => {
-    setPhotos((prev) => prev.filter((_, i) => i !== index));
+    setPhotos((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      if (next.length === 0) {
+        setPhotoError(true);
+      }
+      return next;
+    });
   };
 
   // Handle voice note ready (per section or overall)
@@ -230,10 +240,15 @@ export default function DynamicVerificationForm({
     setVoiceNotes((prev) => ({ ...prev, [key]: { url, section } }));
   };
 
-  // Validate form — ALL FIELDS OPTIONAL now
+  // Validate form — Geo-tagged photo is COMPULSORY
   const validateForm = (): boolean => {
-    // No required field checks — all fields are optional
     setErrors({});
+    if (!photos || photos.length === 0) {
+      setPhotoError(true);
+      toast.error("Geo-tagged photo is compulsory! Please add at least 1 photo.");
+      return false;
+    }
+    setPhotoError(false);
     return true;
   };
 
@@ -416,13 +431,26 @@ export default function DynamicVerificationForm({
         {/* ─── Right Column ─── */}
         <div className="space-y-6">
           {/* 1. Evidence Photos Box */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+          <div
+            className={cn(
+              "bg-white dark:bg-slate-900 rounded-xl p-5 border shadow-sm space-y-4 transition-all",
+              photoError
+                ? "border-rose-400 dark:border-rose-600 ring-2 ring-rose-400/30"
+                : "border-slate-200 dark:border-slate-800"
+            )}
+          >
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <FiCamera className="w-4 h-4 text-blue-600" />
                 Geo-Tagged Evidence
+                <span className="text-rose-500 font-bold">*</span>
               </h3>
-              <span className="text-xs text-slate-500">{photos.length}/8 photos</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-900/50">
+                  Compulsory *
+                </span>
+                <span className="text-xs text-slate-500">{photos.length}/8 photos</span>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5">
@@ -449,7 +477,14 @@ export default function DynamicVerificationForm({
               ))}
 
               {photos.length < 8 && (
-                <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 rounded-lg aspect-video flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 dark:bg-slate-800/50 hover:bg-blue-50/20 transition group">
+                <label
+                  className={cn(
+                    "border-2 border-dashed rounded-lg aspect-video flex flex-col items-center justify-center cursor-pointer transition group",
+                    photoError && photos.length === 0
+                      ? "border-rose-400 bg-rose-50/40 dark:bg-rose-950/20 hover:border-rose-500"
+                      : "border-slate-300 dark:border-slate-700 hover:border-blue-500 bg-slate-50/50 dark:bg-slate-800/50 hover:bg-blue-50/20"
+                  )}
+                >
                   <input
                     type="file"
                     accept="image/*"
@@ -459,19 +494,39 @@ export default function DynamicVerificationForm({
                     disabled={uploadingPhoto}
                     className="hidden"
                   />
-                  <FiPlus className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition mb-1" />
-                  <span className="text-[11px] font-medium text-slate-500 group-hover:text-blue-600">
-                    {uploadingPhoto ? "Uploading..." : "Add Photo"}
+                  <FiPlus
+                    className={cn(
+                      "w-5 h-5 transition mb-1",
+                      photoError && photos.length === 0
+                        ? "text-rose-500 group-hover:text-rose-600"
+                        : "text-slate-400 group-hover:text-blue-600"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "text-[11px] font-medium transition",
+                      photoError && photos.length === 0
+                        ? "text-rose-600 font-semibold"
+                        : "text-slate-500 group-hover:text-blue-600"
+                    )}
+                  >
+                    {uploadingPhoto ? "Uploading..." : "Add Photo *"}
                   </span>
                 </label>
               )}
             </div>
 
-            <p className="text-[11px] text-slate-500 leading-relaxed bg-blue-50/50 dark:bg-blue-950/20 p-2.5 rounded-lg border border-blue-100 dark:border-blue-900/30 flex items-start gap-2">
-              <FiInfo className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
+            {photoError && photos.length === 0 && (
+              <p className="text-[11px] text-rose-600 font-medium flex items-center gap-1.5 bg-rose-50 dark:bg-rose-950/40 p-2 rounded-lg border border-rose-200 dark:border-rose-900/50">
+                <FiInfo className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                Please upload at least 1 geo-tagged photo before submitting.
+              </p>
+            )}
+
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed bg-amber-50/70 dark:bg-amber-950/20 p-2.5 rounded-lg border border-amber-200/80 dark:border-amber-900/30 flex items-start gap-2">
+              <FiInfo className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
               <span>
-                Capture clear photos of the applicant, door/signboard, premises, and meter
-                to support the report. (Optional)
+                <strong>Compulsory Requirement:</strong> Capture clear photos of the applicant, door/signboard, premises, or meter to support the verification.
               </span>
             </p>
           </div>
