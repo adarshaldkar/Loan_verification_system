@@ -25,7 +25,7 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
         name: parseFullName(user.firstName, user.lastName),
         firstName: user.firstName,
         lastName: user.lastName,
-        role: user.role === 'ADMIN' ? 'System Administrator' : 'Field Agent',
+        role: user.role,
         email: user.email,
         phone: user.phone ?? '',
         branch: user.branch ?? 'Unassigned',

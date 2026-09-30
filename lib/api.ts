@@ -174,6 +174,11 @@ export const uploadEvidenceApi = (caseId: string, formData: FormData) =>
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 
+export const uploadVoiceApi = (caseId: string, formData: FormData) =>
+  api.post(`/agent/cases/${caseId}/voice`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
 export const updateAgentCaseStatusApi = (id: string, status: string) =>
   api.patch(`/agent/cases/${id}/status`, { status });
 

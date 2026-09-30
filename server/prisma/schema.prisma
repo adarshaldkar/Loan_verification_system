@@ -138,6 +138,7 @@ model Media {
   url                String
   publicId           String
   type               String
+  section            String?
   verificationCaseId String
   createdAt          DateTime         @default(now())
   verificationCase   VerificationCase @relation(fields: [verificationCaseId], references: [id])

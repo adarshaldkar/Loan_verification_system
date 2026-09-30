@@ -24,6 +24,7 @@ import {
   FiSearch,
   FiStar,
   FiLayers,
+  FiMic,
 } from "react-icons/fi";
 import {
   getCompletedCasesApi,
@@ -76,7 +77,7 @@ interface CaseDetail {
   geoTag: { latitude: number | null; longitude: number | null; hasLocation: boolean };
   remarks: string;
   profileData: Record<string, any> | null;
-  media: { id: string; url: string; publicId: string; type: string; createdAt: string }[];
+  media: { id: string; url: string; publicId: string; type: string; section?: string; createdAt: string }[];
 }
 
 const decisionOptions = [
@@ -103,7 +104,7 @@ export default function VerificationPage() {
 
   const [selectedCase, setSelectedCase] = useState<CaseDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"profile" | "geo" | "photos">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "geo" | "photos" | "voice">("profile");
 
   const [decision, setDecision] = useState<"APPROVED" | "REJECTED" | "NEEDS_REVISION" | "">("");
   const [adminRemarks, setAdminRemarks] = useState("");
@@ -562,7 +563,13 @@ export default function VerificationPage() {
                         className={`tab-btn${activeTab === "photos" ? " active" : ""}`}
                         onClick={() => setActiveTab("photos")}
                       >
-                        <FiImage size={13} /> Evidence Photos ({selectedCase.media?.length || 0})
+                        <FiImage size={13} /> Evidence Photos ({selectedCase.media?.filter((m) => m.type !== "VOICE").length || 0})
+                      </button>
+                      <button
+                        className={`tab-btn${activeTab === "voice" ? " active" : ""}`}
+                        onClick={() => setActiveTab("voice")}
+                      >
+                        <FiMic size={13} /> Voice Notes ({selectedCase.media?.filter((m) => m.type === "VOICE").length || 0})
                       </button>
                     </div>
 
@@ -618,12 +625,12 @@ export default function VerificationPage() {
                       </div>
                     )}
 
-                    {/* Tab 3: Photos */}
+                    {/* Tab 3: Photos (exclude VOICE media) */}
                     {activeTab === "photos" && (
                       <div>
-                        {selectedCase.media && selectedCase.media.length > 0 ? (
+                        {selectedCase.media?.filter((m) => m.type !== "VOICE").length > 0 ? (
                           <div className="photo-grid">
-                            {selectedCase.media.map((m) => (
+                            {selectedCase.media.filter((m) => m.type !== "VOICE").map((m) => (
                               <div
                                 key={m.id}
                                 className="photo-item"
@@ -637,6 +644,38 @@ export default function VerificationPage() {
                         ) : (
                           <div className="p-8 text-center text-slate-400 text-xs bg-slate-50 rounded-xl">
                             No photos uploaded for this case.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Tab 4: Voice Notes */}
+                    {activeTab === "voice" && (
+                      <div className="space-y-3 py-2">
+                        {selectedCase.media?.filter((m) => m.type === "VOICE").length > 0 ? (
+                          selectedCase.media.filter((m) => m.type === "VOICE").map((m) => (
+                            <div
+                              key={m.id}
+                              className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2"
+                            >
+                              <div className="flex items-center gap-2">
+                                <FiMic className="w-4 h-4 text-violet-500" />
+                                <span className="text-xs font-semibold text-slate-700">
+                                  {m.section || "Overall Voice Note"}
+                                </span>
+                                <span className="ml-auto text-[10px] text-slate-400">{m.createdAt}</span>
+                              </div>
+                              <audio
+                                controls
+                                src={m.url}
+                                className="w-full h-9 rounded-lg"
+                                style={{ accentColor: "#7c3aed" }}
+                              />
+                            </div>
+                          ))
+                        ) : (
+                          <div className="p-8 text-center text-slate-400 text-xs bg-slate-50 rounded-xl">
+                            No voice notes recorded for this case.
                           </div>
                         )}
                       </div>

@@ -110,6 +110,7 @@ export const getVerificationDetail = async (req: AuthRequest, res: Response) => 
         url: m.url,
         publicId: m.publicId,
         type: m.type,
+        section: m.section || null,
         createdAt: formatDateTime(m.createdAt),
       })),
     };

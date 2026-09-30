@@ -8,6 +8,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET || 'demo',
 });
 
+// Image/PDF storage for evidence photos
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
@@ -16,5 +17,16 @@ const storage = new CloudinaryStorage({
   } as any,
 });
 
+// Audio storage for voice recordings (stored as raw)
+const audioStorage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'lvms_voice',
+    resource_type: 'video', // Cloudinary uses 'video' for audio files too
+    allowed_formats: ['mp3', 'webm', 'ogg', 'wav', 'm4a'],
+  } as any,
+});
+
 export const upload = multer({ storage: storage });
+export const uploadAudio = multer({ storage: audioStorage, limits: { fileSize: 50 * 1024 * 1024 } }); // 50MB limit
 export default cloudinary;

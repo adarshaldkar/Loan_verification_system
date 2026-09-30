@@ -4,11 +4,11 @@ import { authenticateToken, requireRole } from '../middlewares/auth';
 
 // ── Domain-Specific Agent Controllers ─────────────────────────────────────
 import { getAgentDashboard } from '../controllers/agent/dashboardController';
-import { getAgentCases, getAgentCaseById, updateAgentCaseStatus, submitVerification, uploadEvidence } from '../controllers/agent/caseController';
+import { getAgentCases, getAgentCaseById, updateAgentCaseStatus, submitVerification, uploadEvidence, uploadVoice } from '../controllers/agent/caseController';
 import { getAgentProfile, updateAgentProfile } from '../controllers/agent/profileController';
 import { updatePassword } from '../controllers/admin/profileController';
 import { getAgentNotifications } from '../controllers/agent/notificationController';
-import { upload } from '../config/cloudinary';
+import { upload, uploadAudio } from '../config/cloudinary';
 
 const router = Router();
 
@@ -35,6 +35,7 @@ router.get('/cases/:id', getAgentCaseById);
 router.patch('/cases/:id/status', updateAgentCaseStatus);
 router.post('/cases/:id/submit', submitVerification);
 router.post('/cases/:id/evidence', upload.single('file'), uploadEvidence);
+router.post('/cases/:id/voice', uploadAudio.single('audio'), uploadVoice);
 
 // ── Profile ────────────────────────────────────────────────────────────────
 router.get('/profile', getAgentProfile);

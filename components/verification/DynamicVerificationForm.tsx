@@ -12,6 +12,7 @@ import {
   FiSave,
   FiSend,
   FiRotateCcw,
+  FiMic,
 } from "react-icons/fi";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -31,7 +32,8 @@ import {
   ProfileField,
   getProfileByCode,
 } from "@/lib/verificationProfiles";
-import { uploadEvidenceApi } from "@/lib/api";
+import { uploadEvidenceApi, uploadVoiceApi } from "@/lib/api";
+import VoiceRecorder from "@/components/verification/VoiceRecorder";
 
 export interface DynamicVerificationFormProps {
   profileCode: string;
@@ -49,6 +51,7 @@ export interface DynamicVerificationFormProps {
     latitude: number;
     longitude: number;
     photos: { url: string; name: string }[];
+    voiceNotes?: { url: string; section?: string }[];
   }) => Promise<void>;
 }
 
@@ -72,7 +75,10 @@ export default function DynamicVerificationForm({
   const [photos, setPhotos] = useState<{ url: string; name: string }[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  // GPS Location State — seed from stored/case address coordinates first; browser GPS overrides
+  // Voice notes: { [sectionTitle | "overall"]: { url, section } }
+  const [voiceNotes, setVoiceNotes] = useState<Record<string, { url: string; section?: string }>>({});
+
+  // GPS Location State
   const [lat, setLat] = useState<number>(defaultLat ?? 12.9716);
   const [lng, setLng] = useState<number>(defaultLng ?? 77.5946);
   const [gpsLocked, setGpsLocked] = useState(false);
@@ -91,7 +97,6 @@ export default function DynamicVerificationForm({
       });
     });
 
-    // Populate passed defaults
     if (applicantDefaultName) initial.applicantName = applicantDefaultName;
     if (applicantDefaultAddress) initial.address = applicantDefaultAddress;
 
@@ -102,15 +107,14 @@ export default function DynamicVerificationForm({
         const parsed = JSON.parse(savedDraft);
         Object.assign(initial, parsed.formData || {});
         if (parsed.photos) setPhotos(parsed.photos);
+        if (parsed.voiceNotes) setVoiceNotes(parsed.voiceNotes);
         toast.info("Restored draft data for this form");
       }
     } catch {
       // Ignore localStorage errors
     }
 
-    // Merge with any explicit initialData
     Object.assign(initial, initialData);
-
     setFormData(initial);
   }, [profile, caseId, draftKey]);
 
@@ -137,7 +141,7 @@ export default function DynamicVerificationForm({
     try {
       localStorage.setItem(
         draftKey,
-        JSON.stringify({ formData, photos, updatedAt: new Date().toISOString() })
+        JSON.stringify({ formData, photos, voiceNotes, updatedAt: new Date().toISOString() })
       );
       toast.success("Draft saved successfully to local storage");
     } catch {
@@ -157,6 +161,7 @@ export default function DynamicVerificationForm({
       if (applicantDefaultName) empty.applicantName = applicantDefaultName;
       setFormData(empty);
       setPhotos([]);
+      setVoiceNotes({});
       setErrors({});
       localStorage.removeItem(draftKey);
       toast.info("Form reset");
@@ -198,7 +203,6 @@ export default function DynamicVerificationForm({
             setPhotos((prev) => [...prev, { url: res.data.data.url, name: file.name }]);
           }
         } else {
-          // Local fallback preview for standalone forms
           const reader = new FileReader();
           reader.onload = (uploadEvent) => {
             const url = uploadEvent.target?.result as string;
@@ -220,31 +224,16 @@ export default function DynamicVerificationForm({
     setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Validate form fields
+  // Handle voice note ready (per section or overall)
+  const handleVoiceReady = (url: string, section?: string) => {
+    const key = section || "overall";
+    setVoiceNotes((prev) => ({ ...prev, [key]: { url, section } }));
+  };
+
+  // Validate form — ALL FIELDS OPTIONAL now
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    profile.sections.forEach((section) => {
-      section.fields.forEach((f) => {
-        if (f.required) {
-          const val = formData[f.name];
-          if (val === undefined || val === null || String(val).trim() === "") {
-            newErrors[f.name] = `${f.label} is required`;
-          }
-        }
-      });
-    });
-
-    if (photos.length === 0) {
-      newErrors["photos"] = "At least one geo-tagged evidence photo is required";
-    }
-
-    setErrors(newErrors);
-    if (Object.keys(newErrors).length > 0) {
-      toast.error(`Please fill in all ${Object.keys(newErrors).length} required field(s)`);
-      return false;
-    }
-
+    // No required field checks — all fields are optional
+    setErrors({});
     return true;
   };
 
@@ -253,6 +242,8 @@ export default function DynamicVerificationForm({
     e.preventDefault();
     if (!validateForm()) return;
 
+    const allVoiceNotes = Object.values(voiceNotes);
+
     try {
       await onSubmit({
         profileType: profile.code,
@@ -260,9 +251,9 @@ export default function DynamicVerificationForm({
         latitude: lat,
         longitude: lng,
         photos,
+        voiceNotes: allVoiceNotes,
       });
 
-      // Clear draft on successful submission
       localStorage.removeItem(draftKey);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Submission failed. Please check entries.");
@@ -288,6 +279,7 @@ export default function DynamicVerificationForm({
             </h2>
           </div>
           <p className="text-xs text-slate-500 mt-1">{profile.description}</p>
+          <p className="text-[10px] text-emerald-600 mt-1 font-medium">✓ All fields are optional — fill what is applicable</p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -342,12 +334,11 @@ export default function DynamicVerificationForm({
                     >
                       <Label
                         htmlFor={field.name}
-                        className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between"
+                        className="text-xs font-semibold text-slate-700 dark:text-slate-300"
                       >
-                        <span>
-                          {field.label}{" "}
-                          {field.required && <span className="text-red-500">*</span>}
-                        </span>
+                        {field.label}
+                        {/* No asterisk — all optional */}
+                        <span className="text-slate-400 font-normal ml-1 text-[10px]">(optional)</span>
                       </Label>
 
                       {/* Render based on field type */}
@@ -409,11 +400,20 @@ export default function DynamicVerificationForm({
                   );
                 })}
               </div>
+
+              {/* ─── Per-Section Voice Recorder ─── */}
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <VoiceRecorder
+                  section={section.title}
+                  caseId={caseId}
+                  onRecordingReady={handleVoiceReady}
+                />
+              </div>
             </div>
           ))}
         </div>
 
-        {/* ─── Right Column: Evidence Photos & GPS Verification ─── */}
+        {/* ─── Right Column ─── */}
         <div className="space-y-6">
           {/* 1. Evidence Photos Box */}
           <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
@@ -467,23 +467,46 @@ export default function DynamicVerificationForm({
               )}
             </div>
 
-            {errors.photos && (
-              <p className="text-[11px] font-medium text-red-500 flex items-center gap-1">
-                <FiAlertCircle className="w-3 h-3" />
-                {errors.photos}
-              </p>
-            )}
-
             <p className="text-[11px] text-slate-500 leading-relaxed bg-blue-50/50 dark:bg-blue-950/20 p-2.5 rounded-lg border border-blue-100 dark:border-blue-900/30 flex items-start gap-2">
               <FiInfo className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
               <span>
                 Capture clear photos of the applicant, door/signboard, premises, and meter
-                to support the report.
+                to support the report. (Optional)
               </span>
             </p>
           </div>
 
-          {/* 2. GPS Location Context */}
+          {/* 2. Overall Voice Recording */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <FiMic className="w-4 h-4 text-violet-600" />
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Overall Voice Note
+              </h3>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Record a general summary of the entire visit and any additional observations.
+            </p>
+            <VoiceRecorder
+              section={undefined}
+              caseId={caseId}
+              onRecordingReady={handleVoiceReady}
+            />
+            {/* Summary of recorded sections */}
+            {Object.keys(voiceNotes).length > 0 && (
+              <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700 space-y-1">
+                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">Recorded Notes</p>
+                {Object.entries(voiceNotes).map(([key, note]) => (
+                  <div key={key} className="flex items-center gap-1.5 text-[11px] text-emerald-700">
+                    <FiCheckCircle className="w-3 h-3 shrink-0" />
+                    {note.section || "Overall recording"}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 3. GPS Location Context */}
           <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
@@ -526,7 +549,7 @@ export default function DynamicVerificationForm({
             </div>
           </div>
 
-          {/* 3. Final Submission Button */}
+          {/* 4. Final Submission Button */}
           <div className="pt-2">
             <button
               type="submit"

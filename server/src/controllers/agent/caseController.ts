@@ -211,3 +211,41 @@ export const uploadEvidence = async (req: AuthRequest, res: Response) => {
     return apiError(res, 'Failed to upload evidence', 500, error);
   }
 };
+
+// POST /agent/cases/:id/voice — upload voice recording for a section
+export const uploadVoice = async (req: AuthRequest, res: Response) => {
+  try {
+    const agentId = req.user?.id as string;
+    const id = req.params.id as string;
+
+    const fileUrl = req.file?.path;
+    const { section } = req.body; // e.g. "Address & Meeting Confirmation"
+
+    if (!fileUrl) {
+      return res.status(400).json({ success: false, message: 'No voice file uploaded' });
+    }
+
+    const existing = await prisma.verificationCase.findFirst({ where: { id, agentId } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Case not found or not assigned to you' });
+    }
+
+    const media = await (prisma.media as any).create({
+      data: {
+        verificationCaseId: id,
+        url: fileUrl,
+        publicId: (req.file as any)?.filename || 'unknown',
+        type: 'VOICE',
+        section: section || null,
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Voice recording uploaded',
+      data: { id: media.id, url: media.url, section: media.section },
+    });
+  } catch (error: any) {
+    return apiError(res, 'Failed to upload voice recording', 500, error);
+  }
+};
