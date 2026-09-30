@@ -433,101 +433,132 @@ export default function DynamicVerificationForm({
           {/* 1. Evidence Photos Box */}
           <div
             className={cn(
-              "bg-white dark:bg-slate-900 rounded-xl p-5 border shadow-sm space-y-4 transition-all",
-              photoError
-                ? "border-rose-400 dark:border-rose-600 ring-2 ring-rose-400/30"
+              "bg-white dark:bg-slate-900 rounded-xl p-5 border shadow-sm space-y-3.5 transition-all",
+              photoError && photos.length === 0
+                ? "border-rose-400 dark:border-rose-600 ring-2 ring-rose-400/20"
                 : "border-slate-200 dark:border-slate-800"
             )}
           >
+            {/* Clean Header */}
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <FiCamera className="w-4 h-4 text-blue-600" />
-                Geo-Tagged Evidence
-                <span className="text-rose-500 font-bold">*</span>
-              </h3>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-900/50">
-                  Compulsory *
-                </span>
-                <span className="text-xs text-slate-500">{photos.length}/8 photos</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              {photos.map((photo, pIdx) => (
-                <div
-                  key={pIdx}
-                  className="relative group rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 aspect-video flex items-center justify-center"
-                >
-                  <img
-                    src={photo.url}
-                    alt={photo.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleRemovePhoto(pIdx)}
-                      className="p-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition shadow"
-                    >
-                      <FiTrash2 className="w-3.5 h-3.5" />
-                    </button>
+                <div className="w-7 h-7 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-600 flex items-center justify-center shrink-0">
+                  <FiCamera className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      Geo-Tagged Photos
+                    </h3>
+                    <span className="text-[10px] font-semibold text-rose-600 bg-rose-50 dark:bg-rose-950/50 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-900/40">
+                      Required
+                    </span>
                   </div>
                 </div>
-              ))}
-
-              {photos.length < 8 && (
-                <label
-                  className={cn(
-                    "border-2 border-dashed rounded-lg aspect-video flex flex-col items-center justify-center cursor-pointer transition group",
-                    photoError && photos.length === 0
-                      ? "border-rose-400 bg-rose-50/40 dark:bg-rose-950/20 hover:border-rose-500"
-                      : "border-slate-300 dark:border-slate-700 hover:border-blue-500 bg-slate-50/50 dark:bg-slate-800/50 hover:bg-blue-50/20"
-                  )}
-                >
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    multiple
-                    onChange={handlePhotoUpload}
-                    disabled={uploadingPhoto}
-                    className="hidden"
-                  />
-                  <FiPlus
-                    className={cn(
-                      "w-5 h-5 transition mb-1",
-                      photoError && photos.length === 0
-                        ? "text-rose-500 group-hover:text-rose-600"
-                        : "text-slate-400 group-hover:text-blue-600"
-                    )}
-                  />
-                  <span
-                    className={cn(
-                      "text-[11px] font-medium transition",
-                      photoError && photos.length === 0
-                        ? "text-rose-600 font-semibold"
-                        : "text-slate-500 group-hover:text-blue-600"
-                    )}
-                  >
-                    {uploadingPhoto ? "Uploading..." : "Add Photo *"}
-                  </span>
-                </label>
-              )}
+              </div>
+              <span
+                className={cn(
+                  "text-xs px-2 py-0.5 rounded-full font-medium transition-colors",
+                  photos.length > 0
+                    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                    : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                )}
+              >
+                {photos.length}/8
+              </span>
             </div>
 
+            {/* Error banner if submit was attempted without photos */}
             {photoError && photos.length === 0 && (
-              <p className="text-[11px] text-rose-600 font-medium flex items-center gap-1.5 bg-rose-50 dark:bg-rose-950/40 p-2 rounded-lg border border-rose-200 dark:border-rose-900/50">
-                <FiInfo className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                Please upload at least 1 geo-tagged photo before submitting.
-              </p>
+              <div className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">
+                <FiAlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>At least 1 photo is required before submitting.</span>
+              </div>
             )}
 
-            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed bg-amber-50/70 dark:bg-amber-950/20 p-2.5 rounded-lg border border-amber-200/80 dark:border-amber-900/30 flex items-start gap-2">
-              <FiInfo className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-              <span>
-                <strong>Compulsory Requirement:</strong> Capture clear photos of the applicant, door/signboard, premises, or meter to support the verification.
-              </span>
+            {/* Empty state big upload dropzone when 0 photos */}
+            {photos.length === 0 ? (
+              <label
+                className={cn(
+                  "border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer transition text-center group",
+                  photoError
+                    ? "border-rose-300 bg-rose-50/30 hover:border-rose-400"
+                    : "border-slate-300 dark:border-slate-700 hover:border-blue-500 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-blue-50/30"
+                )}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  multiple
+                  onChange={handlePhotoUpload}
+                  disabled={uploadingPhoto}
+                  className="hidden"
+                />
+                <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                  <FiCamera className="w-5 h-5" />
+                </div>
+                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 group-hover:text-blue-600">
+                  {uploadingPhoto ? "Uploading Photo..." : "Take Photo or Upload"}
+                </span>
+                <span className="text-[11px] text-slate-400 mt-0.5">
+                  Premises, applicant, door or meter
+                </span>
+              </label>
+            ) : (
+              /* Photo Grid when photos exist */
+              <div className="grid grid-cols-2 gap-2.5">
+                {photos.map((photo, pIdx) => (
+                  <div
+                    key={pIdx}
+                    className="relative group rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-50 aspect-video flex items-center justify-center shadow-xs"
+                  >
+                    <img
+                      src={photo.url}
+                      alt={photo.name}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute top-1 left-1 bg-black/60 backdrop-blur-xs text-white text-[9px] font-medium px-1.5 py-0.5 rounded flex items-center gap-1">
+                      <FiMapPin className="w-2.5 h-2.5 text-emerald-400" />
+                      Geo-Tagged
+                    </div>
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePhoto(pIdx)}
+                        className="p-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition shadow"
+                        title="Delete Photo"
+                      >
+                        <FiTrash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {photos.length < 8 && (
+                  <label className="border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 rounded-lg aspect-video flex flex-col items-center justify-center cursor-pointer bg-slate-50/50 dark:bg-slate-800/50 hover:bg-blue-50/20 transition group">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      multiple
+                      onChange={handlePhotoUpload}
+                      disabled={uploadingPhoto}
+                      className="hidden"
+                    />
+                    <FiPlus className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition mb-0.5" />
+                    <span className="text-[11px] font-medium text-slate-500 group-hover:text-blue-600">
+                      {uploadingPhoto ? "Uploading..." : "Add More"}
+                    </span>
+                  </label>
+                )}
+              </div>
+            )}
+
+            {/* Subtle footer tip */}
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 pt-0.5">
+              <FiCheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span>Photos are automatically stamped with GPS coordinates & time.</span>
             </p>
           </div>
 
