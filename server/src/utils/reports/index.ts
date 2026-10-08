@@ -1,5 +1,6 @@
 import { generateResiCumBusinessPdfReport, ReportCaseData } from './resiCumBusinessPdfGenerator';
 import { generateDealerPdfReport } from './dealerPdfGenerator';
+import { generateDsaPdfReport } from './dsaPdfGenerator';
 import { generateRcuPdfReport } from '../rcuPdfReportGenerator';
 
 /**
@@ -34,9 +35,23 @@ export async function generateDynamicCasePdf(caseData: ReportCaseData): Promise<
     return await generateDealerPdfReport(caseData);
   }
 
+  // 3. DSA Vendor & CD Loan Asset Verification (Matches DSA Report format.doc & AP-10558407 - K GANAPATHI.docx)
+  if (
+    profileCode === 'DSA_BUSINESS' ||
+    profileCode === 'DSA' ||
+    profileCode === 'DSA_RESIDENTIAL' ||
+    profileCode === 'CD_LOAN_ASSET' ||
+    profileCode === 'CONNECTOR' ||
+    caseType === 'DSA_BUSINESS' ||
+    caseType === 'CD_LOAN_ASSET'
+  ) {
+    return await generateDsaPdfReport(caseData);
+  }
+
   // Fallback to standard/residential RCU generator for now
   return await generateRcuPdfReport(caseData);
 }
 
-export { generateResiCumBusinessPdfReport, generateDealerPdfReport };
+export { generateResiCumBusinessPdfReport, generateDealerPdfReport, generateDsaPdfReport };
+
 
