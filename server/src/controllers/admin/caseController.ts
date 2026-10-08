@@ -46,7 +46,7 @@ export const getCases = async (req: AuthRequest, res: Response) => {
       return {
         id: item.id,
         customer: parseFullName(item.customer.firstName, item.customer.lastName),
-        type: item.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
+        type: item.type,
         status: isRevision ? resolveCaseStatus('RE_VERIFICATION') : resolveCaseStatus(item.status),
         agent: resolveAgentName(item.agent ?? null),
         agentId: item.agentId,

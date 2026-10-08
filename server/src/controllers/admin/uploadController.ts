@@ -128,11 +128,14 @@ export const bulkUploadCases = async (req: AuthRequest, res: Response) => {
             }
           } catch { /* non-fatal — leave null */ }
 
+          const caseType = String(row.type || 'RESIDENTIAL').toUpperCase().trim();
+
           const newCase = await prisma.verificationCase.create({
             data: {
               customerId: customer.id,
               status: 'PENDING',
-              type: String(row.type).toUpperCase() === 'BUSINESS' ? 'BUSINESS' : 'RESIDENTIAL',
+              type: caseType,
+              profileData: JSON.stringify({ profileType: caseType }),
               adminId,
               addressLatitude: addrLat ?? undefined,
               addressLongitude: addrLng ?? undefined,

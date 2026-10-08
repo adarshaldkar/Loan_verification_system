@@ -75,7 +75,7 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
     const recentCases = recentCasesRaw.map((item: any) => ({
       id: item.id,
       customer: parseFullName(item.customer?.firstName, item.customer?.lastName),
-      type: item.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
+      type: item.type,
       status: resolveCaseStatus(item.status),
       agent: resolveAgentName(item.agent ?? null),
       updatedOn: formatDateTime(item.updatedAt),
@@ -177,12 +177,13 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
     let adminPerformance: any[] = [];
     if (isSuperAdmin) {
       const admins = await prisma.user.findMany({
-        where: { role: 'ADMIN' },
+        where: { role: { in: ['ADMIN', 'SUPER_ADMIN'] } },
         select: {
           id: true,
           firstName: true,
           lastName: true,
           email: true,
+          role: true,
         }
       });
 
@@ -213,7 +214,7 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
 
         return {
           id: adm.id,
-          name: parseFullName(adm.firstName, adm.lastName),
+          name: adm.role === 'SUPER_ADMIN' ? `${parseFullName(adm.firstName, adm.lastName)} (Super Admin)` : parseFullName(adm.firstName, adm.lastName),
           email: adm.email,
           total,
           pending,
