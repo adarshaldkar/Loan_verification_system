@@ -18,6 +18,16 @@ export const getCustomers = async (req: AuthRequest, res: Response) => {
       where: whereClause,
       include: {
         verificationCases: {
+          include: {
+            agent: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                branch: true,
+              }
+            }
+          },
           orderBy: { createdAt: 'desc' },
           take: 1,
         },
@@ -26,16 +36,23 @@ export const getCustomers = async (req: AuthRequest, res: Response) => {
     });
 
     const data = customers.map((customer: any) => {
-      const latestCase = customer.verificationCases[0];
+      const latestCase = customer.verificationCases?.[0];
       return {
         id: customer.applicationId,
+        customerId: customer.id,
+        caseId: latestCase?.id || null,
         name: parseFullName(customer.firstName, customer.lastName),
+        email: customer.email || '',
         phone: customer.phone ?? '',
-        address: customer.address,
-        loanType: customer.loanType,
+        address: customer.address || '',
+        loanType: customer.loanType || 'Personal Loan',
+        loanAmount: customer.loanAmount || 0,
+        businessName: customer.businessName || '',
+        caseType: latestCase?.type || customer.loanType || 'RESIDENTIAL',
         caseStatus: resolveCaseStatus(latestCase?.status ?? 'PENDING'),
-        branch: customer.branch ?? latestCase?.branch ?? 'Unassigned',
-        uploadDate: formatDateTime(customer.updatedAt),
+        assignedAgent: latestCase?.agent ? parseFullName(latestCase.agent.firstName, latestCase.agent.lastName) : 'Unassigned',
+        branch: customer.branch ?? latestCase?.branch ?? latestCase?.agent?.branch ?? 'Unassigned',
+        uploadDate: formatDateTime(customer.updatedAt || customer.createdAt),
       };
     });
 

@@ -144,7 +144,12 @@ export default function VerificationPage() {
     if (typeFilter !== "All") {
       list = list.filter((c) => {
         const conf = getProfileByCode(c.type);
-        return c.type === typeFilter || conf.category === typeFilter || conf.code === typeFilter;
+        return (
+          c.type === typeFilter ||
+          conf.code === typeFilter ||
+          conf.category === typeFilter ||
+          conf.name.toLowerCase().includes(typeFilter.toLowerCase())
+        );
       });
     }
     setFiltered(list);
@@ -360,15 +365,31 @@ export default function VerificationPage() {
               />
             </div>
 
-            {["All", "Residential", "Business", "DSA", "Property"].map((t) => (
-              <button
-                key={t}
-                className={`filter-btn${typeFilter === t ? " active" : ""}`}
-                onClick={() => setTypeFilter(t)}
+            {/* Quick Profile Filter Pills */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {["All", "Residential", "Business", "Resi cum Business", "DSA", "Property", "Agriculture", "Dealers"].map((t) => (
+                <button
+                  key={t}
+                  className={`filter-btn${typeFilter === t ? " active" : ""}`}
+                  onClick={() => setTypeFilter(t)}
+                >
+                  <FiFilter size={13} /> {t}
+                </button>
+              ))}
+
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="filter-btn text-xs bg-white text-slate-700 border border-slate-200 rounded-lg px-2 py-1 outline-none cursor-pointer"
               >
-                <FiFilter size={13} /> {t}
-              </button>
-            ))}
+                <option value="All">All 12 Profiles...</option>
+                {VERIFICATION_PROFILES.map((p) => (
+                  <option key={p.code} value={p.code}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <button className="refresh-btn" onClick={loadCases}>
               <FiRefreshCw size={14} /> Refresh

@@ -23,6 +23,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import { getAnalyticsApi, getDashboardApi, getProfileApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getProfileByCode } from "@/lib/verificationProfiles";
 
 /* ─── Static fallback activity icons map ─────────────────────────────────── */
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -476,6 +477,61 @@ export default function DashboardPage() {
           </div>
         </SectionCard>
       )}
+
+      {/* ── Recent Verification Cases ── */}
+      <SectionCard title="Recent Verification Cases" viewAllHref="/app/cases">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-slate-50 dark:bg-slate-900/50">
+                {["Case ID", "Customer", "Profile Type", "Status", "Assigned Agent", "Updated On", ""].map((h) => (
+                  <th key={h} className="px-5 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {recentCases.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-5 py-8 text-center text-slate-400 text-sm">
+                    No recent verification cases found.
+                  </td>
+                </tr>
+              ) : (
+                recentCases.slice(0, 6).map((c) => {
+                  const prof = getProfileByCode(c.type || "RESIDENTIAL");
+                  return (
+                    <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <Link href={`/app/cases/${c.id}`} className="font-mono text-xs text-blue-600 hover:underline">
+                          {c.id.slice(0, 8)}...
+                        </Link>
+                      </td>
+                      <td className="px-5 py-3.5 font-medium text-slate-900 dark:text-slate-100">{c.customer}</td>
+                      <td className="px-5 py-3.5">
+                        <span className={cn("text-[11px] font-semibold px-2 py-0.5 rounded-full border whitespace-nowrap", prof.badgeColor)}>
+                          {prof.name}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5"><StatusBadge status={c.status} /></td>
+                      <td className="px-5 py-3.5 text-slate-600 dark:text-slate-300">{c.agent || "Unassigned"}</td>
+                      <td className="px-5 py-3.5 text-slate-400 text-xs whitespace-nowrap">{c.updatedOn}</td>
+                      <td className="px-5 py-3.5 text-right">
+                        <Link href={`/app/cases/${c.id}`}>
+                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs font-medium text-slate-600 hover:text-slate-900">
+                            View Case
+                          </Button>
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </SectionCard>
 
       {/* ── Bottom Row: Top Agents Performance ── */}
       <SectionCard title="Top Agents Performance" viewAllHref="/app/agents">
