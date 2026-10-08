@@ -2,34 +2,45 @@ import { Response } from 'express';
 import bcrypt from 'bcryptjs';
 import prisma from '../../config/db';
 import { AuthRequest } from '../../middlewares/auth';
-import { parseFullName, apiError } from '../../utils/helpers';
+import { parseFullName, apiError, createAuditLog } from '../../utils/helpers';
 
 export const getAgents = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
-    const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
+    const requester = await prisma.user.findUnique({ where: { id: adminId } });
+    const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
 
     const whereClause: any = { role: 'FIELD_AGENT' };
     if (!isSuperAdmin) {
-      whereClause.adminId = adminId;
+      whereClause.OR = [
+        { adminId },
+        requester?.branch ? { branch: requester.branch } : {},
+        { adminId: null },
+      ].filter((obj) => Object.keys(obj).length > 0);
     }
 
     const agents = await (prisma.user as any).findMany({
       where: whereClause,
-      include: { assignedCases: true },
-      orderBy: { createdAt: 'asc' },
+      include: {
+        assignedCases: {
+          select: { id: true, status: true, createdAt: true, completedAt: true, updatedAt: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
     });
 
     const data = agents.map((agent: any) => {
-      const assignedCases: any[] = agent.assignedCases;
+      const assignedCases: any[] = agent.assignedCases || [];
       const completedCases = assignedCases.filter((item) => item.status === 'COMPLETED' || item.status === 'APPROVED').length;
-      const activeCases = assignedCases.filter((item) => item.status === 'ASSIGNED' || item.status === 'IN_PROGRESS').length;
+      const activeCases = assignedCases.filter((item) => item.status === 'ASSIGNED' || item.status === 'IN_PROGRESS' || item.status === 'PENDING').length;
       const rejectedCases = assignedCases.filter((item) => item.status === 'REJECTED').length;
-      const totalResolved = completedCases + rejectedCases;
-      const successRate = totalResolved === 0 ? 0 : Math.round((completedCases / totalResolved) * 100);
+      const totalCases = assignedCases.length;
+      const successRate = totalCases === 0 ? 0 : Math.min(100, Math.round((completedCases / totalCases) * 100));
+
       const completedDurations = assignedCases
         .filter((item) => (item.status === 'COMPLETED' || item.status === 'APPROVED') && item.completedAt)
-        .map((item) => Math.max(1, Math.round((new Date(item.completedAt).getTime() - new Date(item.createdAt).getTime()) / 86400000)));
+        .map((item) => Math.max(0.5, Math.round(((new Date(item.completedAt).getTime() - new Date(item.createdAt).getTime()) / 86400000) * 10) / 10));
+
       const avgTurnaround = completedDurations.length
         ? `${(completedDurations.reduce((sum: number, value: number) => sum + value, 0) / completedDurations.length).toFixed(1)} days`
         : '—';
@@ -45,6 +56,8 @@ export const getAgents = async (req: AuthRequest, res: Response) => {
         status: agent.isActive ? 'Active' : 'Inactive',
         activeCases,
         completedCases,
+        rejectedCases,
+        totalCases,
         successRate,
         avgTurnaround,
       };
@@ -75,7 +88,19 @@ export const toggleAgentStatus = async (req: AuthRequest, res: Response) => {
       data: { isActive: !agent.isActive },
     });
 
-    return res.status(200).json({ success: true, message: `Agent ${updated.isActive ? 'activated' : 'deactivated'}`, data: updated });
+    await createAuditLog({
+      actor: `Admin (${adminId})`,
+      action: updated.isActive ? 'Activated agent' : 'Deactivated agent',
+      entity: `Agent ${parseFullName(agent.firstName, agent.lastName)} (${agent.email})`,
+      ip: req.ip || 'system',
+      adminId,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Agent ${updated.isActive ? 'activated' : 'deactivated'} successfully`,
+      data: updated,
+    });
   } catch (error: any) {
     return apiError(res, 'Failed to toggle agent status', 500, error);
   }
@@ -111,6 +136,14 @@ export const updateAgent = async (req: AuthRequest, res: Response) => {
     const updated = await prisma.user.update({
       where: { id: agentId },
       data: updateData,
+    });
+
+    await createAuditLog({
+      actor: `Admin (${adminId})`,
+      action: 'Updated agent profile',
+      entity: `Agent ${parseFullName(updated.firstName, updated.lastName)} (${updated.email})`,
+      ip: req.ip || 'system',
+      adminId,
     });
 
     return res.status(200).json({ success: true, message: 'Agent updated successfully', data: updated });
