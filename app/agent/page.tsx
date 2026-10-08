@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import ScheduleRouteMap from "@/components/shared/ScheduleRouteMap";
 import { startRideApi, endRideApi, logLocationPingApi, geocodeCasesApi } from "@/lib/api";
+import { getProfileByCode } from "@/lib/verificationProfiles";
 
 /* ─── Agent Dashboard ─────────────────────────────────────────────────────── */
 
@@ -713,7 +714,7 @@ export default function AgentDashboard() {
                         <h4 className="text-[14px] font-bold text-gray-900 dark:text-slate-100 leading-snug">{c.customer}</h4>
                         <p className="text-[12px] text-gray-400 dark:text-slate-500 truncate leading-snug">{c.address}</p>
                         <p className="text-[11px] font-medium text-gray-500 dark:text-slate-400">
-                          {c.type === 'RESIDENTIAL' || c.type === 'ADDRESS' ? 'Residential Verification' : 'Business Verification'}
+                          {getProfileByCode(c.type || 'RESIDENTIAL').name}
                         </p>
                       </div>
                       <div className="flex flex-col items-end justify-between self-stretch shrink-0">

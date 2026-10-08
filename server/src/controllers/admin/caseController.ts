@@ -166,7 +166,7 @@ export const getCaseById = async (req: AuthRequest, res: Response) => {
     const data = {
       id: caseData.id,
       customer: parseFullName(caseData.customer.firstName, caseData.customer.lastName),
-      type: caseData.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
+      type: caseData.type,
       status: resolveCaseStatus(caseData.status),
       agent: resolveAgentName(caseData.agent ?? null),
       branch: caseData.branch ?? caseData.agent?.branch ?? caseData.customer.branch ?? 'Unassigned',

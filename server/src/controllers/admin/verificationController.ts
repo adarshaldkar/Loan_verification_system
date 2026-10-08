@@ -8,11 +8,18 @@ export const getCompletedCases = async (req: AuthRequest, res: Response) => {
   try {
     const adminId = req.user?.id;
     const role = req.user?.role;
+    const statusParam = req.query.status as string;
 
     // SUPER_ADMIN sees all completed cases; ADMIN/MANAGER see only their own
-    const whereClause: any = { status: 'COMPLETED' };
+    const whereClause: any = {};
     if (role !== 'SUPER_ADMIN') {
       whereClause.adminId = adminId;
+    }
+
+    if (statusParam && statusParam !== 'All') {
+      whereClause.status = statusParam;
+    } else {
+      whereClause.status = { in: ['COMPLETED', 'APPROVED', 'REJECTED', 'PENDING', 'IN_PROGRESS'] };
     }
 
     const cases = await prisma.verificationCase.findMany({
@@ -22,20 +29,20 @@ export const getCompletedCases = async (req: AuthRequest, res: Response) => {
         agent: { select: { id: true, firstName: true, lastName: true, branch: true, email: true } },
         media: true,
       },
-      orderBy: { completedAt: 'desc' },
+      orderBy: { updatedAt: 'desc' },
     });
 
     const data = cases.map((item) => ({
       id: item.id,
       customer: parseFullName(item.customer.firstName, item.customer.lastName),
       applicationId: item.customer.applicationId,
-      type: item.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
+      type: item.type,
       status: item.status,
       agent: resolveAgentName(item.agent ?? null),
       agentId: item.agentId,
       agentEmail: item.agent?.email ?? null,
       branch: item.branch ?? item.agent?.branch ?? item.customer.branch ?? 'Unassigned',
-      submittedAt: item.completedAt ? formatDateTime(item.completedAt) : 'Pending',
+      submittedAt: item.completedAt ? formatDateTime(item.completedAt) : formatDateTime(item.updatedAt),
       loanAmount: item.customer.loanAmount,
       loanType: item.customer.loanType,
       address: item.customer.address,
@@ -93,7 +100,7 @@ export const getVerificationDetail = async (req: AuthRequest, res: Response) => 
         loanType: caseData.customer.loanType,
         businessName: caseData.customer.businessName,
       },
-      type: caseData.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
+      type: caseData.type,
       status: caseData.status,
       agent: {
         name: resolveAgentName(caseData.agent ?? null),
@@ -103,7 +110,7 @@ export const getVerificationDetail = async (req: AuthRequest, res: Response) => 
         branch: caseData.agent?.branch ?? 'N/A',
       },
       branch: caseData.branch ?? caseData.agent?.branch ?? caseData.customer.branch ?? 'Unassigned',
-      submittedAt: caseData.completedAt ? formatDateTime(caseData.completedAt) : 'Pending',
+      submittedAt: caseData.completedAt ? formatDateTime(caseData.completedAt) : formatDateTime(caseData.updatedAt),
       createdAt: formatDateTime(caseData.createdAt),
       // Geo-tag data
       geoTag: {
@@ -113,7 +120,7 @@ export const getVerificationDetail = async (req: AuthRequest, res: Response) => 
       },
       // Agent remarks
       remarks: caseData.remarks || 'No remarks provided.',
-      // Residential / Business form data
+      // Verification form data
       profileData,
       // Media evidence (photos)
       media: caseData.media.map((m: any) => ({
