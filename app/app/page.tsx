@@ -525,13 +525,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Admin Performance (Super Admin Only) ── */}
-      {isSuperAdmin && adminPerformance.length > 0 && (
-        <SectionCard title="Administrators Performance Overview">
+      {/* ── Admin Performance Overview (Dynamic live stats) ── */}
+      {adminPerformance.length > 0 && (
+        <SectionCard
+          title="Administrators Performance Overview"
+          description={`Live metrics breakdown for ${dateRange.label === "Custom Range" ? dateRange.value : dateRange.label}`}
+        >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border">
+                <tr className="border-b border-border bg-slate-50/50 dark:bg-slate-900/40">
                   <th className="px-5 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Admin Name</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Email</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">Total Cases</th>
@@ -556,11 +559,11 @@ export default function DashboardPage() {
                     </td>
                     <td className="px-4 py-3.5 text-slate-500">{admin.email}</td>
                     <td className="px-4 py-3.5 text-center font-semibold text-slate-700">{admin.total}</td>
-                    <td className="px-4 py-3.5 text-center text-amber-700">{admin.pending}</td>
-                    <td className="px-4 py-3.5 text-center text-teal-700">{admin.completed}</td>
-                    <td className="px-4 py-3.5 text-center text-emerald-800">{admin.verified}</td>
-                    <td className="px-4 py-3.5 text-center text-rose-700">{admin.rejected ?? 0}</td>
-                    <td className="px-4 py-3.5 text-center text-orange-700">{admin.reverification ?? 0}</td>
+                    <td className="px-4 py-3.5 text-center text-amber-700 font-medium">{admin.pending}</td>
+                    <td className="px-4 py-3.5 text-center text-teal-700 font-medium">{admin.completed}</td>
+                    <td className="px-4 py-3.5 text-center text-emerald-800 font-medium">{admin.verified}</td>
+                    <td className="px-4 py-3.5 text-center text-rose-700 font-medium">{admin.rejected ?? 0}</td>
+                    <td className="px-4 py-3.5 text-center text-orange-700 font-medium">{admin.reverification ?? 0}</td>
                     <td className="px-4 py-3.5 text-center font-bold text-slate-900">{admin.overall}</td>
                   </tr>
                 ))}
@@ -571,7 +574,11 @@ export default function DashboardPage() {
       )}
 
       {/* ── Recent Verification Cases ── */}
-      <SectionCard title="Recent Verification Cases" viewAllHref="/app/cases">
+      <SectionCard
+        title="Recent Verification Cases"
+        description={`Showing latest activity for ${dateRange.label === "Custom Range" ? dateRange.value : dateRange.label}`}
+        viewAllHref="/app/cases"
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -587,16 +594,16 @@ export default function DashboardPage() {
               {recentCases.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-5 py-8 text-center text-slate-400 text-sm">
-                    No recent verification cases found.
+                    No recent verification cases found for this period.
                   </td>
                 </tr>
               ) : (
-                recentCases.slice(0, 6).map((c) => {
+                recentCases.slice(0, 8).map((c) => {
                   const prof = getProfileByCode(c.type || "RESIDENTIAL");
                   return (
                     <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="px-5 py-3.5">
-                        <Link href={`/app/cases/${c.id}`} className="font-mono text-xs text-blue-600 hover:underline">
+                        <Link href={`/app/cases/${c.id}`} className="font-mono text-xs text-blue-600 hover:underline font-semibold">
                           {c.id.slice(0, 8)}...
                         </Link>
                       </td>
@@ -626,7 +633,11 @@ export default function DashboardPage() {
       </SectionCard>
 
       {/* ── Bottom Row: Top Agents Performance ── */}
-      <SectionCard title="Top Agents Performance" viewAllHref="/app/agents">
+      <SectionCard
+        title="Top Agents Performance"
+        description={`Performance rankings for ${dateRange.label === "Custom Range" ? dateRange.value : dateRange.label}`}
+        viewAllHref="/app/agents"
+      >
         <div className="px-5 py-4">
           <div className="grid grid-cols-4 text-xs font-semibold text-slate-400 uppercase tracking-wider pb-3 border-b border-border">
             <span className="col-span-2">Agent Name</span>
@@ -634,23 +645,27 @@ export default function DashboardPage() {
             <span className="text-right">Success Rate</span>
           </div>
           <div className="space-y-4 pt-4">
-            {topAgents.map((agent, index) => (
-              <div key={`${agent.name}-${index}`} className="grid grid-cols-4 items-center gap-4">
-                <div className="col-span-2 flex items-center gap-3">
-                  <Avatar className="w-8 h-8 shrink-0">
-                    <AvatarFallback className="text-xs font-bold" style={{ background: "#E8EFF8", color: "#1E3A5F" }}>
-                      {agent.name.split(" ").map((n: string) => n[0]).join("")}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm font-semibold text-slate-900 truncate">{agent.name}</span>
+            {topAgents.length === 0 ? (
+              <p className="text-center py-6 text-sm text-slate-400">No agent performance data found for this period.</p>
+            ) : (
+              topAgents.map((agent, index) => (
+                <div key={`${agent.name}-${index}`} className="grid grid-cols-4 items-center gap-4">
+                  <div className="col-span-2 flex items-center gap-3">
+                    <Avatar className="w-8 h-8 shrink-0">
+                      <AvatarFallback className="text-xs font-bold" style={{ background: "#E8EFF8", color: "#1E3A5F" }}>
+                        {agent.name.split(" ").map((n: string) => n[0]).join("")}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-semibold text-slate-900 truncate">{agent.name}</span>
+                  </div>
+                  <span className="text-sm text-slate-600 text-center font-medium">{agent.completed}</span>
+                  <div className="flex flex-col items-end gap-1.5 w-full">
+                    <span className="text-xs font-bold text-slate-900">{agent.rate}%</span>
+                    <Progress value={agent.rate} className="h-2 w-full" />
+                  </div>
                 </div>
-                <span className="text-sm text-slate-600 text-center font-medium">{agent.completed}</span>
-                <div className="flex flex-col items-end gap-1.5 w-full">
-                  <span className="text-xs font-bold text-slate-900">{agent.rate}%</span>
-                  <Progress value={agent.rate} className="h-2 w-full" />
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </SectionCard>

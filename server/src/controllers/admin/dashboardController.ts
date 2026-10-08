@@ -73,11 +73,36 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
       numBuckets = 7;
     }
 
+    // Query recent cases prioritizing active date period with fallback to latest cases
+    let recentCasesRaw = await prisma.verificationCase.findMany({
+      where: {
+        ...(filter as any),
+        createdAt: { gte: startDate, lte: endDate },
+      },
+      include: {
+        customer: true,
+        agent: { select: { firstName: true, lastName: true, branch: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 10,
+    });
+
+    if (recentCasesRaw.length === 0) {
+      recentCasesRaw = await prisma.verificationCase.findMany({
+        where: filter as any,
+        include: {
+          customer: true,
+          agent: { select: { firstName: true, lastName: true, branch: true } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        take: 10,
+      });
+    }
+
     const [
       totalCustomersCount,
       totalCasesCount,
       caseCountsByStatus,
-      recentCasesRaw,
       agents,
       logs,
       branches,
@@ -94,15 +119,6 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
         by: ['status'],
         where: filter,
         _count: { status: true },
-      }),
-      prisma.verificationCase.findMany({
-        where: filter as any,
-        include: {
-          customer: true,
-          agent: { select: { firstName: true, lastName: true, branch: true } },
-        },
-        orderBy: { updatedAt: 'desc' },
-        take: 8,
       }),
       (prisma.user as any).findMany({
         where: agentFilter,
@@ -192,13 +208,23 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
       updatedOn: formatDateTime(item.updatedAt || item.createdAt),
     }));
 
+    // Compute top agents with period awareness and fallback
     const topAgents = agents
       .map((agent: any) => {
         const assignedCases = agent.assignedCases as any[];
-        const completed = assignedCases.filter((item) => item.status === 'COMPLETED' || item.status === 'APPROVED').length;
-        const inProgress = assignedCases.filter((item) => item.status === 'ASSIGNED' || item.status === 'IN_PROGRESS').length;
-        const rate = assignedCases.length === 0 ? 0 : Math.round((completed / assignedCases.length) * 100);
-        const completedDurations = assignedCases
+        const periodCases = assignedCases.filter((item) => {
+          const d = new Date(item.createdAt);
+          return d >= startDate && d <= endDate;
+        });
+
+        // Use period cases if available; otherwise use all assigned cases
+        const casesToUse = periodCases.length > 0 ? periodCases : assignedCases;
+        const completed = casesToUse.filter((item) => item.status === 'COMPLETED' || item.status === 'APPROVED').length;
+        const inProgress = casesToUse.filter((item) => item.status === 'ASSIGNED' || item.status === 'IN_PROGRESS').length;
+        const total = casesToUse.length;
+        const rate = total === 0 ? 0 : Math.min(100, Math.round((completed / total) * 100));
+
+        const completedDurations = casesToUse
           .filter((item) => (item.status === 'COMPLETED' || item.status === 'APPROVED') && item.completedAt)
           .map((item) => Math.max(1, Math.round((new Date(item.completedAt).getTime() - new Date(item.createdAt).getTime()) / 86400000)));
         const avgTurnaround = completedDurations.length
@@ -206,15 +232,17 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
           : '—';
 
         return {
+          id: agent.id,
           name: parseFullName(agent.firstName, agent.lastName),
           completed,
           inProgress,
+          total,
           rate,
           avgTurnaround,
         };
       })
-      .sort((a: any, b: any) => b.completed - a.completed)
-      .slice(0, 5);
+      .sort((a: any, b: any) => b.completed - a.completed || b.rate - a.rate)
+      .slice(0, 6);
 
     const branchStats = branches.map((branch: any) => {
       const branchAgents = agents.filter((agent: any) => agent.branch === branch.name);
@@ -318,10 +346,11 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
       { name: 'Rejected', value: rejectedCount, color: '#BE123C' },
     ];
 
+    // ── Dynamic Admin Performance Overview (Super Admin + Admin Team) ──
     let adminPerformance: any[] = [];
-    if (isSuperAdmin) {
+    if (isSuperAdmin || requester?.role === 'ADMIN') {
       const admins = await prisma.user.findMany({
-        where: { role: { in: ['ADMIN', 'SUPER_ADMIN'] } },
+        where: isSuperAdmin ? { role: { in: ['ADMIN', 'SUPER_ADMIN'] } } : { id: adminId },
         select: {
           id: true,
           firstName: true,
@@ -336,19 +365,27 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
           adminId: true,
           status: true,
           profileData: true,
+          createdAt: true,
+          customer: { select: { adminId: true } },
         },
       });
 
       adminPerformance = admins.map((adm) => {
-        const adminCases = allCases.filter((c) => c.adminId === adm.id);
-        const total = adminCases.length;
-        const pending = adminCases.filter((c) => ['PENDING', 'ASSIGNED'].includes(c.status)).length;
-        const inProgress = adminCases.filter((c) => c.status === 'IN_PROGRESS').length;
-        const completed = adminCases.filter((c) => c.status === 'COMPLETED').length;
-        const verified = adminCases.filter((c) => c.status === 'APPROVED').length;
-        const overall = adminCases.filter((c) => ['APPROVED', 'REJECTED'].includes(c.status)).length;
-        const rejected = adminCases.filter((c) => c.status === 'REJECTED').length;
-        const reverification = adminCases.filter((item: any) => {
+        const adminCases = allCases.filter((c) => c.adminId === adm.id || c.customer?.adminId === adm.id);
+        const periodAdminCases = adminCases.filter((c) => {
+          const d = new Date(c.createdAt);
+          return d >= startDate && d <= endDate;
+        });
+
+        const casesToUse = periodAdminCases.length > 0 ? periodAdminCases : adminCases;
+        const total = casesToUse.length;
+        const pending = casesToUse.filter((c) => ['PENDING', 'ASSIGNED'].includes(c.status)).length;
+        const inProgress = casesToUse.filter((c) => c.status === 'IN_PROGRESS').length;
+        const completed = casesToUse.filter((c) => c.status === 'COMPLETED').length;
+        const verified = casesToUse.filter((c) => c.status === 'APPROVED').length;
+        const overall = casesToUse.filter((c) => ['APPROVED', 'REJECTED'].includes(c.status)).length;
+        const rejected = casesToUse.filter((c) => c.status === 'REJECTED').length;
+        const reverification = casesToUse.filter((item: any) => {
           try {
             const pd = typeof item.profileData === 'string' ? JSON.parse(item.profileData) : item.profileData;
             return pd?.adminReview?.decision === 'NEEDS_REVISION';
