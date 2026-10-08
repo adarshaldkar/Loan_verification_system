@@ -47,6 +47,9 @@ model Customer {
   adminId           String?
   admin             User?              @relation(fields: [adminId], references: [id])
   verificationCases VerificationCase[]
+
+  @@index([adminId, createdAt])
+  @@index([phone])
 }
 
 model VerificationCase {
@@ -71,6 +74,12 @@ model VerificationCase {
   admin        User?     @relation("AdminCases", fields: [adminId], references: [id])
   agent        User?     @relation("AgentCases", fields: [agentId], references: [id])
   customer     Customer  @relation(fields: [customerId], references: [id])
+
+  @@index([adminId, status])
+  @@index([agentId, status])
+  @@index([status])
+  @@index([createdAt])
+  @@index([customerId])
 }
 
 model Branch {
@@ -142,6 +151,8 @@ model Media {
   verificationCaseId String
   createdAt          DateTime         @default(now())
   verificationCase   VerificationCase @relation(fields: [verificationCaseId], references: [id])
+
+  @@index([verificationCaseId])
 }
 
 model AgentRide {
@@ -170,4 +181,6 @@ model AgentLocation {
   speed     Float?
   timestamp DateTime  @default(now())
   ride      AgentRide @relation("RideLocations", fields: [rideId], references: [id], onDelete: Cascade)
+
+  @@index([rideId, timestamp])
 }

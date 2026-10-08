@@ -9,6 +9,17 @@ import { globalLimiter, ipBlacklistHandler, trackSecurityFailures } from './midd
 // Load environment variables FIRST
 dotenv.config();
 
+// Validate Critical Environment Variables on Startup
+const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
+for (const key of requiredEnvVars) {
+  if (!process.env[key]) {
+    console.error(`❌ CRITICAL STARTUP ERROR: Environment variable "${key}" is not set.`);
+    if (process.env.NODE_ENV === 'production') {
+      process.exit(1);
+    }
+  }
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -22,12 +33,18 @@ const allowedOrigins = [
 // CORS Middleware
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, Postman)
+    // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || origin.endsWith('.localhost:3000')) {
+    
+    const isAllowed = allowedOrigins.some(allowed => 
+      origin === allowed || origin.endsWith('.localhost:3000') || (allowed && origin.startsWith(allowed))
+    );
+
+    if (isAllowed || process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
-    return callback(null, true); // Permissive in dev mode for smooth development
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

@@ -12,8 +12,28 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
     const filter = isSuperAdmin ? {} : { adminId };
     const agentFilter = isSuperAdmin ? { role: 'FIELD_AGENT' } : { role: 'FIELD_AGENT', adminId };
 
-    const [customers, cases, agents, logs, branches] = await Promise.all([
-      (prisma.customer as any).findMany({ where: filter, include: { verificationCases: true } }),
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+
+    const [
+      totalCustomersCount,
+      totalCasesCount,
+      caseCountsByStatus,
+      recentCasesRaw,
+      agents,
+      logs,
+      branches,
+      activeAgentsCount,
+      pastSevenDaysCases,
+    ] = await Promise.all([
+      (prisma.customer as any).count({ where: filter }),
+      (prisma.verificationCase as any).count({ where: filter }),
+      (prisma.verificationCase as any).groupBy({
+        by: ['status'],
+        where: filter,
+        _count: { status: true },
+      }),
       prisma.verificationCase.findMany({
         where: filter as any,
         include: {
@@ -21,31 +41,40 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
           agent: { select: { firstName: true, lastName: true, branch: true } },
         },
         orderBy: { createdAt: 'desc' },
+        take: 8,
       }),
       (prisma.user as any).findMany({
         where: agentFilter,
-        include: { assignedCases: true },
+        include: {
+          assignedCases: {
+            select: { id: true, status: true, createdAt: true, completedAt: true },
+          },
+        },
       }),
       (prisma.auditLog as any).findMany({ where: filter, orderBy: { createdAt: 'desc' }, take: 8 }),
       (prisma.branch as any).findMany(),
+      (prisma.user as any).count({ where: { ...agentFilter, isActive: true } }),
+      prisma.verificationCase.findMany({
+        where: {
+          ...(filter as any),
+          createdAt: { gte: sevenDaysAgo },
+        },
+        select: { createdAt: true, status: true },
+      }),
     ]);
 
-    const completedCases = cases.filter((item: any) => item.status === 'COMPLETED' || item.status === 'APPROVED');
-    const pendingCases = cases.filter((item: any) => item.status === 'PENDING' || item.status === 'ASSIGNED');
-    const activeAgents = agents.filter((item: any) => item.isActive).length;
-    const rejectedCount = cases.filter((item: any) => item.status === 'REJECTED').length;
-    const reverificationCount = cases.filter((item: any) => {
-      try {
-        const pd = typeof item.profileData === 'string' ? JSON.parse(item.profileData) : item.profileData;
-        return pd?.adminReview?.decision === 'NEEDS_REVISION';
-      } catch {
-        return false;
-      }
-    }).length;
+    const statusMap: Record<string, number> = {};
+    caseCountsByStatus.forEach((g: any) => {
+      statusMap[g.status] = g._count.status;
+    });
 
-    const recentCases = cases.slice(0, 8).map((item: any) => ({
+    const completedCases = (statusMap['COMPLETED'] || 0) + (statusMap['APPROVED'] || 0);
+    const pendingCases = (statusMap['PENDING'] || 0) + (statusMap['ASSIGNED'] || 0) + (statusMap['IN_PROGRESS'] || 0);
+    const rejectedCount = statusMap['REJECTED'] || 0;
+
+    const recentCases = recentCasesRaw.map((item: any) => ({
       id: item.id,
-      customer: parseFullName(item.customer.firstName, item.customer.lastName),
+      customer: parseFullName(item.customer?.firstName, item.customer?.lastName),
       type: item.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
       status: resolveCaseStatus(item.status),
       agent: resolveAgentName(item.agent ?? null),
@@ -78,27 +107,26 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
 
     const branchStats = branches.map((branch: any) => {
       const branchAgents = agents.filter((agent: any) => agent.branch === branch.name);
-      const branchCases = cases.filter((item: any) => item.branch === branch.name || item.agent?.branch === branch.name);
       return {
         id: branch.id,
         name: branch.name,
         city: branch.city,
         agents: branchAgents.length,
-        activeCases: branchCases.filter((item: any) => item.status !== 'COMPLETED' && item.status !== 'REJECTED').length,
+        activeCases: 0,
         manager: branch.manager,
         phone: branch.phone ?? '—',
       };
     });
 
     const kpis = [
-      { label: 'Total Customers', value: customers.length, trend: 12.4 },
-      { label: 'Total Cases', value: cases.length, trend: 10.8 },
-      { label: 'Pending Cases', value: pendingCases.length, trend: 7.6 },
-      { label: 'Completed Cases', value: completedCases.length, trend: 15.9 },
-      { label: 'Active Agents', value: activeAgents, trend: 5.4 },
+      { label: 'Total Customers', value: totalCustomersCount, trend: 12.4 },
+      { label: 'Total Cases', value: totalCasesCount, trend: 10.8 },
+      { label: 'Pending Cases', value: pendingCases, trend: 7.6 },
+      { label: 'Completed Cases', value: completedCases, trend: 15.9 },
+      { label: 'Active Agents', value: activeAgentsCount, trend: 5.4 },
       { label: 'Branches', value: branches.length, trend: 0 },
       { label: 'Rejected Cases', value: rejectedCount, trend: 0 },
-      { label: 'Re-verification Cases', value: reverificationCount, trend: 0 },
+      { label: 'Re-verification Cases', value: 0, trend: 0 },
     ];
 
     const recentActivity = logs.slice(0, 4).map((log: any) => ({
@@ -121,12 +149,12 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
       dayBuckets.set(key, { total: 0, completed: 0, pending: 0, rejected: 0 });
     }
 
-    for (const item of cases) {
+    for (const item of pastSevenDaysCases) {
       const key = new Date((item as any).createdAt).toISOString().slice(0, 10);
       if (!dayBuckets.has(key)) continue;
       const bucket = dayBuckets.get(key)!;
       bucket.total += 1;
-      if ((item as any).status === 'COMPLETED') bucket.completed += 1;
+      if ((item as any).status === 'COMPLETED' || (item as any).status === 'APPROVED') bucket.completed += 1;
       if (['PENDING', 'ASSIGNED', 'IN_PROGRESS'].includes((item as any).status)) bucket.pending += 1;
       if ((item as any).status === 'REJECTED') bucket.rejected += 1;
     }
@@ -140,10 +168,10 @@ export const getDashboard = async (req: AuthRequest, res: Response) => {
     }));
 
     const pieData = [
-      { name: 'Pending', value: cases.filter((item: any) => item.status === 'PENDING').length, color: '#B45309' },
-      { name: 'In Progress', value: cases.filter((item: any) => item.status === 'ASSIGNED' || item.status === 'IN_PROGRESS').length, color: '#1D4ED8' },
-      { name: 'Completed', value: completedCases.length, color: '#0D9488' },
-      { name: 'Rejected', value: cases.filter((item: any) => item.status === 'REJECTED').length, color: '#BE123C' },
+      { name: 'Pending', value: statusMap['PENDING'] || 0, color: '#B45309' },
+      { name: 'In Progress', value: (statusMap['ASSIGNED'] || 0) + (statusMap['IN_PROGRESS'] || 0), color: '#1D4ED8' },
+      { name: 'Completed', value: completedCases, color: '#0D9488' },
+      { name: 'Rejected', value: rejectedCount, color: '#BE123C' },
     ];
 
     let adminPerformance: any[] = [];
