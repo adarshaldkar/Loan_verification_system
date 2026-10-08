@@ -74,11 +74,14 @@ export async function generateDsaPdfReport(caseData: ReportCaseData): Promise<Bu
       const dsaFirmName = safeVal(pd.proprietorPartnerName || customer.businessName || `${applicantName} Financial Services`);
       const visitDate = formatDate(caseData.completedAt || caseData.updatedAt || caseData.createdAt);
 
-      const isCdAsset = (caseData.type || '').toUpperCase() === 'CD_LOAN_ASSET' ||
-                        (pd.profileType || '').toUpperCase() === 'CD_LOAN_ASSET';
+      const isAsset = (caseData.type || '').toUpperCase() === 'ASSET_VERIFICATION' ||
+                      (caseData.type || '').toUpperCase() === 'CD_LOAN_ASSET' ||
+                      (caseData.type || '').toUpperCase() === 'ASSET' ||
+                      (pd.profileType || '').toUpperCase() === 'ASSET_VERIFICATION' ||
+                      (pd.profileType || '').toUpperCase() === 'CD_LOAN_ASSET';
 
-      const reportTitle = isCdAsset
-        ? 'CD Loan / Asset Verification Profiling Report'
+      const reportTitle = isAsset
+        ? 'Asset Verification Profiling Report'
         : 'DSA Vendor Profiling Report';
 
       // ─── STYLING CONSTANTS ───
@@ -149,7 +152,7 @@ export async function generateDsaPdfReport(caseData: ReportCaseData): Promise<Bu
       // ─── 1. GENERAL INFORMATION ───
       currentY = drawSectionHeader('1. General Information & Channel Partner Identity', currentY);
       currentY = drawTableRow(currentY, 'DSA / Applicant Code', customer.applicationId || 'NA', 'DSA Firm Name', dsaFirmName, false);
-      currentY = drawTableRow(currentY, 'Proprietor / Managing Partner', applicantName, 'Sourcing Channel', safeVal(pd.typeOfLoansDoing, customer.loanType || 'DSA Multi-Product'), true);
+      currentY = drawTableRow(currentY, 'Proprietor / Managing Partner', applicantName, 'Sourcing Channel', safeVal(pd.typeOfLoansDoing, customer.loanType || 'Multi-Product'), true);
       currentY = drawTableRow(currentY, 'Office Address with PIN', safeVal(pd.address || customer.address), undefined, undefined, false);
       currentY = drawTableRow(currentY, 'Phone / Mobile No', safeVal(pd.phone || customer.phone), 'Type of Setup', safeVal(pd.constitution, 'Proprietorship'), true);
       currentY += 8;
@@ -166,9 +169,9 @@ export async function generateDsaPdfReport(caseData: ReportCaseData): Promise<Bu
       currentY += 8;
 
       // ─── 3. LOAN SOURCING, BANK TIE-UPS & ASSET DETAILS ───
-      if (isCdAsset) {
-        currentY = drawSectionHeader('3. Consumer Durable Asset Inspection & Loan Specifics', currentY);
-        currentY = drawTableRow(currentY, 'Asset Sighted / Make', safeVal(pd.assetSeen, 'Samsung 55" 4K Smart TV / Sighted'), 'Asset Usage', safeVal(pd.assetUsage, 'Applicant Using Personally'), false);
+      if (isAsset) {
+        currentY = drawSectionHeader('3. Asset & Equipment Inspection & Loan Specifics', currentY);
+        currentY = drawTableRow(currentY, 'Asset Sighted / Make', safeVal(pd.assetSeen, '55" 4K Smart TV / Sighted'), 'Asset Usage', safeVal(pd.assetUsage, 'Applicant Using Personally'), false);
         currentY = drawTableRow(currentY, 'Total Asset Loan (₹)', `₹ ${formatInr(Number(pd.loanAmount || customer.loanAmount || 45000))}`, 'Initial Advance Paid (₹)', `₹ ${formatInr(Number(pd.initialAmount || 5000))}`, true);
         currentY = drawTableRow(currentY, 'Monthly EMI (₹)', `₹ ${formatInr(Number(pd.emi || 3800))}`, 'Asset Condition', 'Brand New / Fully Operational', false);
       } else {

@@ -37,14 +37,18 @@ export async function generateDynamicCasePdf(caseData: ReportCaseData): Promise<
     return await generateDealerPdfReport(caseData);
   }
 
-  // 3. DSA Vendor & CD Loan Asset Verification (Matches DSA Report format.doc & AP-10558407 - K GANAPATHI.docx)
+  // 3. DSA Vendor & Asset Verification (Matches DSA Report format.doc & AP-10558407 - K GANAPATHI.docx)
   if (
     profileCode === 'DSA_BUSINESS' ||
     profileCode === 'DSA' ||
     profileCode === 'DSA_RESIDENTIAL' ||
+    profileCode === 'ASSET_VERIFICATION' ||
+    profileCode === 'ASSET' ||
+    profileCode === 'LOAN_ASSET' ||
     profileCode === 'CD_LOAN_ASSET' ||
     profileCode === 'CONNECTOR' ||
     caseType === 'DSA_BUSINESS' ||
+    caseType === 'ASSET_VERIFICATION' ||
     caseType === 'CD_LOAN_ASSET'
   ) {
     return await generateDsaPdfReport(caseData);

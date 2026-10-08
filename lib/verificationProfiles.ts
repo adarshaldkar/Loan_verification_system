@@ -572,14 +572,14 @@ export const VERIFICATION_PROFILES: VerificationProfileConfig[] = [
   },
 
   /* ─────────────────────────────────────────────────────────────
-     10. CD LOAN ASSET VERIFICATION PROFILE
+     10. ASSET VERIFICATION PROFILE
   ───────────────────────────────────────────────────────────── */
   {
-    id: "cd_loan_asset",
-    code: "CD_LOAN_ASSET",
-    name: "CD Loan Asset Verification Profile",
+    id: "asset_verification",
+    code: "ASSET_VERIFICATION",
+    name: "Asset Verification Profile",
     category: "Asset",
-    description: "Consumer durable product inspection, usage check, loan downpayment, and EMI validation.",
+    description: "Asset product inspection, usage check, loan downpayment, and EMI validation.",
     badgeColor: "bg-amber-100 text-amber-800 border-amber-200",
     sections: [
       {
@@ -606,10 +606,10 @@ export const VERIFICATION_PROFILES: VerificationProfileConfig[] = [
         ],
       },
       {
-        title: "2. Consumer Durable Asset Inspection",
+        title: "2. Asset & Equipment Inspection",
         fields: [
           { name: "assetUsage", label: "Applicant using or Gifted", type: "select", options: ASSET_USAGE_OPTIONS, required: true },
-          { name: "assetSeen", label: "Asset Seen (Product make & model sighted)", type: "text", placeholder: "e.g., Samsung 55 Inch 4K Smart TV / LG Double Door Fridge", required: true },
+          { name: "assetSeen", label: "Asset Seen (Product make & model sighted)", type: "text", placeholder: "e.g., 55 Inch 4K Smart TV / Double Door Fridge / Generator", required: true },
           { name: "loanAmount", label: "Loan amount (₹)", type: "number", placeholder: "e.g., 45000", required: true },
           { name: "initialAmount", label: "Initial Downpayment Amount Paid (₹)", type: "number", placeholder: "e.g., 5000", required: true },
           { name: "emi", label: "Monthly EMI (₹)", type: "number", placeholder: "e.g., 3800", required: true },
@@ -708,6 +708,16 @@ export const VERIFICATION_PROFILES: VerificationProfileConfig[] = [
 
 export function getProfileByCode(code: string): VerificationProfileConfig {
   const normalized = (code || "").toUpperCase().trim();
+  if (
+    normalized === "ASSET" ||
+    normalized === "CD_LOAN_ASSET" ||
+    normalized === "LOAN_ASSET" ||
+    normalized === "ASSET_VERIFICATION" ||
+    code?.toLowerCase() === "cd_loan_asset"
+  ) {
+    const assetProfile = VERIFICATION_PROFILES.find((p) => p.code === "ASSET_VERIFICATION");
+    if (assetProfile) return assetProfile;
+  }
   return (
     VERIFICATION_PROFILES.find((p) => p.code === normalized || p.id === code.toLowerCase()) ||
     VERIFICATION_PROFILES[0]
