@@ -1,6 +1,7 @@
 import { generateResiCumBusinessPdfReport, ReportCaseData } from './resiCumBusinessPdfGenerator';
 import { generateDealerPdfReport } from './dealerPdfGenerator';
 import { generateDsaPdfReport } from './dsaPdfGenerator';
+import { generatePropertyPdfReport } from './propertyPdfGenerator';
 import { generateRcuPdfReport } from '../rcuPdfReportGenerator';
 
 /**
@@ -48,10 +49,23 @@ export async function generateDynamicCasePdf(caseData: ReportCaseData): Promise<
     return await generateDsaPdfReport(caseData);
   }
 
+  // 4. Property Profile & Seller Verification (Matches SIVA SAKTHI SHELTERS.pdf & Report - PRABHAKHAR D.docx)
+  if (
+    profileCode === 'PROPERTY' ||
+    profileCode === 'SELLER' ||
+    profileCode === 'PROPERTY_VALUATION' ||
+    profileCode === 'SITE_SURVEY' ||
+    caseType === 'PROPERTY' ||
+    caseType === 'SELLER'
+  ) {
+    return await generatePropertyPdfReport(caseData);
+  }
+
   // Fallback to standard/residential RCU generator for now
   return await generateRcuPdfReport(caseData);
 }
 
-export { generateResiCumBusinessPdfReport, generateDealerPdfReport, generateDsaPdfReport };
+export { generateResiCumBusinessPdfReport, generateDealerPdfReport, generateDsaPdfReport, generatePropertyPdfReport };
+
 
 
