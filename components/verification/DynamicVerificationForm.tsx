@@ -612,10 +612,11 @@ export default function DynamicVerificationForm({
               </span>
             </div>
 
-            <div className="h-[180px] rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
+            <div>
               <LocationPickerMap
                 lat={lat}
                 lng={lng}
+                height="220px"
                 onChange={(newLat, newLng) => {
                   setLat(newLat);
                   setLng(newLng);
@@ -626,12 +627,12 @@ export default function DynamicVerificationForm({
 
             <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
               <span>
-                Lat: <strong className="text-slate-700">{lat.toFixed(5)}</strong>
+                Lat: <strong className="text-slate-700 dark:text-slate-300">{lat.toFixed(5)}</strong>
               </span>
               <span>
-                Lng: <strong className="text-slate-700">{lng.toFixed(5)}</strong>
+                Lng: <strong className="text-slate-700 dark:text-slate-300">{lng.toFixed(5)}</strong>
               </span>
-              <span>{gpsAccuracy}</span>
+              <span className="text-[10px] text-emerald-600 font-semibold">{gpsAccuracy}</span>
             </div>
           </div>
 
