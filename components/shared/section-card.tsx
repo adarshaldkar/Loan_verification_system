@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 interface SectionCardProps {
   title: string;
+  description?: string;
   viewAllHref?: string;
   children: React.ReactNode;
   className?: string;
@@ -11,6 +12,7 @@ interface SectionCardProps {
 
 export function SectionCard({
   title,
+  description,
   viewAllHref,
   children,
   className,
@@ -19,12 +21,17 @@ export function SectionCard({
     <div className={cn("card-flat flex flex-col", className)}>
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-        <h2
-          className="text-[15px] font-semibold text-slate-900"
-          style={{ fontFamily: "var(--font-plus-jakarta)" }}
-        >
-          {title}
-        </h2>
+        <div>
+          <h2
+            className="text-[15px] font-semibold text-slate-900"
+            style={{ fontFamily: "var(--font-plus-jakarta)" }}
+          >
+            {title}
+          </h2>
+          {description && (
+            <p className="text-xs text-slate-400 mt-0.5">{description}</p>
+          )}
+        </div>
         {viewAllHref && (
           <Link
             href={viewAllHref}

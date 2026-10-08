@@ -89,11 +89,13 @@ export const registerAdminApi = (data: {
   email: string; password: string;
   firstName: string; lastName: string;
   phone?: string; branch?: string;
+  role?: string;
 }) => api.post("/admin/admins/register", data);
 export const updateAdminApi = (adminId: string, data: {
   email: string; password?: string;
   firstName: string; lastName: string;
   phone?: string; branch?: string;
+  role?: string;
   isActive?: boolean;
 }) => api.put(`/admin/admins/${adminId}`, data);
 
