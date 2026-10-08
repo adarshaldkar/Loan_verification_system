@@ -1,4 +1,5 @@
 import { generateResiCumBusinessPdfReport, ReportCaseData } from './resiCumBusinessPdfGenerator';
+import { generateDealerPdfReport } from './dealerPdfGenerator';
 import { generateRcuPdfReport } from '../rcuPdfReportGenerator';
 
 /**
@@ -28,8 +29,14 @@ export async function generateDynamicCasePdf(caseData: ReportCaseData): Promise<
     return await generateResiCumBusinessPdfReport(caseData);
   }
 
+  // 2. Dealer Verification - Business Profile (Matches Dealer profile report - CD 1.doc & Dealer Profile Report - TW DSA.doc)
+  if (profileCode === 'DEALERS' || profileCode === 'DEALER' || profileCode === 'DEALER_CD' || profileCode === 'DEALER_TW' || caseType === 'DEALERS') {
+    return await generateDealerPdfReport(caseData);
+  }
+
   // Fallback to standard/residential RCU generator for now
   return await generateRcuPdfReport(caseData);
 }
 
-export { generateResiCumBusinessPdfReport };
+export { generateResiCumBusinessPdfReport, generateDealerPdfReport };
+
