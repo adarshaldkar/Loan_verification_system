@@ -189,6 +189,9 @@ export const uploadVoiceApi = (caseId: string, formData: FormData) =>
 export const updateAgentCaseStatusApi = (id: string, status: string) =>
   api.patch(`/agent/cases/${id}/status`, { status });
 
+export const updateAgentCaseRemarkApi = (id: string, data: { remarks?: string; status?: string }) =>
+  api.patch(`/agent/cases/${id}/remarks`, data);
+
 export const submitVerificationApi = (id: string, data: {
   type?: string;
   remarks?: string;

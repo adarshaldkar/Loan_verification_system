@@ -249,3 +249,37 @@ export const uploadVoice = async (req: AuthRequest, res: Response) => {
     return apiError(res, 'Failed to upload voice recording', 500, error);
   }
 };
+
+export const updateAgentCaseRemark = async (req: AuthRequest, res: Response) => {
+  try {
+    const agentId = req.user?.id as string;
+    const id = req.params.id as string;
+    const { remarks, status } = req.body;
+
+    const existing = await prisma.verificationCase.findFirst({ where: { id, agentId } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Case not found or not assigned to you' });
+    }
+
+    const updated = await prisma.verificationCase.update({
+      where: { id },
+      data: {
+        remarks: remarks !== undefined ? remarks : existing.remarks,
+        status: status || existing.status,
+      },
+    });
+
+    await createAuditLog({
+      actor: `Agent (${agentId})`,
+      action: `Agent updated remark/status for Case`,
+      entity: `Case ${id}`,
+      ip: req.ip || 'system',
+      adminId: req.user?.adminId,
+    });
+
+    return res.status(200).json({ success: true, message: 'Remark saved successfully', data: updated });
+  } catch (error: any) {
+    return apiError(res, 'Failed to save remark', 500, error);
+  }
+};
+
