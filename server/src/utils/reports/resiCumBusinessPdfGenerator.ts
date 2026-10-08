@@ -8,6 +8,8 @@ export interface ReportCaseData {
   branch?: string | null;
   gpsLatitude?: number | null;
   gpsLongitude?: number | null;
+  addressLatitude?: number | null;
+  addressLongitude?: number | null;
   remarks?: string | null;
   profileData?: any;
   createdAt: Date;
