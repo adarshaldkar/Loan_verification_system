@@ -1,20 +1,8 @@
 import { Response } from 'express';
 import prisma from '../../config/db';
 import { AuthRequest } from '../../middlewares/auth';
-import { apiError, createAuditLog } from '../../utils/helpers';
-import { geocodeAddress } from '../../utils/geocoder';
-
-// Memory cache to store active batch progress updates
-export const activeBatches = new Map<string, {
-  fileName: string;
-  totalRows: number;
-  processedRows: number;
-  validRows: number;
-  errorRows: number;
-  status: 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  message: string;
-  caseIds?: string[];
-}>();
+import { apiError } from '../../utils/helpers';
+import { enqueueUploadJob, activeBatches } from '../../queues/uploadQueue';
 
 export const bulkUploadCases = async (req: AuthRequest, res: Response) => {
   try {
@@ -52,150 +40,23 @@ export const bulkUploadCases = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    // 3. Initialize progress tracking
-    activeBatches.set(batch.id, {
+    // 3. Enqueue Background Processing via BullMQ / Parallel Engine
+    await enqueueUploadJob({
+      batchId: batch.id,
       fileName: batch.fileName,
-      totalRows: rows.length,
-      processedRows: 0,
-      validRows: 0,
-      errorRows: 0,
-      status: 'PROCESSING',
-      message: 'Initialising background import...',
-      caseIds: [],
+      rows,
+      adminId,
+      userEmail: req.user?.email || 'Admin',
+      ip: req.ip || 'system',
     });
 
-    // 4. Return success immediately
-    res.status(200).json({
+    // 4. Instant Response (< 100ms)
+    return res.status(200).json({
       success: true,
-      message: 'File uploaded successfully. Background processing started.',
+      message: 'File accepted. High-performance parallel background processing started.',
       batchId: batch.id,
       totalRows: rows.length,
     });
-
-    // 5. Spawn background processor
-    setImmediate(async () => {
-      let processedCount = 0;
-      let validCount = 0;
-      let errorCount = 0;
-      let createdCaseIds: string[] = [];
-
-      for (const row of rows) {
-        try {
-          if (!row.name || !row.phone || !row.address) {
-            errorCount++;
-            processedCount++;
-            continue;
-          }
-
-          const [firstName, ...lastNameParts] = String(row.name).trim().split(' ');
-          const lastName = lastNameParts.join(' ') || '';
-          const phone = String(row.phone).trim();
-
-          let customer = await prisma.customer.findFirst({
-            where: {
-              firstName: { equals: firstName, mode: 'insensitive' },
-              lastName: { equals: lastName, mode: 'insensitive' },
-              phone: phone,
-              adminId,
-            }
-          });
-
-          if (!customer) {
-            customer = await prisma.customer.create({
-              data: {
-                applicationId: `APP-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
-                firstName,
-                lastName,
-                phone: phone,
-                address: String(row.address).trim(),
-                loanAmount: Number(row.loanAmount) || 0,
-                loanType: row.loanType || 'Personal',
-                adminId,
-              }
-            });
-          }
-
-          // Geocode address before creating the case (throttled to 1 req/sec; Redis-cached)
-          let addrLat: number | null = null;
-          let addrLng: number | null = null;
-          let addrAcc: string | null = null;
-          try {
-            const r = await geocodeAddress(String(row.address).trim());
-            if (r.lat != null && r.lng != null) {
-              addrLat = r.lat;
-              addrLng = r.lng;
-              addrAcc = r.accuracy === 'unknown' ? null : r.accuracy;
-            }
-          } catch { /* non-fatal — leave null */ }
-
-          const caseType = String(row.type || 'RESIDENTIAL').toUpperCase().trim();
-
-          const newCase = await prisma.verificationCase.create({
-            data: {
-              customerId: customer.id,
-              status: 'PENDING',
-              type: caseType,
-              profileData: JSON.stringify({ profileType: caseType }),
-              adminId,
-              addressLatitude: addrLat ?? undefined,
-              addressLongitude: addrLng ?? undefined,
-              addressAccuracy: addrAcc ?? undefined,
-            }
-          });
-
-          createdCaseIds.push(newCase.id);
-          validCount++;
-          processedCount++;
-
-          activeBatches.set(batch.id, {
-            fileName: batch.fileName,
-            totalRows: rows.length,
-            processedRows: processedCount,
-            validRows: validCount,
-            errorRows: errorCount,
-            status: 'PROCESSING',
-            message: `Processing row ${processedCount} of ${rows.length}...`,
-            caseIds: createdCaseIds,
-          });
-        } catch (err: any) {
-          errorCount++;
-          processedCount++;
-        }
-      }
-
-      try {
-        await prisma.uploadBatch.update({
-          where: { id: batch.id },
-          data: {
-            status: 'COMPLETED',
-            validRows: validCount,
-            errorRows: errorCount,
-          }
-        });
-
-        activeBatches.set(batch.id, {
-          fileName: batch.fileName,
-          totalRows: rows.length,
-          processedRows: processedCount,
-          validRows: validCount,
-          errorRows: errorCount,
-          status: 'COMPLETED',
-          message: `Import complete. Successfully imported ${validCount} cases.`,
-          caseIds: createdCaseIds,
-        });
-
-        await createAuditLog({
-          action: `Completed Excel import: ${validCount} valid, ${errorCount} errors`,
-          actor: `Admin (${adminId})`,
-          entity: 'Upload Module',
-          ip: '127.0.0.1',
-          adminId,
-        });
-      } catch (dbErr) {
-        console.error('Failed to update upload batch status in database:', dbErr);
-      }
-    });
-
   } catch (error: any) {
     return apiError(res, 'Bulk upload failed', 500, error);
   }
@@ -231,7 +92,7 @@ export const getBatchStatus = async (req: AuthRequest, res: Response) => {
         errorRows: batch.errorRows,
         status: batch.status,
         message: batch.status === 'COMPLETED' ? 'Import complete.' : 'Import failed.',
-        caseIds: [], // We don't store caseIds in db for uploadBatch currently
+        caseIds: [],
       }
     });
   } catch (error: any) {

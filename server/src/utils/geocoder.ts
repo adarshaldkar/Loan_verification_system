@@ -200,17 +200,25 @@ async function queryNominatim(
   return null;
 }
 
+// Local in-memory address cache to avoid duplicate network calls
+const memoryAddressCache = new Map<string, GeocodeResult>();
+
 function cacheKey(rawAddress: string): string {
   return `geocode:${rawAddress.trim().toLowerCase().replace(/\s+/g, ' ')}`;
 }
 
 async function readCache(key: string): Promise<GeocodeResult | null> {
+  const mem = memoryAddressCache.get(key);
+  if (mem) return mem;
+
   try {
     const cached = await redisClient.get(key);
     if (cached) {
       const parsed = JSON.parse(cached);
       if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
-        return { ...parsed, source: 'cache' };
+        const res: GeocodeResult = { ...parsed, source: 'cache' };
+        memoryAddressCache.set(key, res);
+        return res;
       }
     }
   } catch {
@@ -220,6 +228,7 @@ async function readCache(key: string): Promise<GeocodeResult | null> {
 }
 
 async function writeCache(key: string, result: GeocodeResult): Promise<void> {
+  memoryAddressCache.set(key, result);
   try {
     await redisClient.set(key, JSON.stringify(result), 'EX', RESULT_TTL_SECONDS);
   } catch {
@@ -229,8 +238,7 @@ async function writeCache(key: string, result: GeocodeResult): Promise<void> {
 
 /**
  * Resolves a raw address to precise coordinates.
- * Tiers: Redis Cache -> Google Maps API -> Nominatim (OSM) -> Regional Dictionary.
- * Results are stored permanently in the database on case creation so geocoding only runs once.
+ * Tiers: Memory Cache -> Redis Cache -> Google Maps API -> Nominatim (OSM) -> Regional Dictionary.
  */
 export async function geocodeAddress(
   rawAddress: string | null | undefined
@@ -241,11 +249,11 @@ export async function geocodeAddress(
 
   const key = cacheKey(rawAddress);
 
-  // 1. Check Redis Cache
+  // 1. Check Memory & Redis Cache
   const cached = await readCache(key);
   if (cached) return cached;
 
-  // 2. Google Maps Geocoding API (Fast, high-accuracy, 70,000 free events/mo in India)
+  // 2. Google Maps Geocoding API (Fast, high-accuracy)
   const googleResult = await queryGoogleGeocoding(rawAddress.trim());
   if (googleResult) {
     const result: GeocodeResult = { ...googleResult, source: 'google' };
@@ -274,4 +282,38 @@ export async function geocodeAddress(
   const result: GeocodeResult = { lat: null, lng: null, accuracy: 'unknown', source: 'unknown' };
   await writeCache(key, result);
   return result;
+}
+
+/**
+ * High-performance parallel batch geocoding with concurrency pool.
+ * Processes addresses in concurrent chunks (default 10) with automatic deduplication.
+ */
+export async function batchGeocodeAddresses(
+  addresses: string[],
+  concurrency = 10,
+  onProgress?: (completed: number, total: number) => void
+): Promise<Map<string, GeocodeResult>> {
+  const uniqueAddresses = Array.from(new Set(addresses.map((a) => (a || '').trim()).filter(Boolean)));
+  const resultMap = new Map<string, GeocodeResult>();
+  let completed = 0;
+  const total = uniqueAddresses.length;
+
+  for (let i = 0; i < uniqueAddresses.length; i += concurrency) {
+    const chunk = uniqueAddresses.slice(i, i + concurrency);
+    const chunkPromises = chunk.map(async (addr) => {
+      try {
+        const res = await geocodeAddress(addr);
+        resultMap.set(addr, res);
+      } catch {
+        resultMap.set(addr, { lat: null, lng: null, accuracy: 'unknown', source: 'unknown' });
+      } finally {
+        completed++;
+        if (onProgress) onProgress(completed, total);
+      }
+    });
+
+    await Promise.all(chunkPromises);
+  }
+
+  return resultMap;
 }

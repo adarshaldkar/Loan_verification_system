@@ -410,32 +410,49 @@ export default function UploadPage() {
       )}
 
       {state === "processing" && (
-        <div className="card-flat p-8 flex flex-col items-center gap-5 bg-blue-50/20 border-blue-200 border">
-          <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center animate-spin">
-            <FiRefreshCw className="w-6 h-6 text-[#1E3A5F]" />
+        <div className="card-flat p-8 flex flex-col items-center gap-5 bg-gradient-to-b from-blue-50/40 to-white dark:from-slate-900/50 dark:to-slate-900 border-blue-200 dark:border-blue-900 border rounded-2xl shadow-sm">
+          <div className="relative">
+            <div className="w-14 h-14 rounded-2xl bg-[#1E3A5F] flex items-center justify-center text-white shadow-md">
+              <FiRefreshCw className="w-7 h-7 animate-spin" />
+            </div>
           </div>
-          <div className="w-full max-w-md text-center space-y-3">
+
+          <div className="w-full max-w-lg text-center space-y-4">
             <div>
-              <h3 className="text-sm font-semibold text-slate-800">Background Data Import Active</h3>
-              <p className="text-xs text-slate-400 mt-1">
-                {batchProgress?.message || "Validating and importing customer profiles..."}
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 dark:bg-blue-950 text-[#1E3A5F] dark:text-blue-300 text-xs font-semibold mb-2">
+                <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
+                High-Speed Background Queue Active
+              </div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                Processing {batchProgress?.totalRows || results.length} Customer Records
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">
+                {batchProgress?.message || "Extracting, parallel geocoding and saving to database..."}
               </p>
             </div>
             
-            <Progress value={progress} className="h-2" />
-            
-            <div className="flex justify-between text-xs text-slate-400 px-1">
-              <span>Processed: {batchProgress?.processedRows || 0} / {batchProgress?.totalRows || 0}</span>
-              <span>{Math.round(progress)}% Complete</span>
+            <div className="space-y-1.5">
+              <Progress value={progress} className="h-2.5 rounded-full bg-slate-100" />
+              <div className="flex justify-between text-xs text-slate-500 font-semibold px-1">
+                <span>Processed: {batchProgress?.processedRows || 0} / {batchProgress?.totalRows || results.length} rows</span>
+                <span className="text-[#1E3A5F] dark:text-blue-400">{Math.round(progress)}% Complete</span>
+              </div>
             </div>
 
-            <div className="flex gap-4 justify-center pt-2">
-              <span className="text-xs text-teal-600 font-semibold bg-teal-50 px-3 py-1 rounded-full">
-                Valid: {batchProgress?.validRows || 0}
-              </span>
-              <span className="text-xs text-rose-600 font-semibold bg-rose-50 px-3 py-1 rounded-full">
-                Errors: {batchProgress?.errorRows || 0}
-              </span>
+            <div className="flex gap-3 justify-center pt-2 flex-wrap">
+              <div className="text-xs text-teal-700 dark:text-teal-400 font-semibold bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 px-3 py-1 rounded-full flex items-center gap-1.5">
+                <FiCheckCircle className="w-3.5 h-3.5 text-teal-600" />
+                Valid Cases: {batchProgress?.validRows || 0}
+              </div>
+              <div className="text-xs text-slate-600 dark:text-slate-300 font-medium bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
+                ⚡ Parallel Pool: 10 concurrent requests
+              </div>
+              {batchProgress?.errorRows ? (
+                <div className="text-xs text-rose-700 dark:text-rose-400 font-semibold bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 px-3 py-1 rounded-full flex items-center gap-1.5">
+                  <FiAlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                  Errors: {batchProgress.errorRows}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
