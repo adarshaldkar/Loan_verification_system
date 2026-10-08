@@ -13,24 +13,44 @@ export const getActiveRides = async (req: AuthRequest, res: Response) => {
     if (!isSuperAdmin) {
       whereClause.adminId = adminId;
     }
-    
-    // Fetch rides that are STARTED
+
+    // Fetch rides that are STARTED, newest first
     const activeRides = await prisma.agentRide.findMany({
       where: whereClause,
       include: {
         agent: {
-          select: { id: true, firstName: true, lastName: true, phone: true }
+          select: { id: true, firstName: true, lastName: true, phone: true, branch: true },
         },
         locations: {
           orderBy: { timestamp: 'desc' },
-          take: 1 // Only get the latest known location
-        }
-      }
+          take: 1, // Only get the latest known location
+        },
+      },
+      orderBy: { startTime: 'desc' },
     });
+
+    // Deduplicate rides so each agent only has 1 active ride card
+    const agentSeen = new Set<string>();
+    const deduplicatedRides: any[] = [];
+
+    for (const ride of activeRides) {
+      if (!agentSeen.has(ride.agentId)) {
+        agentSeen.add(ride.agentId);
+        deduplicatedRides.push(ride);
+      } else {
+        // Auto-close stale duplicate ride in DB asynchronously
+        prisma.agentRide
+          .update({
+            where: { id: ride.id },
+            data: { status: 'COMPLETED', endTime: new Date() },
+          })
+          .catch(() => {});
+      }
+    }
 
     // Merge in the latest real-time coordinates cached in Redis (sub-second accuracy)
     const activeRidesWithLatest = await Promise.all(
-      activeRides.map(async (ride) => {
+      deduplicatedRides.map(async (ride) => {
         try {
           const latestLocStr = await redisClient.get(`ride:latest:${ride.id}`);
           if (latestLocStr) {

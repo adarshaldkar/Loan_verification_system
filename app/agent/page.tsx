@@ -197,12 +197,14 @@ export default function AgentDashboard() {
 
   const destinations = dashboardData?.todaySchedule?.map((s: any, idx: number) => {
     const known = caseCoords[s.id];
+    const lat = typeof s.addressLatitude === "number" ? s.addressLatitude : (known?.lat ?? null);
+    const lng = typeof s.addressLongitude === "number" ? s.addressLongitude : (known?.lng ?? null);
     return {
       id: s.id,
       name: s.name,
       address: s.address || "No address provided",
-      lat: known?.lat ?? null,
-      lng: known?.lng ?? null,
+      lat,
+      lng,
     };
   }) || [];
 

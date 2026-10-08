@@ -162,48 +162,63 @@ export default function TrackingPage() {
               <p className="text-sm">No agents are currently driving.</p>
             </div>
           ) : (
-            activeRides.map(ride => (
-              <div 
-                key={ride.id}
-                onClick={() => handleSelectRide(ride.id)}
-                className={cn(
-                  "p-4 rounded-xl border transition-all cursor-pointer",
-                  selectedRideId === ride.id 
-                    ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 shadow-md ring-2 ring-emerald-500/20" 
-                    : "border-gray-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-600 hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                )}
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div className="font-bold text-slate-800 dark:text-slate-200">{ride.agent.firstName} {ride.agent.lastName}</div>
-                  <div className="flex items-center gap-2">
-                    <div className="text-xs font-mono bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded">
-                      {ride.totalDistance.toFixed(2)} km
+            activeRides.map((ride) => {
+              const agentName = ride.agent
+                ? `${ride.agent.firstName || ""} ${ride.agent.lastName || ""}`.trim()
+                : "Field Agent";
+              const speed =
+                ride.locations[0]?.speed && ride.locations[0].speed > 0
+                  ? `${(ride.locations[0].speed * 3.6).toFixed(1)} km/h`
+                  : "Stationary";
+
+              return (
+                <div
+                  key={ride.id}
+                  onClick={() => handleSelectRide(ride.id)}
+                  className={cn(
+                    "p-4 rounded-xl border transition-all cursor-pointer",
+                    selectedRideId === ride.id
+                      ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 shadow-md ring-2 ring-emerald-500/20"
+                      : "border-gray-200 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-600 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                  )}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <div className="font-bold text-slate-800 dark:text-slate-200">{agentName}</div>
+                      {ride.agent?.branch && (
+                        <p className="text-[11px] text-slate-400 font-medium">{ride.agent.branch}</p>
+                      )}
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        handleEndRide(ride.id);
-                      }}
-                      title="End ride"
-                      className="w-6 h-6 rounded-full bg-red-50 dark:bg-red-950/40 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 flex items-center justify-center transition-colors"
-                    >
-                      <FiStopCircle className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <div className="text-xs font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold px-2 py-0.5 rounded">
+                        {(ride.totalDistance || 0).toFixed(2)} km
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          handleEndRide(ride.id);
+                        }}
+                        title="Force End Ride"
+                        className="w-6 h-6 rounded-full bg-red-50 dark:bg-red-950/40 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-600 flex items-center justify-center transition-colors cursor-pointer"
+                      >
+                        <FiStopCircle className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-slate-500 pt-1">
+                    <div className="flex items-center gap-1">
+                      <FiClock className="text-slate-400" />
+                      <span>{new Date(ride.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <FiNavigation className="text-emerald-600" />
+                      <span className="font-medium text-slate-700">{speed}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-xs text-slate-500">
-                  <div className="flex items-center gap-1">
-                    <FiClock /> 
-                    <span>{new Date(ride.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <FiNavigation />
-                    <span>{ride.locations[0]?.speed && ride.locations[0].speed > 0 ? `${(ride.locations[0].speed * 3.6).toFixed(1)} km/h` : 'N/A'}</span>
-                  </div>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

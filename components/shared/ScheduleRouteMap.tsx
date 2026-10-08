@@ -169,6 +169,12 @@ export default function ScheduleRouteMap({ agentLat, agentLng, destinations }: S
         maxZoom: 14,
         duration: 800,
       });
+    } else {
+      map.easeTo({
+        center: [agentLng, agentLat],
+        zoom: 13,
+        duration: 600,
+      });
     }
   };
 

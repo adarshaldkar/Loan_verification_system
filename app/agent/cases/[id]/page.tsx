@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentCaseByIdApi, updateAgentCaseStatusApi } from "@/lib/api";
 import { STATUS_COLORS } from "@/lib/constants";
 import { geocodeAddressDynamically } from "@/lib/geocoding";
+import ScheduleRouteMap from "@/components/shared/ScheduleRouteMap";
 
 type CaseStatus = "ASSIGNED" | "TRAVELLING" | "AT_LOCATION" | "IN_PROGRESS" | "SUBMITTED" | "COMPLETED" | "RE_VERIFICATION";
 
@@ -266,29 +267,31 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
               Travelling
             </span>
           </div>
-          {/* Embedded Google Maps */}
-          <div className="relative">
-            <iframe
-              title="Customer Location"
-              width="100%"
-              height="240"
-              style={{ border: 0 }}
-              loading="lazy"
-              allowFullScreen
-              src={
-                typeof caseData.lat === "number" && typeof caseData.lng === "number"
-                  ? `https://www.google.com/maps?q=${caseData.lat},${caseData.lng}&z=15&output=embed`
-                  : `https://www.google.com/maps?q=${encodeURIComponent(caseData.address)}&z=15&output=embed`
-              }
+
+          {/* Interactive MapLibre / OSM Map */}
+          <div className="relative w-full h-[260px] p-2 bg-slate-50">
+            <ScheduleRouteMap
+              agentLat={caseData.lat || 12.9716}
+              agentLng={caseData.lng || 77.5946}
+              destinations={[
+                {
+                  id: caseData.id,
+                  name: caseData.customer,
+                  lat: caseData.lat || 12.9716,
+                  lng: caseData.lng || 77.5946,
+                  address: caseData.address,
+                },
+              ]}
             />
           </div>
-          <div className="px-4 py-3 flex items-center justify-between bg-slate-50">
+
+          <div className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-slate-50 border-t border-slate-100">
             <div>
-              <p className="text-xs font-medium text-slate-700">{caseData.address}</p>
+              <p className="text-xs font-semibold text-slate-700">{caseData.address}</p>
               <p className="text-[10px] text-slate-400 mt-0.5">
                 {typeof caseData.lat === "number" && typeof caseData.lng === "number"
-                  ? `Lat: ${caseData.lat} · Lng: ${caseData.lng}`
-                  : "Coordinates resolved automatically by Google Maps"}
+                  ? `Lat: ${caseData.lat.toFixed(5)} · Lng: ${caseData.lng.toFixed(5)}`
+                  : "Resolved dynamically"}
               </p>
             </div>
             <a
@@ -299,10 +302,10 @@ export default function CaseDetailsPage({ params }: { params: Promise<{ id: stri
               }
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-1.5 rounded-lg"
+              className="flex items-center justify-center gap-1.5 text-xs font-semibold text-white px-3.5 py-2 rounded-lg transition-colors cursor-pointer self-start sm:self-auto"
               style={{ background: "#1E3A5F" }}
             >
-              <FiNavigation className="w-3 h-3" /> Open Maps
+              <FiNavigation className="w-3 h-3" /> Open Navigation (GPS)
             </a>
           </div>
         </div>
