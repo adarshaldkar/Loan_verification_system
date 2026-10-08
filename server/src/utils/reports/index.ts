@@ -2,6 +2,7 @@ import { generateResiCumBusinessPdfReport, ReportCaseData } from './resiCumBusin
 import { generateDealerPdfReport } from './dealerPdfGenerator';
 import { generateDsaPdfReport } from './dsaPdfGenerator';
 import { generatePropertyPdfReport } from './propertyPdfGenerator';
+import { generateOfficePayslipPdfReport } from './officePayslipPdfGenerator';
 import { generateRcuPdfReport } from '../rcuPdfReportGenerator';
 
 /**
@@ -61,11 +62,29 @@ export async function generateDynamicCasePdf(caseData: ReportCaseData): Promise<
     return await generatePropertyPdfReport(caseData);
   }
 
+  // 5. Office & Pay Slip Verification (Matches 1410041 -Mohan Kuzhandaivel.docx)
+  if (
+    profileCode === 'OFFICE_PAYSLIP' ||
+    profileCode === 'OFFICE' ||
+    profileCode === 'PAYSLIP' ||
+    profileCode === 'SALARIED' ||
+    caseType === 'OFFICE_PAYSLIP'
+  ) {
+    return await generateOfficePayslipPdfReport(caseData);
+  }
+
   // Fallback to standard/residential RCU generator for now
   return await generateRcuPdfReport(caseData);
 }
 
-export { generateResiCumBusinessPdfReport, generateDealerPdfReport, generateDsaPdfReport, generatePropertyPdfReport };
+export {
+  generateResiCumBusinessPdfReport,
+  generateDealerPdfReport,
+  generateDsaPdfReport,
+  generatePropertyPdfReport,
+  generateOfficePayslipPdfReport,
+};
+
 
 
 
