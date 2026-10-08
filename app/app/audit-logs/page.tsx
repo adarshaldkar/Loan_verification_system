@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { FiSearch, FiFilter, FiDownload, FiChevronDown } from "react-icons/fi";
 import { Input } from "@/components/ui/input";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import * as XLSX from "xlsx";
+import { useDebounce } from "@/lib/hooks/useDebounce";
+import PaginationControls from "@/components/shared/PaginationControls";
 
 function downloadBlob(content: string, filename: string, mime = "text/plain") {
   const blob = new Blob([content], { type: mime });
@@ -72,9 +74,16 @@ function downloadPDF(htmlContent: string, filename: string) {
 
 export default function AuditLogsPage() {
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 250);
   const [actorFilter, setActorFilter] = useState("All");
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(15);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, actorFilter]);
 
   useEffect(() => {
     fetchLogs();
@@ -92,14 +101,22 @@ export default function AuditLogsPage() {
     }
   };
 
-  const filtered = auditLogs.filter((l) => {
-    const matchSearch =
-      l.action.toLowerCase().includes(search.toLowerCase()) ||
-      l.entity.toLowerCase().includes(search.toLowerCase()) ||
-      l.actor.toLowerCase().includes(search.toLowerCase());
-    const matchActor = actorFilter === "All" || l.actor === actorFilter;
-    return matchSearch && matchActor;
-  });
+  const filtered = useMemo(() => {
+    return auditLogs.filter((l) => {
+      const matchSearch =
+        l.action.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        l.entity.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        l.actor.toLowerCase().includes(debouncedSearch.toLowerCase());
+      const matchActor = actorFilter === "All" || l.actor === actorFilter;
+      return matchSearch && matchActor;
+    });
+  }, [auditLogs, debouncedSearch, actorFilter]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+  const paginatedLogs = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filtered.slice(start, start + itemsPerPage);
+  }, [filtered, currentPage, itemsPerPage]);
 
   const uniqueActors = Array.from(new Set(auditLogs.map((l) => l.actor)));
 
@@ -290,24 +307,24 @@ export default function AuditLogsPage() {
                     <td className="px-5 py-4"><Skeleton className="h-4 w-24" /></td>
                   </tr>
                 ))
-              ) : filtered.length === 0 ? (
+              ) : paginatedLogs.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-5 py-16 text-center text-slate-400 text-sm">
                     No log entries match your filters.
                   </td>
                 </tr>
               ) : (
-                filtered.map((log, i) => (
-                  <tr key={i} className="hover:bg-slate-50 transition-colors">
+                paginatedLogs.map((log, i) => (
+                  <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="px-5 py-3.5 whitespace-nowrap">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${log.actor === "System" ? "bg-slate-100 text-slate-500" : "bg-[--color-brand-50] text-[--color-brand-900]"}`}>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${log.actor === "System" ? "bg-slate-100 text-slate-500" : "bg-blue-100 text-blue-800"}`}>
                         {log.actor}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 font-medium text-slate-900">{log.action}</td>
+                    <td className="px-5 py-3.5 font-medium text-slate-900 dark:text-slate-100">{log.action}</td>
                     <td className="px-5 py-3.5 text-slate-500">{log.entity}</td>
                     <td className="px-5 py-3.5 whitespace-nowrap">
-                      <span className="text-xs text-slate-600">
+                      <span className="text-xs text-slate-600 dark:text-slate-300">
                         {(() => {
                           try {
                             const d = new Date(log.timestamp);
@@ -327,7 +344,7 @@ export default function AuditLogsPage() {
                       </span>
                     </td>
                     <td className="px-5 py-3.5 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 font-mono text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                      <span className="inline-flex items-center gap-1 font-mono text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700">
                         {log.ip && log.ip !== "::1" && log.ip !== "127.0.0.1" && !log.ip.includes("Local")
                           ? log.ip.replace(/^::ffff:/, "")
                           : "127.0.0.1 (Local / Proxy)"}
@@ -339,8 +356,16 @@ export default function AuditLogsPage() {
             </tbody>
           </table>
         </div>
-        <div className="px-5 py-3 border-t border-border text-xs text-slate-500">
-          {filtered.length} entries
+        <div className="px-5 py-3.5 border-t border-border">
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filtered.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={setItemsPerPage}
+            pageSizeOptions={[10, 15, 30, 50, 100]}
+          />
         </div>
       </div>
     </div>

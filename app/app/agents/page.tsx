@@ -21,6 +21,8 @@ import { PageHeader } from "@/components/shared/page-header";
 import { getAgentsApi, registerAgentApi, toggleAgentStatusApi, getBranchesApi, updateAgentApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useDebounce } from "@/lib/hooks/useDebounce";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 
 const agentSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -59,16 +61,16 @@ type Agent = {
   avgTurnaround: string;
 };
 
-const PAGE_SIZE = 8;
-
 export default function AgentsPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 250);
   const [statusFilter, setStatusFilter] = useState<"ALL" | "Active" | "Inactive">("ALL");
   const [branchFilter, setBranchFilter] = useState("ALL");
   const [agentList, setAgentList] = useState<Agent[]>([]);
   const [selected, setSelected] = useState<Agent | null>(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
   const [loading, setLoading] = useState(true);
 
   // Add / Edit Agent Form State
@@ -226,12 +228,18 @@ export default function AgentsPage() {
     ])
   );
 
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, statusFilter, branchFilter]);
+
   const filtered = agentList.filter((a) => {
+    const s = debouncedSearch.toLowerCase().trim();
     const matchesSearch =
-      a.name.toLowerCase().includes(search.toLowerCase()) ||
-      a.branch.toLowerCase().includes(search.toLowerCase()) ||
-      (a.email && a.email.toLowerCase().includes(search.toLowerCase())) ||
-      (a.phone && a.phone.includes(search));
+      !s ||
+      a.name.toLowerCase().includes(s) ||
+      a.branch.toLowerCase().includes(s) ||
+      (a.email && a.email.toLowerCase().includes(s)) ||
+      (a.phone && a.phone.includes(s));
 
     const matchesStatus = statusFilter === "ALL" || a.status === statusFilter;
     const matchesBranch = branchFilter === "ALL" || a.branch === branchFilter;
@@ -239,13 +247,9 @@ export default function AgentsPage() {
     return matchesSearch && matchesStatus && matchesBranch;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
-  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  function goTo(p: number) {
-    setPage(Math.max(1, Math.min(p, totalPages)));
-  }
+  const paginated = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <div className="space-y-6">
@@ -444,46 +448,19 @@ export default function AgentsPage() {
         </div>
 
         {/* Pagination */}
-        <div className="px-5 py-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
-          <span>
-            Showing {filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–
-            {Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length} agents
-          </span>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2.5 text-xs gap-1"
-              disabled={safePage === 1}
-              onClick={() => goTo(safePage - 1)}
-            >
-              <FiChevronLeft className="w-3.5 h-3.5" /> Previous
-            </Button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <Button
-                key={p}
-                variant="outline"
-                size="sm"
-                className={`h-7 w-7 p-0 text-xs font-semibold ${
-                  p === safePage ? "text-white border-[#1E3A5F]" : "text-slate-700 hover:bg-slate-50"
-                }`}
-                style={p === safePage ? { background: "#1E3A5F" } : {}}
-                onClick={() => goTo(p)}
-              >
-                {p}
-              </Button>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2.5 text-xs gap-1"
-              disabled={safePage === totalPages}
-              onClick={() => goTo(safePage + 1)}
-            >
-              Next <FiChevronRight className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-        </div>
+        <PaginationControls
+          currentPage={safePage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          pageSizeOptions={[8, 16, 24, 48]}
+          totalItems={filtered.length}
+          itemName="agents"
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       </div>
 
       {/* Agent Detail Sheet */}

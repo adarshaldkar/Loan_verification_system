@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { getCasesApi, getAgentsApi, batchAssignCasesApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VERIFICATION_PROFILES, getProfileByCode } from "@/lib/verificationProfiles";
+import { useDebounce } from "@/lib/hooks/useDebounce";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 
 type Case = {
   id: string;
@@ -28,10 +30,9 @@ type Case = {
   overdue: boolean;
 };
 
-const ITEMS_PER_PAGE = 10;
-
 export default function CasesPage() {
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 250);
   const [statusFilter, setStatusFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
   const [casesList, setCasesList] = useState<Case[]>([]);
@@ -51,6 +52,7 @@ export default function CasesPage() {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Pending unsaved assignments: caseId -> agentId
   const [pendingAssignments, setPendingAssignments] = useState<Record<string, string>>({});
@@ -88,7 +90,7 @@ export default function CasesPage() {
   // Reset pagination when search or filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, statusFilter, typeFilter]);
+  }, [debouncedSearch, statusFilter, typeFilter]);
 
   const handleSelectPendingAgent = (caseId: string, agentId: string) => {
     const originalCase = casesList.find((c) => c.id === caseId);
@@ -153,18 +155,21 @@ export default function CasesPage() {
   };
 
   const filtered = casesList.filter((c) => {
+    const s = debouncedSearch.toLowerCase().trim();
     const matchSearch =
-      c.id.toLowerCase().includes(search.toLowerCase()) ||
-      c.customer.toLowerCase().includes(search.toLowerCase()) ||
-      (c.agent && c.agent.toLowerCase().includes(search.toLowerCase()));
+      !s ||
+      c.id.toLowerCase().includes(s) ||
+      c.customer.toLowerCase().includes(s) ||
+      (c.agent && c.agent.toLowerCase().includes(s));
     const matchType = typeFilter === "All" || c.type === typeFilter;
     return matchSearch && matchType;
   });
 
   // Apply client-side pagination
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE));
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const currentCases = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * pageSize;
+  const currentCases = filtered.slice(startIndex, startIndex + pageSize);
 
   return (
     <div className="space-y-6 pb-6">
@@ -328,24 +333,19 @@ export default function CasesPage() {
           </table>
         </div>
 
-        {/* Footer Container with Always Present Submit Actions */}
-        <div className="px-5 py-3.5 border-t border-border flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500 bg-slate-50/50 dark:bg-slate-900/10">
-          <span>
-            Showing {filtered.length > 0 ? startIndex + 1 : 0} - {Math.min(startIndex + ITEMS_PER_PAGE, filtered.length)} of {filtered.length} cases
-            {filtered.some((c) => c.overdue) && (
-              <span className="ml-3 text-amber-700 font-medium font-semibold">
-                ⚠ {filtered.filter((c) => c.overdue).length} overdue
-              </span>
-            )}
-          </span>
-
-          <div className="flex items-center gap-4 flex-wrap">
+        {/* Batch Assignment Action Banner if any pending selections */}
+        {Object.keys(pendingAssignments).length > 0 && (
+          <div className="px-5 py-3 border-t border-blue-100 dark:border-blue-950 bg-blue-50/70 dark:bg-blue-950/30 flex flex-wrap items-center justify-between gap-3">
+            <span className="text-xs font-semibold text-blue-900 dark:text-blue-200 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+              {Object.keys(pendingAssignments).length} pending case assignment{Object.keys(pendingAssignments).length > 1 ? "s" : ""}
+            </span>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setPendingAssignments({})}
-                disabled={Object.keys(pendingAssignments).length === 0 || saving}
+                disabled={saving}
                 className="h-8 text-xs font-semibold"
               >
                 Discard
@@ -353,8 +353,8 @@ export default function CasesPage() {
               <Button
                 size="sm"
                 onClick={handleSaveAllAssignments}
-                disabled={Object.keys(pendingAssignments).length === 0 || saving}
-                className="bg-blue-600 hover:bg-blue-500 disabled:bg-slate-100 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-600 text-white font-semibold h-8 text-xs flex items-center gap-1.5 shadow-sm transition-all"
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-500 text-white font-semibold h-8 text-xs flex items-center gap-1.5 shadow-sm transition-all"
               >
                 {saving ? (
                   <>
@@ -364,39 +364,27 @@ export default function CasesPage() {
                 ) : (
                   <>
                     <FiCheck className="w-3 h-3" />
-                    Submit Assignments {Object.keys(pendingAssignments).length > 0 ? `(${Object.keys(pendingAssignments).length})` : ""}
+                    Submit Assignments ({Object.keys(pendingAssignments).length})
                   </>
                 )}
               </Button>
             </div>
-
-            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block"></div>
-
-            <div className="flex gap-1.5 items-center">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-3 text-xs bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((prev) => prev - 1)}
-              >
-                Previous
-              </Button>
-              <span className="text-xs font-semibold px-2 text-slate-700 dark:text-slate-300">
-                Page {currentPage} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-3 text-xs bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((prev) => prev + 1)}
-              >
-                Next
-              </Button>
-            </div>
           </div>
-        </div>
+        )}
+
+        {/* ── Pagination ── */}
+        <PaginationControls
+          currentPage={safePage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={filtered.length}
+          itemName="cases"
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setCurrentPage(1);
+          }}
+        />
       </div>
     </div>
   );

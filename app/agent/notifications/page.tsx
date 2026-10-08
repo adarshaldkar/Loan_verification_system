@@ -11,6 +11,9 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentNotificationsApi } from "@/lib/api";
 
+import { useDebounce } from "@/lib/hooks/useDebounce";
+import PaginationControls from "@/components/shared/PaginationControls";
+
 type NotifType = "ASSIGNMENT" | "APPROVED" | "REJECTED" | "RE_VERIFICATION" | "INFO";
 
 const TYPE_CONFIG: Record<NotifType, { icon: React.ElementType; color: string; bg: string; badge: string; label: string }> = {
@@ -41,8 +44,15 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [filter, setFilter] = useState<"All" | "Unread" | "ASSIGNMENT" | "APPROVED" | "RE_VERIFICATION">("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearch = useDebounce(searchQuery, 250);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(8);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearch, filter]);
 
   async function loadNotifications(isManual = false) {
     if (isManual) setRefreshing(true);
@@ -99,7 +109,7 @@ export default function NotificationsPage() {
 
   const filtered = useMemo(() => {
     return notifications.filter((n) => {
-      const q = searchQuery.toLowerCase().trim();
+      const q = debouncedSearch.toLowerCase().trim();
       const matchSearch =
         !q ||
         n.title.toLowerCase().includes(q) ||
@@ -114,7 +124,13 @@ export default function NotificationsPage() {
 
       return matchSearch && matchFilter;
     });
-  }, [notifications, filter, searchQuery]);
+  }, [notifications, filter, debouncedSearch]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+  const paginatedNotifications = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filtered.slice(start, start + itemsPerPage);
+  }, [filtered, currentPage, itemsPerPage]);
 
   if (loading) {
     return (
@@ -289,96 +305,108 @@ export default function NotificationsPage() {
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((n) => {
-            const cfg = TYPE_CONFIG[n.type] || TYPE_CONFIG.INFO;
-            const Icon = cfg.icon;
+        <div className="space-y-4">
+          <div className="space-y-3">
+            {paginatedNotifications.map((n) => {
+              const cfg = TYPE_CONFIG[n.type] || TYPE_CONFIG.INFO;
+              const Icon = cfg.icon;
 
-            return (
-              <div
-                key={n.id}
-                onClick={() => {
-                  markRead(n.id);
-                  if (n.caseId) {
-                    router.push(`/agent/cases/${n.caseId}`);
-                  }
-                }}
-                className={cn(
-                  "p-4 bg-white dark:bg-slate-950 rounded-2xl border transition-all cursor-pointer shadow-sm hover:shadow-md hover:border-blue-300 flex flex-col md:flex-row md:items-center justify-between gap-4 group",
-                  n.unread
-                    ? "border-l-4 border-l-[#1E4DB7] bg-blue-50/20 dark:bg-slate-900/40"
-                    : "border-gray-100 dark:border-slate-800"
-                )}
-              >
-                <div className="flex items-start gap-3.5 min-w-0 flex-1">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
-                    style={{ background: cfg.bg }}
-                  >
-                    <Icon className="w-5 h-5" style={{ color: cfg.color }} />
-                  </div>
-
-                  <div className="space-y-1 min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full uppercase", cfg.badge)}>
-                        {cfg.label}
-                      </span>
-                      {n.applicationId && (
-                        <span className="text-[10px] font-mono font-bold text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                          {n.applicationId}
-                        </span>
-                      )}
-                      {n.unread && (
-                        <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" /> NEW
-                        </span>
-                      )}
-                    </div>
-
-                    <h4 className="text-[14px] font-bold text-gray-900 dark:text-slate-100 leading-snug group-hover:text-[#1E4DB7] transition-colors">
-                      {n.title}
-                    </h4>
-
-                    <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1.5 truncate">
-                      <FiMapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                      <span className="truncate">{n.body}</span>
-                    </p>
-
-                    <div className="flex items-center gap-3 pt-0.5 text-[10px] text-gray-400 font-medium">
-                      <span className="flex items-center gap-1">
-                        <FiClock className="w-3 h-3" />
-                        {n.time}
-                      </span>
-                      {n.phone && <span>📞 {n.phone}</span>}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 self-end md:self-center shrink-0">
-                  {n.caseId && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/agent/verify/${n.caseId}`);
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-[#1E4DB7] hover:bg-blue-800 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition-all active:scale-95"
-                    >
-                      <span>Open Workspace</span>
-                      <FiArrowRight className="w-3 h-3" />
-                    </button>
+              return (
+                <div
+                  key={n.id}
+                  onClick={() => {
+                    markRead(n.id);
+                    if (n.caseId) {
+                      router.push(`/agent/cases/${n.caseId}`);
+                    }
+                  }}
+                  className={cn(
+                    "p-4 bg-white dark:bg-slate-950 rounded-2xl border transition-all cursor-pointer shadow-sm hover:shadow-md hover:border-blue-300 flex flex-col md:flex-row md:items-center justify-between gap-4 group",
+                    n.unread
+                      ? "border-l-4 border-l-[#1E4DB7] bg-blue-50/20 dark:bg-slate-900/40"
+                      : "border-gray-100 dark:border-slate-800"
                   )}
+                >
+                  <div className="flex items-start gap-3.5 min-w-0 flex-1">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                      style={{ background: cfg.bg }}
+                    >
+                      <Icon className="w-5 h-5" style={{ color: cfg.color }} />
+                    </div>
 
-                  <button
-                    onClick={(e) => deleteNotification(e, n.id)}
-                    className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
-                    title="Dismiss"
-                  >
-                    <FiTrash2 className="w-3.5 h-3.5" />
-                  </button>
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full uppercase", cfg.badge)}>
+                          {cfg.label}
+                        </span>
+                        {n.applicationId && (
+                          <span className="text-[10px] font-mono font-bold text-gray-700 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                            {n.applicationId}
+                          </span>
+                        )}
+                        {n.unread && (
+                          <span className="text-[9px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" /> NEW
+                          </span>
+                        )}
+                      </div>
+
+                      <h4 className="text-[14px] font-bold text-gray-900 dark:text-slate-100 leading-snug group-hover:text-[#1E4DB7] transition-colors">
+                        {n.title}
+                      </h4>
+
+                      <p className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-1.5 truncate">
+                        <FiMapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                        <span className="truncate">{n.body}</span>
+                      </p>
+
+                      <div className="flex items-center gap-3 pt-0.5 text-[10px] text-gray-400 font-medium">
+                        <span className="flex items-center gap-1">
+                          <FiClock className="w-3 h-3" />
+                          {n.time}
+                        </span>
+                        {n.phone && <span>📞 {n.phone}</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+                    {n.caseId && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/agent/verify/${n.caseId}`);
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-[#1E4DB7] hover:bg-blue-800 text-white text-xs font-bold flex items-center gap-1 shadow-sm transition-all active:scale-95 cursor-pointer"
+                      >
+                        <span>Open Workspace</span>
+                        <FiArrowRight className="w-3 h-3" />
+                      </button>
+                    )}
+
+                    <button
+                      onClick={(e) => deleteNotification(e, n.id)}
+                      className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                      title="Dismiss"
+                    >
+                      <FiTrash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filtered.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={setItemsPerPage}
+            pageSizeOptions={[5, 8, 15, 30]}
+          />
         </div>
       )}
 

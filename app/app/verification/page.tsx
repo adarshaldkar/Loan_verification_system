@@ -38,6 +38,8 @@ import {
   getProfileByCode,
 } from "@/lib/verificationProfiles";
 import StructuredProfileReview from "@/components/verification/StructuredProfileReview";
+import { useDebounce } from "@/lib/hooks/useDebounce";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 interface CaseSummary {
@@ -100,7 +102,10 @@ export default function VerificationPage() {
   const [filtered, setFiltered] = useState<CaseSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 250);
   const [typeFilter, setTypeFilter] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const [selectedCase, setSelectedCase] = useState<CaseDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -132,8 +137,8 @@ export default function VerificationPage() {
   /* Filter */
   useEffect(() => {
     let list = [...cases];
-    if (search) {
-      const q = search.toLowerCase().trim();
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase().trim();
       list = list.filter(
         (c) =>
           c.customer.toLowerCase().includes(q) ||
@@ -178,7 +183,12 @@ export default function VerificationPage() {
       });
     }
     setFiltered(list);
-  }, [cases, search, typeFilter]);
+    setCurrentPage(1);
+  }, [cases, debouncedSearch, typeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedCases = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const showToast = (msg: string, type: "success" | "error" | "info") => {
     setToast({ msg, type });
@@ -448,7 +458,7 @@ export default function VerificationPage() {
                 <p className="text-slate-400 mt-1">Submitted cases from field agents will appear here for review.</p>
               </div>
             ) : (
-              filtered.map((c) => {
+              paginatedCases.map((c) => {
                 const prof = getProfileByCode(c.type);
                 return (
                   <div key={c.id} className="table-row" onClick={() => openCase(c.id)}>
@@ -491,6 +501,24 @@ export default function VerificationPage() {
               })
             )}
           </div>
+
+          {/* Pagination Controls */}
+          {filtered.length > 0 && (
+            <div className="mt-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+              <PaginationControls
+                currentPage={safePage}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                totalItems={filtered.length}
+                itemName="verification cases"
+                onPageChange={setCurrentPage}
+                onPageSizeChange={(newSize) => {
+                  setPageSize(newSize);
+                  setCurrentPage(1);
+                }}
+              />
+            </div>
+          )}
         </div>
       </div>
 

@@ -24,6 +24,8 @@ import { toast } from "sonner";
 import { getCustomersApi } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { VERIFICATION_PROFILES, getProfileByCode } from "@/lib/verificationProfiles";
+import { useDebounce } from "@/lib/hooks/useDebounce";
+import { PaginationControls } from "@/components/shared/PaginationControls";
 
 type Customer = {
   id: string;
@@ -43,8 +45,6 @@ type Customer = {
   uploadDate: string;
 };
 
-const PAGE_SIZE = 10;
-
 function formatCurrency(amount: number) {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -58,10 +58,12 @@ function formatCurrency(amount: number) {
 export default function CustomersPage() {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 250);
   const [statusFilter, setStatusFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
   const [selected, setSelected] = useState<Customer | null>(null);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -81,14 +83,20 @@ export default function CustomersPage() {
     loadCustomers();
   }, []);
 
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, statusFilter, typeFilter]);
+
   const filtered = customers.filter((c) => {
+    const s = debouncedSearch.toLowerCase().trim();
     const matchSearch =
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.id.toLowerCase().includes(search.toLowerCase()) ||
-      (c.phone && c.phone.includes(search)) ||
-      (c.email && c.email.toLowerCase().includes(search.toLowerCase())) ||
-      (c.branch && c.branch.toLowerCase().includes(search.toLowerCase())) ||
-      (c.assignedAgent && c.assignedAgent.toLowerCase().includes(search.toLowerCase()));
+      !s ||
+      c.name.toLowerCase().includes(s) ||
+      c.id.toLowerCase().includes(s) ||
+      (c.phone && c.phone.includes(s)) ||
+      (c.email && c.email.toLowerCase().includes(s)) ||
+      (c.branch && c.branch.toLowerCase().includes(s)) ||
+      (c.assignedAgent && c.assignedAgent.toLowerCase().includes(s));
 
     const matchStatus = statusFilter === "All" || c.caseStatus === statusFilter;
     const matchType = typeFilter === "All" || (c.caseType && c.caseType === typeFilter);
@@ -96,11 +104,9 @@ export default function CustomersPage() {
     return matchSearch && matchStatus && matchType;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
-  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  function goTo(p: number) { setPage(Math.max(1, Math.min(p, totalPages))); }
+  const paginated = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <div className="space-y-6 pb-6">
@@ -260,47 +266,18 @@ export default function CustomersPage() {
         </div>
 
         {/* ── Pagination ── */}
-        <div className="px-5 py-3 border-t border-border flex items-center justify-between text-xs text-slate-500">
-          <span>
-            Showing {filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, filtered.length)} of {filtered.length} customers
-          </span>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2.5 text-xs gap-1"
-              disabled={safePage === 1}
-              onClick={() => goTo(safePage - 1)}
-            >
-              <FiChevronLeft className="w-3.5 h-3.5" /> Previous
-            </Button>
-            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => i + 1).map((p) => (
-              <Button
-                key={p}
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "h-7 w-7 p-0 text-xs font-semibold",
-                  p === safePage
-                    ? "text-white border-[#1E3A5F] bg-[#1E3A5F]"
-                    : "text-slate-700 hover:bg-slate-50"
-                )}
-                onClick={() => goTo(p)}
-              >
-                {p}
-              </Button>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2.5 text-xs gap-1"
-              disabled={safePage === totalPages}
-              onClick={() => goTo(safePage + 1)}
-            >
-              Next <FiChevronRight className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-        </div>
+        <PaginationControls
+          currentPage={safePage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          totalItems={filtered.length}
+          itemName="customers"
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       </div>
 
       {/* ── Customer Detail Sheet ── */}
