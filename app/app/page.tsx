@@ -70,20 +70,36 @@ function ChartTooltip({ active, payload, label }: any) {
   );
 }
 
-const DATE_RANGES = [
-  { label: "Today",          value: "09 Jul 2026" },
-  { label: "Last 7 days",    value: "02 Jul – 09 Jul 2026" },
-  { label: "This Week",      value: "07 Jul – 13 Jul 2026" },
-  { label: "Last Week",      value: "30 Jun – 06 Jul 2026" },
-  { label: "This Month",     value: "01 Jul – 09 Jul 2026" },
-  { label: "Last Month",     value: "01 Jun – 30 Jun 2026" },
-  { label: "Custom Range",   value: "12 May – 18 May 2026" },
-];
+/* ─── Dynamic Date Ranges Generator ──────────────────────────────────────── */
+const getDynamicDateRanges = () => {
+  const now = new Date();
+  const fmt = (d: Date) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const dayOfWeek = now.getDay();
+  const diffToMonday = (dayOfWeek + 6) % 7;
+  const monday = new Date(now.getTime() - diffToMonday * 86400000);
+  const sunday = new Date(monday.getTime() + 6 * 86400000);
+  const lastMon = new Date(monday.getTime() - 7 * 86400000);
+  const lastSun = new Date(monday.getTime() - 1 * 86400000);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+
+  return [
+    { label: "Today", value: fmt(now), periodKey: "Today" },
+    { label: "Last 7 days", value: `${fmt(new Date(now.getTime() - 6 * 86400000))} – ${fmt(now)}`, periodKey: "This Week" },
+    { label: "This Week", value: `${fmt(monday)} – ${fmt(sunday)}`, periodKey: "This Week" },
+    { label: "Last Week", value: `${fmt(lastMon)} – ${fmt(lastSun)}`, periodKey: "Last Week" },
+    { label: "This Month", value: `${fmt(startOfMonth)} – ${fmt(now)}`, periodKey: "This Month" },
+    { label: "Last Month", value: `${fmt(startOfLastMonth)} – ${fmt(endOfLastMonth)}`, periodKey: "Last Month" },
+    { label: "Custom Range", value: "Custom Date Range", periodKey: "Custom Range" },
+  ];
+};
 
 /* ─── Dashboard Page ─────────────────────────────────────────────────────── */
 export default function DashboardPage() {
   const [period, setPeriod] = useState("This Week");
-  const [dateRange, setDateRange] = useState(DATE_RANGES[2]);
+  const [dateRanges, setDateRanges] = useState(getDynamicDateRanges);
+  const [dateRange, setDateRange] = useState(() => getDynamicDateRanges()[2]);
   const [calOpen, setCalOpen] = useState(false);
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -95,17 +111,18 @@ export default function DashboardPage() {
   const [recentActivity, setRecentActivity] = useState<any[]>(STATIC_ACTIVITY);
   const [liveLineData, setLiveLineData] = useState<any[]>(lineData);
   const [livePieData, setLivePieData] = useState<any[] | null>(null);
+  const [rawKpis, setRawKpis] = useState<any[]>([]);
   const [loadingStats, setLoadingStats] = useState(true);
-  const [adminName, setAdminName] = useState('Admin');
+  const [adminName, setAdminName] = useState("Admin");
   const [currentUserEmail, setCurrentUserEmail] = useState("");
   const [adminPerformance, setAdminPerformance] = useState<any[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   useEffect(() => {
     getProfileApi()
-      .then(res => {
+      .then((res) => {
         if (res.data.success && res.data.data) {
-          setAdminName(res.data.data.firstName || res.data.data.name?.split(' ')[0] || 'Admin');
+          setAdminName(res.data.data.firstName || res.data.data.name?.split(" ")[0] || "Admin");
           setCurrentUserEmail(res.data.data.email || "");
           setIsSuperAdmin(res.data.data.role === "SUPER_ADMIN");
         }
@@ -113,31 +130,69 @@ export default function DashboardPage() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    async function loadDashboard() {
-      try {
-        const [dashRes, analyticsRes] = await Promise.all([
-          getDashboardApi(),
-          getAnalyticsApi(),
-        ]);
-        const dash = dashRes.data.data;
-        setAnalytics(analyticsRes.data.data);
-        setRecentCases(dash.recentCases ?? []);
-        setTopAgents(dash.topAgents ?? []);
-        setAdminPerformance(dash.adminPerformance ?? []);
-        if (dash.recentActivity?.length) setRecentActivity(dash.recentActivity);
-        if (dash.lineData?.length) setLiveLineData(dash.lineData);
-        if (dash.pieData?.length) setLivePieData(dash.pieData);
-      } catch (err) {
-        console.error("Failed to load dashboard data:", err);
-      } finally {
-        setLoadingStats(false);
+  const loadDashboardData = async (targetPeriod: string, start?: string, end?: string) => {
+    try {
+      setLoadingStats(true);
+      const params: any = { period: targetPeriod };
+      if (start && end) {
+        params.startDate = start;
+        params.endDate = end;
       }
+      const [dashRes, analyticsRes] = await Promise.all([
+        getDashboardApi(params),
+        getAnalyticsApi(params),
+      ]);
+      const dash = dashRes.data.data;
+      setAnalytics(analyticsRes.data.data);
+      setRecentCases(dash.recentCases ?? []);
+      setTopAgents(dash.topAgents ?? []);
+      setAdminPerformance(dash.adminPerformance ?? []);
+      if (dash.kpis) setRawKpis(dash.kpis);
+      if (dash.recentActivity?.length) setRecentActivity(dash.recentActivity);
+      if (dash.lineData?.length) setLiveLineData(dash.lineData);
+      if (dash.pieData?.length) setLivePieData(dash.pieData);
+    } catch (err) {
+      console.error("Failed to load dashboard data:", err);
+    } finally {
+      setLoadingStats(false);
     }
-    loadDashboard();
+  };
+
+  useEffect(() => {
+    loadDashboardData(period, customFrom || undefined, customTo || undefined);
   }, []);
 
-  // Compute live KPI values from analytics
+  const handlePeriodChange = (newPeriod: string) => {
+    setPeriod(newPeriod);
+    const matchedRange = dateRanges.find((r) => r.periodKey === newPeriod || r.label === newPeriod);
+    if (matchedRange) {
+      setDateRange(matchedRange);
+    }
+    loadDashboardData(newPeriod);
+  };
+
+  const handleSelectDateRange = (r: any) => {
+    if (r.label !== "Custom Range") {
+      setDateRange(r);
+      setPeriod(r.periodKey || r.label);
+      setCalOpen(false);
+      loadDashboardData(r.periodKey || r.label);
+    }
+  };
+
+  const handleApplyCustomRange = () => {
+    if (customFrom && customTo) {
+      const fmt = (d: string) =>
+        new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+      const customLabel = `${fmt(customFrom)} – ${fmt(customTo)}`;
+      setDateRange({ label: "Custom Range", value: customLabel, periodKey: "Custom Range" });
+      setPeriod("Custom Range");
+      setCalOpen(false);
+      loadDashboardData("Custom Range", customFrom, customTo);
+    }
+  };
+
+  // Compute live KPI values from analytics & rawKpis
   const totalCases = analytics?.caseBreakdown?.reduce((sum: number, c: any) => sum + c.count, 0) ?? 0;
   const pendingCount = (analytics?.caseBreakdown?.find((c: any) => c.status === "PENDING")?.count ?? 0) +
                        (analytics?.caseBreakdown?.find((c: any) => c.status === "ASSIGNED")?.count ?? 0);
@@ -145,14 +200,62 @@ export default function DashboardPage() {
                          (analytics?.caseBreakdown?.find((c: any) => c.status === "APPROVED")?.count ?? 0);
 
   const kpiData = [
-    { label: "Total Customers", value: analytics?.totalCustomers ?? 0,  icon: <FiUsers />,        iconBg: "bg-blue-50 dark:bg-slate-800",    trend: 15.3 },
-    { label: "Total Cases",     value: totalCases,                       icon: <FiBriefcase />,    iconBg: "bg-purple-50 dark:bg-slate-800",  trend: 12.1 },
-    { label: "Pending Cases",   value: pendingCount,                     icon: <FiClock />,        iconBg: "bg-amber-50 dark:bg-slate-800",   trend: 8.5  },
-    { label: "Completed Cases", value: completedCount,                   icon: <FiCheckCircle />,  iconBg: "bg-teal-50 dark:bg-slate-800",    trend: 18.7 },
-    { label: "Active Agents",   value: analytics?.totalAgents ?? 0,     icon: <FiUserCheck />,    iconBg: "bg-indigo-50 dark:bg-slate-800",  trend: 9.4  },
-    { label: "Branches",        value: analytics?.totalBranches ?? 0,                     icon: <FiGitBranch />,    iconBg: "bg-slate-100 dark:bg-slate-800",  trend: 0    },
-    { label: "Rejected Cases",  value: analytics?.caseBreakdown?.find((c: any) => c.status === "REJECTED")?.count ?? 0, icon: <FiXCircle className="text-rose-600" />, iconBg: "bg-rose-50 dark:bg-slate-800", trend: 0 },
-    { label: "Re-verification", value: analytics?.reverificationCount ?? 0, icon: <FiRefreshCw className="text-orange-600" />, iconBg: "bg-orange-50 dark:bg-slate-800", trend: 0 },
+    {
+      label: "Total Customers",
+      value: analytics?.totalCustomers ?? 0,
+      icon: <FiUsers />,
+      iconBg: "bg-blue-50 dark:bg-slate-800",
+      trend: rawKpis?.find((k: any) => k.label === "Total Customers")?.trend ?? 0,
+    },
+    {
+      label: "Total Cases",
+      value: totalCases,
+      icon: <FiBriefcase />,
+      iconBg: "bg-purple-50 dark:bg-slate-800",
+      trend: rawKpis?.find((k: any) => k.label === "Total Cases")?.trend ?? 0,
+    },
+    {
+      label: "Pending Cases",
+      value: pendingCount,
+      icon: <FiClock />,
+      iconBg: "bg-amber-50 dark:bg-slate-800",
+      trend: rawKpis?.find((k: any) => k.label === "Pending Cases")?.trend ?? 0,
+    },
+    {
+      label: "Completed Cases",
+      value: completedCount,
+      icon: <FiCheckCircle />,
+      iconBg: "bg-teal-50 dark:bg-slate-800",
+      trend: rawKpis?.find((k: any) => k.label === "Completed Cases")?.trend ?? 0,
+    },
+    {
+      label: "Active Agents",
+      value: analytics?.totalAgents ?? 0,
+      icon: <FiUserCheck />,
+      iconBg: "bg-indigo-50 dark:bg-slate-800",
+      trend: 0,
+    },
+    {
+      label: "Branches",
+      value: analytics?.totalBranches ?? 0,
+      icon: <FiGitBranch />,
+      iconBg: "bg-slate-100 dark:bg-slate-800",
+      trend: 0,
+    },
+    {
+      label: "Rejected Cases",
+      value: analytics?.caseBreakdown?.find((c: any) => c.status === "REJECTED")?.count ?? 0,
+      icon: <FiXCircle className="text-rose-600" />,
+      iconBg: "bg-rose-50 dark:bg-slate-800",
+      trend: 0,
+    },
+    {
+      label: "Re-verification",
+      value: analytics?.reverificationCount ?? 0,
+      icon: <FiRefreshCw className="text-orange-600" />,
+      iconBg: "bg-orange-50 dark:bg-slate-800",
+      trend: 0,
+    },
   ];
 
   const pieData = [
@@ -258,19 +361,14 @@ export default function DashboardPage() {
               <span className="font-medium">{dateRange.value}</span>
               <FiChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-52 p-1">
+            <PopoverContent align="end" className="w-56 p-1 bg-white border border-slate-200 shadow-lg rounded-xl z-50">
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-2 py-1.5">
-                Select Range
+                Select Date Range
               </p>
-              {DATE_RANGES.map((r) => (
+              {dateRanges.map((r) => (
                 <button
                   key={r.label}
-                  onClick={() => {
-                    if (r.label !== "Custom Range") {
-                      setDateRange(r);
-                      setCalOpen(false);
-                    }
-                  }}
+                  onClick={() => handleSelectDateRange(r)}
                   className={cn(
                     "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
                     dateRange.label === r.label
@@ -301,18 +399,12 @@ export default function DashboardPage() {
                     className="w-full text-xs border border-[#E2E8F0] rounded-lg px-2 py-1.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-[#1E3A5F]"
                   />
                   <button
-                    onClick={() => {
-                      if (customFrom && customTo) {
-                        const fmt = (d: string) => new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-                        setDateRange({ label: "Custom Range", value: `${fmt(customFrom)} – ${fmt(customTo)}` });
-                        setCalOpen(false);
-                      }
-                    }}
+                    onClick={handleApplyCustomRange}
                     disabled={!customFrom || !customTo}
                     className="w-full text-xs text-white rounded-lg py-1.5 font-semibold transition-colors disabled:opacity-40"
                     style={{ background: "#1E3A5F" }}
                   >
-                    Apply
+                    Apply Filter
                   </button>
                 </div>
               </div>
@@ -322,7 +414,7 @@ export default function DashboardPage() {
       />
 
       {/* ── KPI Cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-3 sm:gap-4">
         {kpiData.map((kpi) => (
           <StatsCard key={kpi.label} {...kpi} />
         ))}
@@ -338,11 +430,11 @@ export default function DashboardPage() {
             </h2>
             <select
               value={period}
-              onChange={(e) => setPeriod(e.target.value)}
+              onChange={(e) => handlePeriodChange(e.target.value)}
               className="text-xs border border-border rounded-lg px-3 py-1.5 text-slate-600 bg-white focus:outline-none focus:ring-1 focus:ring-[--color-brand-900]"
             >
               {CHART_PERIOD_OPTIONS.map((o) => (
-                <option key={o}>{o}</option>
+                <option key={o} value={o}>{o}</option>
               ))}
             </select>
           </div>

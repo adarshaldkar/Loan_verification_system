@@ -63,8 +63,10 @@ export const resetPasswordApi = (email: string, otp: string, newPassword: string
   api.post("/auth/reset-password", { email, otp, newPassword });
 
 // ─── Dashboard ────────────────────────────────────────────────────────────
-export const getDashboardApi = () => api.get("/admin/dashboard");
-export const getAnalyticsApi = () => api.get("/admin/analytics");
+export const getDashboardApi = (params?: { period?: string; startDate?: string; endDate?: string }) =>
+  api.get("/admin/dashboard", { params });
+export const getAnalyticsApi = (params?: { period?: string }) =>
+  api.get("/admin/analytics", { params });
 
 // ─── Agents ───────────────────────────────────────────────────────────────
 export const getAgentsApi = () => api.get("/admin/agents");
