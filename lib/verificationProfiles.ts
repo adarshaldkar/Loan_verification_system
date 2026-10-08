@@ -572,12 +572,12 @@ export const VERIFICATION_PROFILES: VerificationProfileConfig[] = [
   },
 
   /* ─────────────────────────────────────────────────────────────
-     10. ASSET VERIFICATION PROFILE
+     10. LOAN ASSET VERIFICATION PROFILE
   ───────────────────────────────────────────────────────────── */
   {
-    id: "asset_verification",
-    code: "ASSET_VERIFICATION",
-    name: "Asset Verification Profile",
+    id: "loan_asset_verification",
+    code: "LOAN_ASSET_VERIFICATION",
+    name: "Loan Asset Verification Profile",
     category: "Asset",
     description: "Asset product inspection, usage check, loan downpayment, and EMI validation.",
     badgeColor: "bg-amber-100 text-amber-800 border-amber-200",
@@ -712,10 +712,13 @@ export function getProfileByCode(code: string): VerificationProfileConfig {
     normalized === "ASSET" ||
     normalized === "CD_LOAN_ASSET" ||
     normalized === "LOAN_ASSET" ||
+    normalized === "LOAN_ASSET_VERIFICATION" ||
     normalized === "ASSET_VERIFICATION" ||
-    code?.toLowerCase() === "cd_loan_asset"
+    code?.toLowerCase() === "cd_loan_asset" ||
+    code?.toLowerCase() === "loan_asset_verification" ||
+    code?.toLowerCase() === "asset_verification"
   ) {
-    const assetProfile = VERIFICATION_PROFILES.find((p) => p.code === "ASSET_VERIFICATION");
+    const assetProfile = VERIFICATION_PROFILES.find((p) => p.code === "LOAN_ASSET_VERIFICATION");
     if (assetProfile) return assetProfile;
   }
   return (

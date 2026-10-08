@@ -74,14 +74,17 @@ export async function generateDsaPdfReport(caseData: ReportCaseData): Promise<Bu
       const dsaFirmName = safeVal(pd.proprietorPartnerName || customer.businessName || `${applicantName} Financial Services`);
       const visitDate = formatDate(caseData.completedAt || caseData.updatedAt || caseData.createdAt);
 
-      const isAsset = (caseData.type || '').toUpperCase() === 'ASSET_VERIFICATION' ||
-                      (caseData.type || '').toUpperCase() === 'CD_LOAN_ASSET' ||
+      const isAsset = (caseData.type || '').toUpperCase() === 'LOAN_ASSET_VERIFICATION' ||
+                      (caseData.type || '').toUpperCase() === 'ASSET_VERIFICATION' ||
+                      (caseData.type || '').toUpperCase() === 'LOAN_ASSET' ||
                       (caseData.type || '').toUpperCase() === 'ASSET' ||
+                      (caseData.type || '').toUpperCase() === 'CD_LOAN_ASSET' ||
+                      (pd.profileType || '').toUpperCase() === 'LOAN_ASSET_VERIFICATION' ||
                       (pd.profileType || '').toUpperCase() === 'ASSET_VERIFICATION' ||
                       (pd.profileType || '').toUpperCase() === 'CD_LOAN_ASSET';
 
       const reportTitle = isAsset
-        ? 'Asset Verification Profiling Report'
+        ? 'Loan Asset Verification Profiling Report'
         : 'DSA Vendor Profiling Report';
 
       // ─── STYLING CONSTANTS ───
