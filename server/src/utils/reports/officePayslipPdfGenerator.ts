@@ -77,14 +77,18 @@ export async function generateOfficePayslipPdfReport(caseData: ReportCaseData): 
       // ─── STYLING CONSTANTS ───
       const primaryColor = '#1A365D';
       const secondaryColor = '#2B6CB0';
-      const accentBg = '#F7FAFC';
-      const borderColor = '#CBD5E0';
-      const headerBg = '#EDF2F7';
+      const accentBg = '#F8FAFC';
+      const borderColor = '#CBD5E1';
+      const headerBg = '#F1F5F9';
 
       const drawSectionHeader = (title: string, yPos: number): number => {
+        if (yPos + 26 > doc.page.height - 40) {
+          doc.addPage();
+          yPos = margin;
+        }
         doc.rect(margin, yPos, contentWidth, 18).fillAndStroke(secondaryColor, secondaryColor);
-        doc.fillColor('#FFFFFF').fontSize(9.5).font('Helvetica-Bold');
-        doc.text(title, margin + 8, yPos + 4, { width: contentWidth - 16 });
+        doc.fillColor('#FFFFFF').fontSize(8.5).font('Helvetica-Bold');
+        doc.text(title.toUpperCase(), margin + 8, yPos + 4.5, { width: contentWidth - 16 });
         return yPos + 22;
       };
 
@@ -96,26 +100,55 @@ export async function generateOfficePayslipPdfReport(caseData: ReportCaseData): 
         col2Val?: string,
         isEven: boolean = false
       ): number => {
-        const rowHeight = 18;
+        doc.fontSize(8);
+        const colWidth = contentWidth / 2;
+        const labelWidth = 100;
+        const valWidth = colWidth - labelWidth - 10;
+        const fullValWidth = contentWidth - 145 - 10;
+
+        let rowHeight = 18;
+
+        if (col2Label !== undefined) {
+          doc.font('Helvetica-Bold');
+          const hL1 = doc.heightOfString(col1Label, { width: labelWidth });
+          const hL2 = doc.heightOfString(col2Label, { width: labelWidth });
+          doc.font('Helvetica');
+          const hV1 = doc.heightOfString(`: ${col1Val || 'NA'}`, { width: valWidth });
+          const hV2 = doc.heightOfString(`: ${col2Val || 'NA'}`, { width: valWidth });
+          rowHeight = Math.max(hL1, hL2, hV1, hV2, 12) + 7;
+        } else {
+          doc.font('Helvetica-Bold');
+          const hL = doc.heightOfString(col1Label, { width: 135 });
+          doc.font('Helvetica');
+          const hV = doc.heightOfString(`: ${col1Val || 'NA'}`, { width: fullValWidth });
+          rowHeight = Math.max(hL, hV, 12) + 7;
+        }
+
+        if (yPos + rowHeight > doc.page.height - 40) {
+          doc.addPage();
+          yPos = margin;
+        }
+
         if (isEven) {
           doc.rect(margin, yPos, contentWidth, rowHeight).fill(accentBg);
         }
         doc.rect(margin, yPos, contentWidth, rowHeight).stroke(borderColor);
 
-        doc.fillColor('#2D3748').fontSize(8.5);
+        doc.fillColor('#2D3748').fontSize(8);
 
         if (col2Label !== undefined) {
-          const colWidth = contentWidth / 2;
           doc.lineCap('butt').moveTo(margin + colWidth, yPos).lineTo(margin + colWidth, yPos + rowHeight).stroke(borderColor);
 
-          doc.font('Helvetica-Bold').text(col1Label, margin + 6, yPos + 4, { width: 110 });
-          doc.font('Helvetica').text(`: ${col1Val}`, margin + 118, yPos + 4, { width: colWidth - 124, ellipsis: true });
+          // Column 1
+          doc.font('Helvetica-Bold').fillColor('#334155').text(col1Label, margin + 6, yPos + 4, { width: labelWidth });
+          doc.font('Helvetica').fillColor('#1E293B').text(`: ${col1Val || 'NA'}`, margin + labelWidth + 6, yPos + 4, { width: valWidth });
 
-          doc.font('Helvetica-Bold').text(col2Label, margin + colWidth + 6, yPos + 4, { width: 110 });
-          doc.font('Helvetica').text(`: ${col2Val || 'NA'}`, margin + colWidth + 118, yPos + 4, { width: colWidth - 124, ellipsis: true });
+          // Column 2
+          doc.font('Helvetica-Bold').fillColor('#334155').text(col2Label, margin + colWidth + 6, yPos + 4, { width: labelWidth });
+          doc.font('Helvetica').fillColor('#1E293B').text(`: ${col2Val || 'NA'}`, margin + colWidth + labelWidth + 6, yPos + 4, { width: valWidth });
         } else {
-          doc.font('Helvetica-Bold').text(col1Label, margin + 6, yPos + 4, { width: 140 });
-          doc.font('Helvetica').text(`: ${col1Val}`, margin + 148, yPos + 4, { width: contentWidth - 154, ellipsis: true });
+          doc.font('Helvetica-Bold').fillColor('#334155').text(col1Label, margin + 6, yPos + 4, { width: 135 });
+          doc.font('Helvetica').fillColor('#1E293B').text(`: ${col1Val || 'NA'}`, margin + 141, yPos + 4, { width: fullValWidth });
         }
 
         return yPos + rowHeight;
@@ -124,7 +157,7 @@ export async function generateOfficePayslipPdfReport(caseData: ReportCaseData): 
       // ─── HEADER / BANNER ───
       let currentY = margin;
 
-      doc.rect(margin, currentY, contentWidth, 48).fillAndStroke(headerBg, primaryColor);
+      doc.rect(margin, currentY, contentWidth, 50).fillAndStroke(headerBg, primaryColor);
       doc.fillColor(primaryColor).fontSize(13).font('Helvetica-Bold');
       doc.text('TVS Credit Services Ltd', margin + 12, currentY + 7);
       doc.fontSize(8.5).font('Helvetica').fillColor('#4A5568');
@@ -137,7 +170,7 @@ export async function generateOfficePayslipPdfReport(caseData: ReportCaseData): 
       doc.text(`Report Date   : ${visitDate}`, margin + contentWidth - 170, currentY + 20, { align: 'right', width: 160 });
       doc.text(`Loan A/C No   : ${customer.applicationId || caseData.id.slice(0, 10)}`, margin + contentWidth - 170, currentY + 32, { align: 'right', width: 160 });
 
-      currentY += 56;
+      currentY += 58;
 
       // ─── 1. APPLICANT & EMPLOYER IDENTITY ───
       currentY = drawSectionHeader('1. Employee & Employer Location Details', currentY);

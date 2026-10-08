@@ -99,3 +99,29 @@ export const getBatchStatus = async (req: AuthRequest, res: Response) => {
     return apiError(res, 'Failed to fetch batch progress status', 500, error);
   }
 };
+
+export const getUploadBatches = async (req: AuthRequest, res: Response) => {
+  try {
+    const adminId = req.user?.id;
+    const role = req.user?.role;
+    if (!adminId) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const whereClause: any = {};
+    if (role !== 'SUPER_ADMIN') {
+      whereClause.adminId = adminId;
+    }
+
+    const batches = await prisma.uploadBatch.findMany({
+      where: whereClause,
+      orderBy: { createdAt: 'desc' },
+      take: 25,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: batches,
+    });
+  } catch (error: any) {
+    return apiError(res, 'Failed to fetch upload batches history', 500, error);
+  }
+};

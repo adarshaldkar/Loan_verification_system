@@ -12,7 +12,7 @@ import { getReports, generateReport, getReportMetrics, downloadCaseRcuDocx, down
 import { getAuditLogs } from '../controllers/admin/auditLogController';
 import { getSettings, updateSettings } from '../controllers/admin/settingsController';
 import { getProfile, updateProfile, updatePassword } from '../controllers/admin/profileController';
-import { bulkUploadCases, getBatchStatus } from '../controllers/admin/uploadController';
+import { bulkUploadCases, getBatchStatus, getUploadBatches } from '../controllers/admin/uploadController';
 import { registerAgent } from '../controllers/authController';
 import { registerAdmin, getAdmins, updateAdmin } from '../controllers/admin/manageAdminsController';
 import { z } from 'zod';
@@ -94,6 +94,7 @@ router.put('/settings', updateSettings);
 
 // ── Bulk Upload ────────────────────────────────────────────────────────────
 router.post('/upload/bulk', bulkUploadCases);
+router.get('/upload/batches', getUploadBatches);
 router.get('/upload/batch/:batchId', getBatchStatus);
 
 // ── Admins ──────────────────────────────────────────────────────────────────

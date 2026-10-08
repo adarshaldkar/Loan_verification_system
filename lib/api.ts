@@ -121,6 +121,9 @@ export const uploadBulkCasesApi = (fileName: string, rows: Record<string, string
 export const getBatchStatusApi = (batchId: string) =>
   api.get(`/admin/upload/batch/${batchId}`);
 
+export const getUploadBatchesApi = () =>
+  api.get("/admin/upload/batches");
+
 // ─── Branches ─────────────────────────────────────────────────────────────
 export const getBranchesApi = () => api.get("/admin/branches");
 export const createBranchApi = (data: {

@@ -133,22 +133,47 @@ export default function VerificationPage() {
   useEffect(() => {
     let list = [...cases];
     if (search) {
+      const q = search.toLowerCase().trim();
       list = list.filter(
         (c) =>
-          c.customer.toLowerCase().includes(search.toLowerCase()) ||
-          c.applicationId.toLowerCase().includes(search.toLowerCase()) ||
-          c.agent.toLowerCase().includes(search.toLowerCase()) ||
-          c.type.toLowerCase().includes(search.toLowerCase())
+          c.customer.toLowerCase().includes(q) ||
+          c.applicationId.toLowerCase().includes(q) ||
+          c.agent.toLowerCase().includes(q) ||
+          c.type.toLowerCase().includes(q) ||
+          (c.branch && c.branch.toLowerCase().includes(q))
       );
     }
     if (typeFilter !== "All") {
+      const tfNorm = typeFilter.toLowerCase().replace(/[^a-z0-9]/g, "");
       list = list.filter((c) => {
         const conf = getProfileByCode(c.type);
+        const codeNorm = (c.type || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const profCodeNorm = (conf.code || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const nameNorm = (conf.name || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const catNorm = (conf.category || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+        // Match DSA group
+        if (tfNorm === "dsa") {
+          return codeNorm.includes("dsa") || profCodeNorm.includes("dsa") || catNorm.includes("dsa");
+        }
+        // Match Property group
+        if (tfNorm === "property") {
+          return codeNorm.includes("property") || codeNorm.includes("seller") || profCodeNorm.includes("property");
+        }
+        // Match Dealers group
+        if (tfNorm === "dealers" || tfNorm === "dealer") {
+          return codeNorm.includes("dealer");
+        }
+        // Match Resi cum Business
+        if (tfNorm.includes("resicum") || tfNorm.includes("resicumbusiness")) {
+          return codeNorm.includes("resicumbusiness") || codeNorm.includes("resi_cum");
+        }
+
         return (
-          c.type === typeFilter ||
-          conf.code === typeFilter ||
-          conf.category === typeFilter ||
-          conf.name.toLowerCase().includes(typeFilter.toLowerCase())
+          codeNorm.includes(tfNorm) ||
+          profCodeNorm.includes(tfNorm) ||
+          nameNorm.includes(tfNorm) ||
+          catNorm.includes(tfNorm)
         );
       });
     }
