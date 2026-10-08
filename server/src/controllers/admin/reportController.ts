@@ -5,6 +5,7 @@ import { formatDateTime, apiError } from '../../utils/helpers';
 import { generateRcuDocxReport } from '../../utils/rcuReportGenerator';
 import { generateRcuPdfReport } from '../../utils/rcuPdfReportGenerator';
 import { generateConsolidatedRcuPdf } from '../../utils/rcuBatchPdfReportGenerator';
+import { generateDynamicCasePdf } from '../../utils/reports';
 
 export const getReports = async (req: AuthRequest, res: Response) => {
   try {
@@ -161,7 +162,7 @@ export const downloadCaseRcuPdf = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ success: false, message: 'Case not found or unauthorized' });
     }
 
-    const pdfBuffer = await generateRcuPdfReport(caseData);
+    const pdfBuffer = await generateDynamicCasePdf(caseData);
 
     const safeApplicant = `${caseData.customer.firstName}_${caseData.customer.lastName}`.replace(/[^a-zA-Z0-9_]/g, '');
     const filename = `RCU_REPORT_${safeApplicant}_${caseData.customer.applicationId || caseId.slice(0, 8)}.pdf`;

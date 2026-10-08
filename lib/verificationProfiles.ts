@@ -222,6 +222,17 @@ export const VERIFICATION_PROFILES: VerificationProfileConfig[] = [
           { name: "note", label: "Note", type: "text", defaultValue: "Both Office and Home are the Same Address" },
         ],
       },
+      {
+        title: "4. References & Identification Details",
+        fields: [
+          { name: "reference1Name", label: "Reference 1 Name", type: "text", placeholder: "e.g., Ramesh Kumar" },
+          { name: "reference1Contact", label: "Reference 1 Contact No", type: "text", placeholder: "e.g., 9840123456" },
+          { name: "reference2Name", label: "Reference 2 Name", type: "text", placeholder: "e.g., Senthil Nathan" },
+          { name: "reference2Contact", label: "Reference 2 Contact No", type: "text", placeholder: "e.g., 9444198765" },
+          { name: "panNumber", label: "PAN Card Number", type: "text", placeholder: "e.g., ABCDE1234F" },
+          { name: "bankAccountDetails", label: "Bank Account Details (Bank Name & A/c)", type: "text", placeholder: "e.g., SBI A/C 20038563552" },
+        ],
+      },
     ],
   },
 
