@@ -235,49 +235,113 @@ export default function UploadPage() {
             onClick={() => {
               const ws = XLSX.utils.json_to_sheet([
                 {
-                  "Customer Name": "Ramesh Sharma",
-                  "Phone Number": "9876543210",
-                  "Address": "123 Main St, Bangalore",
-                  "Loan Amount": 500000,
-                  "Loan Type": "Home Loan",
+                  "Customer Name": "Elaiyaraja P",
+                  "Phone Number": "9840123451",
+                  "Address": "No 14, 2nd Cross Street, Gandhi Nagar, Adyar, Chennai - 600020",
+                  "Loan Amount": 450000,
+                  "Loan Type": "Personal Loan",
                   "Case Type": "RESIDENTIAL"
                 },
                 {
-                  "Customer Name": "Vikas Enterprises",
-                  "Phone Number": "9845123456",
-                  "Address": "Shop 4, Commercial St, Chennai",
+                  "Customer Name": "Veeramanikandan S",
+                  "Phone Number": "9840123452",
+                  "Address": "Shop No 5, Main Bazaar Road, T Nagar, Chennai - 600017",
                   "Loan Amount": 1200000,
                   "Loan Type": "Business Loan",
                   "Case Type": "BUSINESS"
                 },
                 {
-                  "Customer Name": "Priya Sundaram",
-                  "Phone Number": "9789123456",
-                  "Address": "IT Park Road, Coimbatore",
-                  "Loan Amount": 350000,
+                  "Customer Name": "Saravanan M",
+                  "Phone Number": "9840123453",
+                  "Address": "Old Door 12, New 28, Pillaiyar Kovil Street, Velachery, Chennai - 600042",
+                  "Loan Amount": 850000,
+                  "Loan Type": "Commercial Loan",
+                  "Case Type": "RESI_CUM_BUSINESS"
+                },
+                {
+                  "Customer Name": "Mohan Kuzhandaivel",
+                  "Phone Number": "9840123454",
+                  "Address": "Plot 45, SIPCOT IT Park, Siruseri, OMR, Chennai - 603103",
+                  "Loan Amount": 600000,
                   "Loan Type": "Personal Loan",
                   "Case Type": "OFFICE_PAYSLIP"
                 },
                 {
-                  "Customer Name": "Muthusamy Agri Farms",
-                  "Phone Number": "9443123456",
-                  "Address": "South Village, Trichy",
-                  "Loan Amount": 450000,
+                  "Customer Name": "Murugesan K",
+                  "Phone Number": "9840123455",
+                  "Address": "SF No 142/2, Melur Village, Madurai Road, Trichy - 620001",
+                  "Loan Amount": 500000,
                   "Loan Type": "Agri Loan",
                   "Case Type": "AGRICULTURE"
                 },
                 {
-                  "Customer Name": "Sri Balaji Prime Plot",
-                  "Phone Number": "9940123456",
-                  "Address": "Survey No 42, Bypass Road, Madurai",
+                  "Customer Name": "Sri Kanth Arjunan",
+                  "Phone Number": "9840123456",
+                  "Address": "No 88, GST Road, Chromepet, Chennai - 600044",
                   "Loan Amount": 2500000,
-                  "Loan Type": "Plot Loan",
+                  "Loan Type": "Two Wheeler Dealer",
+                  "Case Type": "DEALERS"
+                },
+                {
+                  "Customer Name": "Vasanth Kumar R",
+                  "Phone Number": "9840123457",
+                  "Address": "Flat 3B, Green Park Apartments, Anna Nagar West, Chennai - 600040",
+                  "Loan Amount": 750000,
+                  "Loan Type": "Home Loan",
+                  "Case Type": "DSA_RESIDENTIAL"
+                },
+                {
+                  "Customer Name": "Senthil Nathan B",
+                  "Phone Number": "9840123458",
+                  "Address": "2nd Floor, Above Apollo Pharmacy, 100 Feet Road, Vadapalani, Chennai - 600026",
+                  "Loan Amount": 1500000,
+                  "Loan Type": "DSA Multi-Product",
+                  "Case Type": "DSA_BUSINESS"
+                },
+                {
+                  "Customer Name": "Balaji T",
+                  "Phone Number": "9840123459",
+                  "Address": "Door 9, 3rd Street, Rajaji Nagar, Tambaram, Chennai - 600045",
+                  "Loan Amount": 900000,
+                  "Loan Type": "DSA Loan",
+                  "Case Type": "DSA_RESI_CUM_BUSINESS"
+                },
+                {
+                  "Customer Name": "K Ganapathi",
+                  "Phone Number": "9840123460",
+                  "Address": "Door 54, Sivan Kovil Street, Palayamkottai, Tirunelveli - 627002",
+                  "Loan Amount": 45000,
+                  "Loan Type": "Asset Loan",
+                  "Case Type": "LOAN_ASSET_VERIFICATION"
+                },
+                {
+                  "Customer Name": "Prabhakhar D",
+                  "Phone Number": "9840123461",
+                  "Address": "1/19, V.V. Kovil Street, Chinmaya Nagar, Koyambedu, Chennai - 600092",
+                  "Loan Amount": 3000000,
+                  "Loan Type": "LAP / Property Loan",
                   "Case Type": "PROPERTY"
+                },
+                {
+                  "Customer Name": "Rajendran V",
+                  "Phone Number": "9840123462",
+                  "Address": "Plot 108, Greenfields Layout, Bypass Road, Coimbatore - 641001",
+                  "Loan Amount": 4500000,
+                  "Loan Type": "Property Purchase",
+                  "Case Type": "SELLER"
                 }
               ]);
+              ws['!cols'] = [
+                { wch: 24 },
+                { wch: 16 },
+                { wch: 60 },
+                { wch: 14 },
+                { wch: 22 },
+                { wch: 28 }
+              ];
               const wb = XLSX.utils.book_new();
-              XLSX.utils.book_append_sheet(wb, ws, "Leads");
-              XLSX.writeFile(wb, "lvms_bulk_verification_template.xlsx");
+              XLSX.utils.book_append_sheet(wb, ws, "12_Verification_Profiles");
+              XLSX.writeFile(wb, "sample_12_cases_loan_verification.xlsx");
             }}
           >
             <FiDownload className="w-4 h-4" />
