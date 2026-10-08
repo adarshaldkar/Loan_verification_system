@@ -1263,7 +1263,7 @@ export default function AgentDashboard() {
               
               {photoPreview ? (
                 <div className="relative rounded-xl overflow-hidden border border-gray-200 dark:border-slate-700 bg-slate-900 aspect-video flex items-center justify-center">
-                  <img src={photoPreview} alt="Captured preview" className="w-full h-full object-cover" />
+                  <img src={photoPreview} alt="Captured preview" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   <div className="absolute bottom-2 left-2 right-2 bg-black/70 backdrop-blur-sm text-white text-[10px] p-2 rounded-lg space-y-0.5">
                     <div className="flex justify-between font-mono">
                       <span>GPS: {agentCoords.lat.toFixed(4)}, {agentCoords.lng.toFixed(4)}</span>

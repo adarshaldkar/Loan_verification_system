@@ -26,7 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import LocationPickerMap from "@/components/shared/LocationPickerMap";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   VerificationProfileConfig,
   ProfileField,
@@ -34,6 +35,19 @@ import {
 } from "@/lib/verificationProfiles";
 import { uploadEvidenceApi, uploadVoiceApi } from "@/lib/api";
 import VoiceRecorder from "@/components/verification/VoiceRecorder";
+
+// Lazy-load LocationPickerMap with a skeleton placeholder
+const LocationPickerMap = dynamic(
+  () => import("@/components/shared/LocationPickerMap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[220px] rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse flex items-center justify-center border border-slate-200 dark:border-slate-700">
+        <p className="text-xs text-slate-400 font-medium">Loading interactive map...</p>
+      </div>
+    ),
+  }
+);
 
 export interface DynamicVerificationFormProps {
   profileCode: string;
@@ -516,6 +530,8 @@ export default function DynamicVerificationForm({
                     <img
                       src={photo.url}
                       alt={photo.name}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute top-1 left-1 bg-black/60 backdrop-blur-xs text-white text-[9px] font-medium px-1.5 py-0.5 rounded flex items-center gap-1">

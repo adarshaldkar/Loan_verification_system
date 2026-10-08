@@ -33,13 +33,26 @@ import {
   downloadCaseRcuDocxApi,
   downloadCaseRcuPdfApi,
 } from "@/lib/api";
+import dynamic from "next/dynamic";
 import {
   VERIFICATION_PROFILES,
   getProfileByCode,
 } from "@/lib/verificationProfiles";
-import StructuredProfileReview from "@/components/verification/StructuredProfileReview";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { PaginationControls } from "@/components/shared/PaginationControls";
+
+// Lazy-load StructuredProfileReview for fast initial page load
+const StructuredProfileReview = dynamic(
+  () => import("@/components/verification/StructuredProfileReview"),
+  {
+    loading: () => (
+      <div className="space-y-4 py-4">
+        <div className="h-14 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+        <div className="h-40 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+      </div>
+    ),
+  }
+);
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 interface CaseSummary {
@@ -711,7 +724,7 @@ export default function VerificationPage() {
                                 onClick={() => setImageModal(m.url)}
                                 title={m.type}
                               >
-                                <img src={m.url} alt={m.type} />
+                                <img src={m.url} alt={m.type} loading="lazy" decoding="async" />
                               </div>
                             ))}
                           </div>
@@ -830,7 +843,7 @@ export default function VerificationPage() {
       {/* Image Lightbox */}
       {imageModal && (
         <div className="lightbox" onClick={() => setImageModal(null)}>
-          <img src={imageModal} alt="Enlarged verification evidence" />
+          <img src={imageModal} alt="Enlarged verification evidence" decoding="async" />
         </div>
       )}
     </>

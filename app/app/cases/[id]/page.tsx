@@ -23,12 +23,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getCaseByIdAdminApi, updateCaseStatusApi, downloadCaseRcuDocxApi, downloadCaseRcuPdfApi } from "@/lib/api";
 import { toast } from "sonner";
 import { getProfileByCode } from "@/lib/verificationProfiles";
-import StructuredProfileReview from "@/components/verification/StructuredProfileReview";
+import dynamic from "next/dynamic";
+
+const StructuredProfileReview = dynamic(
+  () => import("@/components/verification/StructuredProfileReview"),
+  {
+    loading: () => (
+      <div className="space-y-3 py-3">
+        <div className="h-12 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+        <div className="h-32 rounded-xl bg-slate-100 dark:bg-slate-800 animate-pulse" />
+      </div>
+    ),
+  }
+);
 
 function GeoPhotoCard({ url, lat, lng }: { url: string; lat?: string; lng?: string }) {
   return (
     <div className="rounded-xl overflow-hidden border border-border relative group">
-      <img src={url} alt="Evidence" className="w-full h-44 object-cover" />
+      <img src={url} alt="Evidence" loading="lazy" decoding="async" className="w-full h-44 object-cover" />
       {(lat || lng) && (
         <div className="absolute bottom-0 left-0 right-0 bg-black/60 backdrop-blur-sm px-3 py-2 text-[10px] text-white font-mono flex justify-between items-center">
           <span>{lat && lng ? `${lat}, ${lng}` : "GPS Unavailable"}</span>
