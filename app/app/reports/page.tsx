@@ -1,144 +1,118 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { FiDownload, FiFileText, FiCalendar, FiChevronDown, FiPrinter, FiCheckCircle, FiClock, FiXCircle, FiTrendingUp } from "react-icons/fi";
+import { useState, useEffect, useCallback } from "react";
+import {
+  FiDownload,
+  FiFileText,
+  FiCalendar,
+  FiPrinter,
+  FiCheckCircle,
+  FiClock,
+  FiXCircle,
+  FiTrendingUp,
+  FiRefreshCw,
+  FiLayers,
+  FiShield,
+} from "react-icons/fi";
 import { Button } from "@/components/ui/button";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from "@/components/ui/popover";
 import { PageHeader } from "@/components/shared/page-header";
 import { Progress } from "@/components/ui/progress";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-import { getReportsApi, generateReportApi, getReportMetricsApi, exportRcuBatchPdfApi, getCasesApi } from "@/lib/api";
-import { Skeleton } from "@/components/ui/skeleton";
-
-/* ─── Data ───────────────────────────────────────────────────────────────── */
+import {
+  getReportsApi,
+  generateReportApi,
+  getReportMetricsApi,
+  exportRcuBatchPdfApi,
+  getCasesApi,
+} from "@/lib/api";
 
 const getDynamicDateRanges = () => {
   const now = new Date();
-  const fmt = (d: Date) => d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   return [
     { label: "Today", value: fmt(now) },
-    { label: "Last 7 days", value: `${fmt(new Date(now.getTime() - 7 * 86400000))} – ${fmt(now)}` },
-    { label: "This Week", value: `${fmt(new Date(now.getTime() - now.getDay() * 86400000))} – ${fmt(new Date(now.getTime() + (6 - now.getDay()) * 86400000))}` },
-    { label: "This Month", value: `${fmt(new Date(now.getFullYear(), now.getMonth(), 1))} – ${fmt(now)}` },
+    {
+      label: "Last 7 days",
+      value: `${fmt(new Date(now.getTime() - 7 * 86400000))} – ${fmt(now)}`,
+    },
+    {
+      label: "This Month",
+      value: `${fmt(new Date(now.getFullYear(), now.getMonth(), 1))} – ${fmt(now)}`,
+    },
+    { label: "All Time", value: "All Available Audits" },
   ];
 };
 
 const REPORT_TYPES = [
-  { value: "daily",   label: "Daily Report (Completed, Progress, Rejected, Approved)" },
-  { value: "weekly",  label: "Weekly Report (Completed, Progress, Rejected, Approved)" },
-  { value: "monthly", label: "Monthly Report (Completed, Progress, Rejected, Approved)" },
-  { value: "agent",   label: "Agent Performance Report" },
-  { value: "audit",   label: "Cases Audit Export" },
+  { value: "weekly", label: "Consolidated Verification Audit Summary" },
+  { value: "agent", label: "Field Agent Operations & Productivity" },
+  { value: "branch", label: "Regional Branch Audit & SLA Report" },
+  { value: "audit", label: "Executive Risk & Compliance Trail" },
 ];
 
 const FORMATS = [
-  { value: "pdf",   label: "PDF Document" },
-  { value: "excel", label: "Excel Spreadsheet" },
+  { value: "pdf", label: "Official PDF Document" },
+  { value: "excel", label: "Excel Spreadsheet (.xlsx)" },
 ];
-
-function downloadBlob(content: string, filename: string, mime = "text/plain") {
-  const blob = new Blob([content], { type: mime });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-function downloadPDF(htmlContent: string, filename: string) {
-  const runExport = () => {
-    const element = document.createElement("div");
-    element.innerHTML = htmlContent;
-    
-    const opt = {
-      margin:       10,
-      filename:     filename,
-      image:        { type: "jpeg", quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true },
-      jsPDF:        { unit: "mm", format: "a4", orientation: "portrait" }
-    };
-    
-    // @ts-ignore
-    window.html2pdf().from(element).set(opt).save().then(() => {
-      toast.success(`Downloaded ${filename} successfully`);
-    }).catch((err: any) => {
-      console.error(err);
-      toast.error("Failed to generate PDF");
-    });
-  };
-
-  // @ts-ignore
-  if (window.html2pdf) {
-    runExport();
-  } else {
-    toast.info("Preparing PDF engine...");
-    const script = document.createElement("script");
-    script.src = "/js/html2pdf.bundle.min.js";
-    script.onload = () => {
-      runExport();
-    };
-    script.onerror = () => {
-      toast.error("Failed to load local PDF generation library.");
-    };
-    document.body.appendChild(script);
-  }
-}
-
-/* ─── Reports Page ───────────────────────────────────────────────────────── */
 
 export default function ReportsPage() {
   const [reportType, setReportType] = useState("");
-  const [format, setFormat]         = useState("");
-  const [dateRange, setDateRange]   = useState(getDynamicDateRanges()[0]);
-  const [calOpen, setCalOpen]       = useState(false);
+  const [format, setFormat] = useState("");
+  const [dateRange, setDateRange] = useState(getDynamicDateRanges()[0]);
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState(0);
-  const [reports, setReports]       = useState<any[]>([]);
-  const [loading, setLoading]       = useState(true);
+  const [reports, setReports] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [downloadingBatch, setDownloadingBatch] = useState(false);
 
   // Metrics State
   const [metricsTimeframe, setMetricsTimeframe] = useState("daily");
-  const [metrics, setMetrics] = useState({ total: 0, completed: 0, inProgress: 0, rejected: 0, approved: 0 });
+  const [metrics, setMetrics] = useState({
+    total: 0,
+    completed: 0,
+    inProgress: 0,
+    rejected: 0,
+    approved: 0,
+  });
   const [loadingMetrics, setLoadingMetrics] = useState(true);
 
-  useEffect(() => {
-    fetchReports();
-    fetchMetrics(metricsTimeframe);
-  }, []);
-
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     try {
       setLoading(true);
       const res = await getReportsApi();
-      setReports(res.data.data);
-    } catch (err) {
-      toast.error("Failed to fetch reports");
+      setReports(res.data.data || []);
+    } catch {
+      // ignore
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchMetrics = async (timeframe: string) => {
+  const fetchMetrics = useCallback(async (timeframe: string) => {
     try {
       setLoadingMetrics(true);
       const res = await getReportMetricsApi(timeframe);
       setMetrics(res.data.data);
-    } catch (err) {
-      toast.error("Failed to fetch metrics");
+    } catch {
+      // fallback
     } finally {
       setLoadingMetrics(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchReports();
+    fetchMetrics(metricsTimeframe);
+  }, [fetchReports, fetchMetrics, metricsTimeframe]);
 
   const handleTimeframeChange = (val: string) => {
     setMetricsTimeframe(val);
@@ -147,24 +121,24 @@ export default function ReportsPage() {
 
   function handleGenerate() {
     if (!reportType || !format) {
-      toast.error("Please select a report type and format.");
+      toast.error("Please select both a report type and export format.");
       return;
     }
     setGenerating(true);
     setGenProgress(0);
     let p = 0;
     const iv = setInterval(() => {
-      p += Math.random() * 20 + 10;
+      p += Math.random() * 25 + 15;
       if (p >= 100) {
         p = 100;
         clearInterval(iv);
-        
+
         generateReportApi({ reportType, format, dateRange: dateRange.value })
           .then(() => {
-             toast.success("Report generated successfully!");
-             fetchReports();
+            toast.success("Audit report compiled and added to archive! 📑");
+            fetchReports();
           })
-          .catch(() => toast.error("Failed to generate report"))
+          .catch(() => toast.error("Failed to compile report"))
           .finally(() => {
             setGenerating(false);
             setReportType("");
@@ -172,316 +146,390 @@ export default function ReportsPage() {
           });
       }
       setGenProgress(Math.min(p, 100));
-    }, 180);
+    }, 120);
   }
 
-  async function handleDownload(r: any) {
-    if (r.type === "PDF") {
+  /* Direct Batch RCU PDF Export */
+  async function handleExportBatchPdf() {
+    setDownloadingBatch(true);
+    try {
+      toast.info("Compiling high-resolution Consolidated RCU Audit PDF...");
+      const res = await exportRcuBatchPdfApi("Consolidated RCU Audit Report", dateRange.value);
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `CONSOLIDATED_RCU_AUDIT_${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => {
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+      toast.success("Consolidated RCU PDF downloaded successfully! 📄");
+    } catch {
+      toast.error("Failed to generate Consolidated RCU PDF");
+    } finally {
+      setDownloadingBatch(false);
+    }
+  }
+
+  async function handleDownloadArchiveItem(r: any) {
+    if (r.type === "PDF" || r.format === "pdf") {
       try {
-        toast.info(`Generating detailed RCU Verification PDF for ${r.name}...`);
-        const res = await exportRcuBatchPdfApi(r.name, r.dateRange);
+        toast.info(`Generating official RCU PDF for ${r.name}...`);
+        const res = await exportRcuBatchPdfApi(r.name, r.dateRange || "All Time");
         const blob = new Blob([res.data], { type: "application/pdf" });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        const safeName = r.name.replace(/[^a-zA-Z0-9_]/g, "_");
-        a.download = `${safeName}_Detailed_RCU_Audit.pdf`;
+        const safeName = (r.name || "Audit_Report").replace(/[^a-zA-Z0-9_]/g, "_");
+        a.download = `${safeName}_${new Date().toISOString().slice(0, 10)}.pdf`;
         document.body.appendChild(a);
         a.click();
         setTimeout(() => {
           document.body.removeChild(a);
           window.URL.revokeObjectURL(url);
         }, 1000);
-        toast.success(`Downloaded ${r.name} as detailed RCU PDF! 📄`);
-      } catch (err: any) {
-        toast.error("Failed to generate detailed RCU PDF");
+        toast.success(`Downloaded ${r.name} as official PDF! 📄`);
+      } catch {
+        toast.error("Failed to generate PDF report");
       }
     } else {
       try {
-        toast.info(`Fetching live records for ${r.name}...`);
+        toast.info(`Extracting live database records for ${r.name}...`);
         const casesRes = await getCasesApi("All");
         const liveCases = casesRes.data.data || [];
 
         const completedCount = liveCases.filter((c: any) => c.status === "COMPLETED").length;
         const approvedCount = liveCases.filter((c: any) => c.status === "APPROVED").length;
-        const pendingCount = liveCases.filter((c: any) => c.status === "PENDING" || c.status === "IN_PROGRESS").length;
+        const pendingCount = liveCases.filter(
+          (c: any) => c.status === "PENDING" || c.status === "IN_PROGRESS"
+        ).length;
         const rejectedCount = liveCases.filter((c: any) => c.status === "REJECTED").length;
 
         const dataRows: any[][] = [
           ["REPORT NAME", r.name],
-          ["FORMAT", "Excel (.xlsx)"],
-          ["GENERATED BY", r.generatedBy || "Admin"],
-          ["GENERATED AT", r.generatedAt || new Date().toLocaleString()],
-          ["DATE RANGE", r.dateRange || "All Time"],
+          ["EXPORT TYPE", "Microsoft Excel Spreadsheet (.xlsx)"],
+          ["GENERATED BY", r.generatedBy || "Skyline Risk Control Unit"],
+          ["GENERATED AT", new Date().toLocaleString("en-IN")],
+          ["DATE RANGE", r.dateRange || "All Recorded Cases"],
           [],
           ["--- EXECUTIVE SUMMARY ---"],
           ["Total Database Cases", liveCases.length],
           ["Approved Verifications", approvedCount],
-          ["Completed Field Audits", completedCount],
+          ["Completed Field Inspections", completedCount],
           ["Pending / In Progress", pendingCount],
-          ["Rejected Verifications", rejectedCount],
+          ["Rejected / Needs Revision", rejectedCount],
           [],
-          ["--- DETAILED CASES BREAKDOWN ---"],
-          ["Case ID", "Customer Name", "Verification Profile Type", "Status", "Assigned Field Agent", "Branch Office", "SLA / Created Date"],
+          ["--- VERIFICATION CASES AUDIT LOG ---"],
+          [
+            "Application ID",
+            "Customer Name",
+            "Profile Code",
+            "Case Status",
+            "Assigned Field Officer",
+            "Regional Hub",
+            "Loan Amount (INR)",
+            "Date Created",
+          ],
           ...liveCases.map((c: any) => [
-            c.id,
+            c.applicationId || c.id.slice(0, 8),
             c.customer,
             c.type,
             c.status,
             c.agent || "Unassigned",
-            c.branch || "Unassigned",
-            c.slaDue || "—"
-          ])
+            c.branch || "General",
+            c.loanAmount || 0,
+            c.submittedAt || "—",
+          ]),
         ];
 
         const ws = XLSX.utils.aoa_to_sheet(dataRows);
+        ws["!cols"] = [
+          { wch: 20 },
+          { wch: 25 },
+          { wch: 25 },
+          { wch: 18 },
+          { wch: 24 },
+          { wch: 20 },
+          { wch: 18 },
+          { wch: 22 },
+        ];
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Verification Report");
-        XLSX.writeFile(wb, `${r.name.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.xlsx`);
-        toast.success(`Downloaded dynamic ${r.name} as Excel successfully! 📊`);
-      } catch (err) {
-        toast.error("Failed to generate dynamic Excel report");
+        XLSX.utils.book_append_sheet(wb, ws, "RCU_Audit_Report");
+        XLSX.writeFile(
+          wb,
+          `${r.name.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.xlsx`
+        );
+        toast.success(`Downloaded ${r.name} as Excel! 📊`);
+      } catch {
+        toast.error("Failed to generate Excel report");
       }
     }
   }
 
-  function printMetricsPDF() {
-    window.print();
-  }
-
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-10 print-container">
+    <div className="space-y-6 max-w-7xl mx-auto pb-10">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <PageHeader
-          title="Reports"
-          description="Generate and export verification and performance reports."
+          title="Audit & Performance Reports"
+          description="Generate bank-grade RCU audit summaries, field agent metrics, and official compliance PDF archives."
         />
-        <Button onClick={printMetricsPDF} variant="outline" className="gap-2 shrink-0">
-          <FiPrinter className="w-4 h-4" />
-          Print PDF
-        </Button>
+        <div className="flex items-center gap-2.5">
+          <Button
+            onClick={handleExportBatchPdf}
+            disabled={downloadingBatch}
+            className="gap-2 text-white font-semibold shadow-md"
+            style={{ background: "#1E3A5F" }}
+          >
+            <FiDownload className={downloadingBatch ? "animate-bounce" : "w-4 h-4"} />
+            {downloadingBatch ? "Generating PDF..." : "Export Consolidated RCU PDF"}
+          </Button>
+          <Button onClick={() => window.print()} variant="outline" className="gap-2 shrink-0">
+            <FiPrinter className="w-4 h-4 text-slate-500" />
+            Print View
+          </Button>
+        </div>
       </div>
 
-      {/* ── Metrics Overview ── */}
-      <div className="card-flat p-6 border border-slate-200 shadow-sm rounded-xl bg-white">
+      {/* ── Dynamic Metrics Overview ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-          <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-            <FiTrendingUp className="w-5 h-5 text-blue-600" />
-            Verification Metrics
-          </h3>
+          <div>
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <FiTrendingUp className="w-5 h-5 text-blue-600" />
+              Live Verification Metrics
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Aggregated across all 12 profile questionnaires and field inspections
+            </p>
+          </div>
           <Select value={metricsTimeframe} onValueChange={(val) => val && handleTimeframeChange(val)}>
-            <SelectTrigger className="w-40 bg-slate-50">
+            <SelectTrigger className="w-44 bg-slate-50 border-slate-200 rounded-xl text-xs font-semibold">
               <SelectValue placeholder="Timeframe" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="daily">Daily</SelectItem>
-              <SelectItem value="weekly">Weekly</SelectItem>
-              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="daily">Daily (Last 24 Hours)</SelectItem>
+              <SelectItem value="weekly">Weekly (Last 7 Days)</SelectItem>
+              <SelectItem value="monthly">Monthly (Last 30 Days)</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 flex flex-col justify-center items-center text-center">
-            <div className="bg-blue-100 p-2 rounded-full mb-3">
-              <FiCheckCircle className="w-5 h-5 text-blue-700" />
+          <div className="p-5 rounded-2xl bg-blue-50/70 border border-blue-100 flex flex-col justify-center items-center text-center">
+            <div className="bg-blue-100 p-2.5 rounded-2xl mb-2 text-[#1E3A5F]">
+              <FiCheckCircle size={20} />
             </div>
-            <p className="text-sm font-medium text-slate-600 mb-1">Completed Data</p>
-            <h4 className="text-2xl font-bold text-blue-900">{loadingMetrics ? "-" : metrics.completed}</h4>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+              Completed Data
+            </p>
+            <h4 className="text-2xl font-extrabold text-[#1E3A5F]">
+              {loadingMetrics ? "-" : metrics.completed}
+            </h4>
           </div>
 
-          <div className="p-4 rounded-xl bg-amber-50 border border-amber-100 flex flex-col justify-center items-center text-center">
-            <div className="bg-amber-100 p-2 rounded-full mb-3">
-              <FiClock className="w-5 h-5 text-amber-700" />
+          <div className="p-5 rounded-2xl bg-amber-50/70 border border-amber-100 flex flex-col justify-center items-center text-center">
+            <div className="bg-amber-100 p-2.5 rounded-2xl mb-2 text-amber-700">
+              <FiClock size={20} />
             </div>
-            <p className="text-sm font-medium text-slate-600 mb-1">In Progress</p>
-            <h4 className="text-2xl font-bold text-amber-900">{loadingMetrics ? "-" : metrics.inProgress}</h4>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+              In Progress
+            </p>
+            <h4 className="text-2xl font-extrabold text-amber-800">
+              {loadingMetrics ? "-" : metrics.inProgress}
+            </h4>
           </div>
 
-          <div className="p-4 rounded-xl bg-rose-50 border border-rose-100 flex flex-col justify-center items-center text-center">
-            <div className="bg-rose-100 p-2 rounded-full mb-3">
-              <FiXCircle className="w-5 h-5 text-rose-700" />
+          <div className="p-5 rounded-2xl bg-rose-50/70 border border-rose-100 flex flex-col justify-center items-center text-center">
+            <div className="bg-rose-100 p-2.5 rounded-2xl mb-2 text-rose-700">
+              <FiXCircle size={20} />
             </div>
-            <p className="text-sm font-medium text-slate-600 mb-1">Rejected</p>
-            <h4 className="text-2xl font-bold text-rose-900">{loadingMetrics ? "-" : metrics.rejected}</h4>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+              Rejected / Revision
+            </p>
+            <h4 className="text-2xl font-extrabold text-rose-800">
+              {loadingMetrics ? "-" : metrics.rejected}
+            </h4>
           </div>
 
-          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex flex-col justify-center items-center text-center">
-            <div className="bg-emerald-100 p-2 rounded-full mb-3">
-              <FiCheckCircle className="w-5 h-5 text-emerald-700" />
+          <div className="p-5 rounded-2xl bg-emerald-50/70 border border-emerald-100 flex flex-col justify-center items-center text-center">
+            <div className="bg-emerald-100 p-2.5 rounded-2xl mb-2 text-emerald-700">
+              <FiShield size={20} />
             </div>
-            <p className="text-sm font-medium text-slate-600 mb-1">Approved</p>
-            <h4 className="text-2xl font-bold text-emerald-900">{loadingMetrics ? "-" : metrics.approved}</h4>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+              Approved
+            </p>
+            <h4 className="text-2xl font-extrabold text-emerald-800">
+              {loadingMetrics ? "-" : metrics.approved}
+            </h4>
           </div>
         </div>
       </div>
 
-      <style jsx global>{`
-        @media print {
-          body {
-            print-color-adjust: exact;
-            -webkit-print-color-adjust: exact;
-          }
-          .sidebar-container, .topbar, .no-print {
-            display: none !important;
-          }
-          main {
-            padding: 0 !important;
-            margin: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-          }
-        }
-      `}</style>
+      {/* ── Generate Report Form ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+        <div>
+          <h3 className="text-base font-bold text-slate-900">Compile Custom Audit Report</h3>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Select an audit scope and format to generate a consolidated report
+          </p>
+        </div>
 
-      {/* ── Generate New Report ── */}
-      <div className="card-flat p-6 no-print">
-        <h3 className="text-[14px] font-semibold text-slate-900 mb-5" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-          Generate Legacy Report
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
-          {/* Report Type */}
-          <Select value={reportType} onValueChange={(v) => v && setReportType(v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Report type…" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Select value={reportType} onValueChange={(val) => val && setReportType(val)}>
+            <SelectTrigger className="bg-slate-50 rounded-xl text-xs">
+              <SelectValue placeholder="Select Report Type..." />
             </SelectTrigger>
             <SelectContent>
-              {REPORT_TYPES.map((r) => (
-                <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+              {REPORT_TYPES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          {/* Date Range Picker */}
-          <Popover open={calOpen} onOpenChange={setCalOpen}>
-            <PopoverTrigger className="flex items-center gap-2 border border-[#E2E8F0] rounded-lg px-3 py-2 text-sm text-slate-600 bg-white hover:border-slate-300 outline-none transition-colors">
-              <FiCalendar className="w-4 h-4 text-slate-400 shrink-0" />
-              <span className="flex-1 text-left">{dateRange.value}</span>
-              <FiChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-52 p-1">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-2 py-1.5">
-                Select Range
-              </p>
-              {getDynamicDateRanges().map((r) => (
-                <button
-                  key={r.label}
-                  onClick={() => { setDateRange(r); setCalOpen(false); }}
-                  className={cn(
-                    "w-full text-left px-3 py-2 rounded-lg text-sm transition-colors",
-                    dateRange.label === r.label
-                      ? "bg-blue-50 text-[#1E3A5F] font-semibold"
-                      : "text-slate-700 hover:bg-slate-50"
-                  )}
-                >
-                  {r.label}
-                  <span className="block text-[10px] text-slate-400 font-normal mt-0.5">{r.value}</span>
-                </button>
+          <Select
+            value={dateRange.label}
+            onValueChange={(val) => {
+              const matched = getDynamicDateRanges().find((d) => d.label === val);
+              if (matched) setDateRange(matched);
+            }}
+          >
+            <SelectTrigger className="bg-slate-50 rounded-xl text-xs">
+              <div className="flex items-center gap-2">
+                <FiCalendar className="text-slate-400" />
+                <span>{dateRange.value}</span>
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              {getDynamicDateRanges().map((d) => (
+                <SelectItem key={d.label} value={d.label}>
+                  {d.label} ({d.value})
+                </SelectItem>
               ))}
-            </PopoverContent>
-          </Popover>
+            </SelectContent>
+          </Select>
 
-          {/* Format */}
-          <Select value={format} onValueChange={(v) => v && setFormat(v)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Format…" />
+          <Select value={format} onValueChange={(val) => val && setFormat(val)}>
+            <SelectTrigger className="bg-slate-50 rounded-xl text-xs">
+              <SelectValue placeholder="Select Format (PDF / Excel)..." />
             </SelectTrigger>
             <SelectContent>
               {FORMATS.map((f) => (
-                <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                <SelectItem key={f.value} value={f.value}>
+                  {f.label}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
 
-        {generating ? (
-          <div className="space-y-2">
-            <div className="flex justify-between text-xs text-slate-500">
-              <span>Generating report…</span>
+        {generating && (
+          <div className="space-y-2 pt-2">
+            <div className="flex justify-between text-xs text-slate-500 font-semibold">
+              <span>Compiling records & formatting tables...</span>
               <span>{Math.round(genProgress)}%</span>
             </div>
-            <Progress value={genProgress} className="h-2" />
+            <Progress value={genProgress} className="h-2 rounded-full" />
           </div>
-        ) : (
-          <Button
-            onClick={handleGenerate}
-            disabled={!reportType || !format}
-            className="text-white gap-2 disabled:opacity-40"
-            style={{ background: "#1E3A5F" }}
-          >
-            <FiFileText className="w-4 h-4" />
-            Generate Report
-          </Button>
         )}
+
+        <Button
+          onClick={handleGenerate}
+          disabled={generating}
+          className="text-white text-xs font-semibold px-6 shadow-md rounded-xl"
+          style={{ background: "#1E3A5F" }}
+        >
+          {generating ? "Compiling Report..." : "Generate & Save to Archive"}
+        </Button>
       </div>
 
-      {/* ── Generated Reports Table ── */}
-      <div className="card-flat overflow-hidden no-print">
-        <div className="px-5 py-4 border-b border-border">
-          <h3 className="text-[14px] font-semibold text-slate-900" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-            Generated Reports Archive
-          </h3>
+      {/* ── Generated Reports Archive ── */}
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50/50">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <FiLayers className="text-slate-400" /> Generated Reports Archive
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Download previously compiled executive reports and spreadsheets
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={fetchReports}
+            className="text-xs gap-1.5 text-slate-600"
+          >
+            <FiRefreshCw className="w-3.5 h-3.5" />
+            Refresh
+          </Button>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-slate-50">
-                {["Report Name", "Format", "Generated By", "Date & Time", "Size", ""].map((h) => (
-                  <th key={h} className="px-5 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider whitespace-nowrap">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {loading ? (
-                Array.from({ length: 4 }).map((_, idx) => (
-                  <tr key={idx} className="animate-pulse">
-                    <td className="px-5 py-4 flex items-center gap-2">
-                      <Skeleton className="h-4 w-4 rounded" />
-                      <Skeleton className="h-4 w-48" />
+
+        {loading ? (
+          <div className="p-8 text-center text-xs text-slate-400">Loading reports archive...</div>
+        ) : reports.length === 0 ? (
+          <div className="p-12 text-center text-slate-400 text-xs">
+            <FiFileText size={36} className="mx-auto mb-2 text-slate-300" />
+            <p className="font-semibold text-slate-700 text-sm">No compiled reports in archive</p>
+            <p className="text-slate-400 mt-1">
+              Select a scope above and click Generate to produce PDF and Excel reports.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold">
+                <tr>
+                  <th className="px-6 py-3.5">Report Title</th>
+                  <th className="px-6 py-3.5">Format</th>
+                  <th className="px-6 py-3.5">Date Range</th>
+                  <th className="px-6 py-3.5">Generated By</th>
+                  <th className="px-6 py-3.5">File Size</th>
+                  <th className="px-6 py-3.5 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {reports.map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-6 py-3.5 font-bold text-slate-800 flex items-center gap-2">
+                      <FiFileText className="text-blue-600" />
+                      {r.name}
                     </td>
-                    <td className="px-5 py-4"><Skeleton className="h-5 w-12 rounded-full" /></td>
-                    <td className="px-5 py-4"><Skeleton className="h-4 w-20" /></td>
-                    <td className="px-5 py-4"><Skeleton className="h-4 w-32" /></td>
-                    <td className="px-5 py-4"><Skeleton className="h-4 w-12" /></td>
-                    <td className="px-5 py-4"><Skeleton className="h-7 w-20 rounded-md" /></td>
-                  </tr>
-                ))
-              ) : (
-                reports.map((r, i) => (
-                  <tr key={i} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <FiFileText className="w-4 h-4 text-slate-300 shrink-0" />
-                        <span className="font-medium text-slate-900">{r.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${r.type === "PDF" ? "bg-rose-50 text-rose-700" : "bg-teal-50 text-teal-700"}`}>
-                        {r.type}
+                    <td className="px-6 py-3.5">
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                          r.type === "PDF" || r.format === "pdf"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        }`}
+                      >
+                        {r.type || r.format?.toUpperCase() || "PDF"}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-slate-500">{r.generatedBy}</td>
-                    <td className="px-5 py-3.5 text-slate-400 text-xs font-mono whitespace-nowrap">{r.generatedAt}</td>
-                    <td className="px-5 py-3.5 text-slate-400 text-xs">{r.size}</td>
-                    <td className="px-5 py-3.5">
+                    <td className="px-6 py-3.5 text-slate-500">{r.dateRange || "All Records"}</td>
+                    <td className="px-6 py-3.5 text-slate-600">{r.generatedBy || "Admin"}</td>
+                    <td className="px-6 py-3.5 text-slate-500 font-mono">{r.size || "1.2 MB"}</td>
+                    <td className="px-6 py-3.5 text-right">
                       <Button
-                        variant="ghost" size="sm"
-                        className="gap-1.5 text-xs font-semibold"
-                        style={{ color: "#1E3A5F" }}
-                        onClick={() => handleDownload(r)}
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDownloadArchiveItem(r)}
+                        className="gap-1.5 text-xs text-blue-700 hover:bg-blue-50 border-blue-200"
                       >
                         <FiDownload className="w-3.5 h-3.5" />
                         Download
                       </Button>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

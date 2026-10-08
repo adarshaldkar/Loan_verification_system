@@ -326,8 +326,12 @@ export default function AuditLogsPage() {
                         })()}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5">
-                      <span className="font-mono text-xs text-slate-400">{log.ip}</span>
+                    <td className="px-5 py-3.5 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 font-mono text-[11px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                        {log.ip && log.ip !== "::1" && log.ip !== "127.0.0.1" && !log.ip.includes("Local")
+                          ? log.ip.replace(/^::ffff:/, "")
+                          : "127.0.0.1 (Local / Proxy)"}
+                      </span>
                     </td>
                   </tr>
                 ))
