@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+require("./observability/tracer"); // OpenTelemetry MUST initialize before Express/modules
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
@@ -11,6 +12,7 @@ const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const routes_1 = __importDefault(require("./routes"));
 const security_1 = require("./middlewares/security");
 const metrics_1 = require("./middlewares/metrics");
+const logger_1 = require("./observability/logger");
 // Load environment variables FIRST
 dotenv_1.default.config();
 // Validate Critical Environment Variables on Startup
@@ -49,6 +51,8 @@ app.use((0, cors_1.default)({
 }));
 // Request ID Tracing Middleware (Must run first for request correlation)
 app.use(metrics_1.requestIdMiddleware);
+// Structured JSON Logging Middleware with PII redaction and trace correlation
+app.use(logger_1.httpLoggerMiddleware);
 // Security & Parsing Middlewares
 app.use((0, helmet_1.default)({ crossOriginResourcePolicy: false }));
 app.use(express_1.default.json());
@@ -93,7 +97,7 @@ app.use('/api/v1', routes_1.default);
 app.use('/api', routes_1.default);
 // Global Error Handling Middleware
 app.use((err, req, res, next) => {
-    console.error(err.stack);
+    logger_1.logger.error({ err, req_id: req.headers['x-request-id'] }, 'Unhandled Application Error');
     res.status(500).json({ success: false, message: 'Internal Server Error', error: process.env.NODE_ENV === 'production' ? undefined : err.message });
 });
 // Start the server

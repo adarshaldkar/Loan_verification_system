@@ -3,6 +3,9 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+rule_files:
+  - "/etc/prometheus/alerts/*.yml"
+
 scrape_configs:
   - job_name: "lvms-backend"
     metrics_path: "/metrics"
@@ -12,6 +15,34 @@ scrape_configs:
         labels:
           app: "lvms-express-api"
           environment: "production"
+
+  - job_name: "node-exporter"
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          instance: "vps-host"
+
+  - job_name: "cadvisor"
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels:
+          instance: "lvms-docker-host"
+
+  - job_name: "postgres-exporter"
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["postgres-exporter:9187"]
+        labels:
+          instance: "lvms-postgres"
+
+  - job_name: "redis-exporter"
+    scrape_interval: 15s
+    static_configs:
+      - targets: ["redis-exporter:9121"]
+        labels:
+          instance: "lvms-redis"
 
   - job_name: "prometheus"
     static_configs:

@@ -47,6 +47,9 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres_secure_pass@postgres:5432/loan_verification_db?schema=public
       - JWT_SECRET=lvms_super_secret_jwt_key_2026_freelance_prod
       - REDIS_URL=redis://redis:6379
+      - OTEL_SERVICE_NAME=lvms-api
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://alloy:4318
+      - ENABLE_TRACING=true
     depends_on:
       postgres:
         condition: service_healthy
@@ -84,7 +87,87 @@ services:
     networks:
       - lvms-network
 
-  # ── 6. Prometheus (Metrics Scraper & Storage) ──
+  # ── 6. Grafana Alloy (Central Telemetry Pipeline to Grafana Cloud) ──
+  alloy:
+    image: grafana/alloy:v1.3.1
+    container_name: lvms-alloy
+    restart: always
+    environment:
+      - GRAFANA_CLOUD_OTLP_ENDPOINT=${GRAFANA_CLOUD_OTLP_ENDPOINT:-}
+      - GRAFANA_CLOUD_OTLP_AUTH_HEADER=${GRAFANA_CLOUD_OTLP_AUTH_HEADER:-}
+      - GRAFANA_CLOUD_PROMETHEUS_REMOTE_WRITE_URL=${GRAFANA_CLOUD_PROMETHEUS_REMOTE_WRITE_URL:-}
+      - GRAFANA_CLOUD_PROMETHEUS_USERNAME=${GRAFANA_CLOUD_PROMETHEUS_USERNAME:-}
+      - GRAFANA_CLOUD_PROMETHEUS_API_KEY=${GRAFANA_CLOUD_PROMETHEUS_API_KEY:-}
+      - GRAFANA_CLOUD_LOKI_URL=${GRAFANA_CLOUD_LOKI_URL:-}
+      - GRAFANA_CLOUD_LOKI_USERNAME=${GRAFANA_CLOUD_LOKI_USERNAME:-}
+      - GRAFANA_CLOUD_LOKI_API_KEY=${GRAFANA_CLOUD_LOKI_API_KEY:-}
+    volumes:
+      - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command:
+      - run
+      - /etc/alloy/config.alloy
+    depends_on:
+      - backend
+    networks:
+      - lvms-network
+
+  # ── 7. Node Exporter (Host VPS Metrics) ──
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: lvms-node-exporter
+    restart: always
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+    networks:
+      - lvms-network
+
+  # ── 8. cAdvisor (Per-Container Resource Metrics) ──
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: lvms-cadvisor
+    restart: always
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - lvms-network
+
+  # ── 9. PostgreSQL Exporter ──
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: lvms-postgres-exporter
+    restart: always
+    environment:
+      - DATA_SOURCE_NAME=postgresql://postgres:postgres_secure_pass@postgres:5432/loan_verification_db?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lvms-network
+
+  # ── 10. Redis Exporter ──
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    container_name: lvms-redis-exporter
+    restart: always
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    depends_on:
+      - redis
+    networks:
+      - lvms-network
+
+  # ── 11. Prometheus (Local TSDB & Alerting Engine) ──
   prometheus:
     image: prom/prometheus:latest
     container_name: lvms-prometheus
@@ -93,6 +176,7 @@ services:
       - "9090:9090"
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts:/etc/prometheus/alerts:ro
       - prometheusdata:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -103,7 +187,7 @@ services:
     networks:
       - lvms-network
 
-  # ── 7. Grafana (Observability & Health Dashboards) ──
+  # ── 12. Grafana (Observability & Health Dashboards) ──
   grafana:
     image: grafana/grafana:latest
     container_name: lvms-grafana

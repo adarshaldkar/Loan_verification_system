@@ -1,3 +1,4 @@
+import './observability/tracer'; // OpenTelemetry MUST initialize before Express/modules
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -6,6 +7,7 @@ import cookieParser from 'cookie-parser';
 import routes from './routes';
 import { globalLimiter, ipBlacklistHandler, trackSecurityFailures } from './middlewares/security';
 import { metricsMiddleware, metricsHandler, recordPageViewHandler, requestIdMiddleware } from './middlewares/metrics';
+import { httpLoggerMiddleware, logger } from './observability/logger';
 
 // Load environment variables FIRST
 dotenv.config();
@@ -54,6 +56,9 @@ app.use(cors({
 
 // Request ID Tracing Middleware (Must run first for request correlation)
 app.use(requestIdMiddleware);
+
+// Structured JSON Logging Middleware with PII redaction and trace correlation
+app.use(httpLoggerMiddleware);
 
 // Security & Parsing Middlewares
 app.use(helmet({ crossOriginResourcePolicy: false }));
@@ -106,7 +111,7 @@ app.use('/api', routes);
 
 // Global Error Handling Middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-  console.error(err.stack);
+  logger.error({ err, req_id: req.headers['x-request-id'] }, 'Unhandled Application Error');
   res.status(500).json({ success: false, message: 'Internal Server Error', error: process.env.NODE_ENV === 'production' ? undefined : err.message });
 });
 

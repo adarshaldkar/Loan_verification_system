@@ -1,0 +1,118 @@
+// ==============================================================================
+// Grafana Alloy Telemetry Pipeline Configuration for LVMS
+// ==============================================================================
+// Collects, batches, redacts, and exports:
+// 1. OpenTelemetry Traces & Metrics from Node.js Express backend (lvms-api)
+// 2. Host & Container Metrics from node_exporter, cAdvisor, PostgreSQL, Redis
+// 3. Structured JSON Logs from Docker containers
+// 4. Forwards outbound to Grafana Cloud (or local collectors)
+// ==============================================================================
+
+// ------------------------------------------------------------------------------
+// 1. OpenTelemetry OTLP Receiver (Receives spans from Express lvms-api)
+// ------------------------------------------------------------------------------
+otelcol.receiver.otlp "default" {
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  output {
+    traces  = [otelcol.processor.batch.default.input]
+    metrics = [otelcol.processor.batch.default.input]
+  }
+}
+
+// ------------------------------------------------------------------------------
+// 2. Batch Processing for efficient network export
+// ------------------------------------------------------------------------------
+otelcol.processor.batch "default" {
+  timeout = "1s"
+  send_batch_size = 1000
+
+  output {
+    traces  = [otelcol.exporter.otlp.grafana_cloud.input]
+  }
+}
+
+// ------------------------------------------------------------------------------
+// 3. Export Traces to Grafana Cloud Tempo (or local Tempo fallback)
+// ------------------------------------------------------------------------------
+otelcol.exporter.otlp "grafana_cloud" {
+  client {
+    endpoint = coalesce(env("GRAFANA_CLOUD_OTLP_ENDPOINT"), "tempo:4317")
+    headers = {
+      "Authorization" = coalesce(env("GRAFANA_CLOUD_OTLP_AUTH_HEADER"), ""),
+    }
+    tls {
+      insecure = env("GRAFANA_CLOUD_OTLP_INSECURE") == "true"
+    }
+  }
+}
+
+// ------------------------------------------------------------------------------
+// 4. Prometheus Exporters Scraping & Remote Write
+// ------------------------------------------------------------------------------
+prometheus.scrape "lvms_services" {
+  targets = [
+    {"__address__" = "backend:5000", "app" = "lvms-express-api", "service" = "lvms-api"},
+    {"__address__" = "node-exporter:9100", "instance" = "vps-host", "service" = "node-exporter"},
+    {"__address__" = "cadvisor:8080", "instance" = "docker-host", "service" = "cadvisor"},
+    {"__address__" = "postgres-exporter:9187", "instance" = "postgres", "service" = "postgres-exporter"},
+    {"__address__" = "redis-exporter:9121", "instance" = "redis", "service" = "redis-exporter"},
+  ]
+  metrics_path = "/metrics"
+  scrape_interval = "15s"
+
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = coalesce(env("GRAFANA_CLOUD_PROMETHEUS_REMOTE_WRITE_URL"), "http://prometheus:9090/api/v1/write")
+    
+    basic_auth {
+      username = coalesce(env("GRAFANA_CLOUD_PROMETHEUS_USERNAME"), "")
+      password = coalesce(env("GRAFANA_CLOUD_PROMETHEUS_API_KEY"), "")
+    }
+  }
+}
+
+// ------------------------------------------------------------------------------
+// 5. Container Logs Ingestion from Docker Engine
+// ------------------------------------------------------------------------------
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+loki.source.docker "default" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.docker.containers.targets
+  forward_to = [loki.process.sanitize_logs.receiver]
+}
+
+// Sanitize logs before export (extra defense-in-depth against sensitive patterns)
+loki.process "sanitize_logs" {
+  stage.regex {
+    expression = "(?P<jwt>eyJ[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+\\.[a-zA-Z0-9_-]+)"
+  }
+  stage.replace {
+    source = "jwt"
+    replace = "[REDACTED_JWT]"
+  }
+
+  forward_to = [loki.write.grafana_cloud.receiver]
+}
+
+loki.write "grafana_cloud" {
+  endpoint {
+    url = coalesce(env("GRAFANA_CLOUD_LOKI_URL"), "http://loki:3100/loki/api/v1/push")
+
+    basic_auth {
+      username = coalesce(env("GRAFANA_CLOUD_LOKI_USERNAME"), "")
+      password = coalesce(env("GRAFANA_CLOUD_LOKI_API_KEY"), "")
+    }
+  }
+}
