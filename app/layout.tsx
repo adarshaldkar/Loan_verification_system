@@ -3,6 +3,7 @@ import { Inter, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
+import PageAnalyticsTracker from "@/components/analytics/PageAnalyticsTracker";
 import "./globals.css";
 
 /* ─── Font Definitions ───────────────────────────────────────────────────── */
@@ -74,6 +75,7 @@ export default function RootLayout({
     >
       <body className="h-full antialiased" suppressHydrationWarning>
         <TooltipProvider>
+          <PageAnalyticsTracker />
           {children}
           <PwaInstallPrompt />
           <Toaster position="top-right" />

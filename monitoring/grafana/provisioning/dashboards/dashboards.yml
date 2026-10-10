@@ -1,0 +1,12 @@
+apiVersion: 1
+
+providers:
+  - name: "LVMS System Dashboards"
+    orgId: 1
+    folder: "LVMS Production Analytics"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/definitions
