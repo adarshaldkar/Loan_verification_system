@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import routes from './routes';
 import { globalLimiter, ipBlacklistHandler, trackSecurityFailures } from './middlewares/security';
+import { metricsMiddleware, metricsHandler } from './middlewares/metrics';
 
 // Load environment variables FIRST
 dotenv.config();
@@ -59,6 +60,10 @@ app.use(cookieParser());
 app.use(ipBlacklistHandler);
 app.use(globalLimiter);
 app.use(trackSecurityFailures);
+app.use(metricsMiddleware);
+
+// ─── Prometheus Metrics Scraping Endpoint ───────────────────────────────────
+app.get('/metrics', metricsHandler);
 
 // ─── Health & Keep-Alive / Wake-up Endpoints (Bypasses rate limiting) ───────
 const healthCheckHandler = (req: Request, res: Response) => {

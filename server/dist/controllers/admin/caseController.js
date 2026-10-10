@@ -9,8 +9,12 @@ const helpers_1 = require("../../utils/helpers");
 const getCases = async (req, res) => {
     try {
         const adminId = req.user?.id;
+        const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
         const { status } = req.query;
-        const whereClause = { adminId };
+        const whereClause = {};
+        if (!isSuperAdmin) {
+            whereClause.adminId = adminId;
+        }
         if (status && status !== 'RE-VERIFICATION')
             whereClause.status = status;
         let cases = await db_1.default.verificationCase.findMany({
@@ -43,7 +47,7 @@ const getCases = async (req, res) => {
             return {
                 id: item.id,
                 customer: (0, helpers_1.parseFullName)(item.customer.firstName, item.customer.lastName),
-                type: item.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
+                type: item.type,
                 status: isRevision ? (0, helpers_1.resolveCaseStatus)('RE_VERIFICATION') : (0, helpers_1.resolveCaseStatus)(item.status),
                 agent: (0, helpers_1.resolveAgentName)(item.agent ?? null),
                 agentId: item.agentId,
@@ -62,14 +66,21 @@ exports.getCases = getCases;
 const assignCase = async (req, res) => {
     try {
         const adminId = req.user?.id;
+        const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
         const caseId = req.params.caseId;
         const agentId = req.body.agentId;
+        const caseWhere = { id: caseId };
+        const agentWhere = { id: agentId, role: 'FIELD_AGENT' };
+        if (!isSuperAdmin) {
+            caseWhere.adminId = adminId;
+            agentWhere.adminId = adminId;
+        }
         const [existingCase, agent] = await Promise.all([
             db_1.default.verificationCase.findFirst({
-                where: { id: caseId, adminId },
+                where: caseWhere,
                 include: { customer: true }
             }),
-            db_1.default.user.findFirst({ where: { id: agentId, role: 'FIELD_AGENT', adminId } }),
+            db_1.default.user.findFirst({ where: agentWhere }),
         ]);
         if (!existingCase)
             return res.status(404).json({ success: false, message: 'Case not found' });
@@ -98,12 +109,17 @@ exports.assignCase = assignCase;
 const updateCaseStatus = async (req, res) => {
     try {
         const adminId = req.user?.id;
+        const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
         const caseId = req.params.caseId;
         const { status } = req.body;
         if (!['COMPLETED', 'REJECTED', 'PENDING', 'IN_PROGRESS'].includes(status)) {
             return res.status(400).json({ success: false, message: 'Invalid status update' });
         }
-        const existing = await db_1.default.verificationCase.findFirst({ where: { id: caseId, adminId } });
+        const caseWhere = { id: caseId };
+        if (!isSuperAdmin) {
+            caseWhere.adminId = adminId;
+        }
+        const existing = await db_1.default.verificationCase.findFirst({ where: caseWhere });
         if (!existing)
             return res.status(404).json({ success: false, message: 'Case not found' });
         const updatedCase = await db_1.default.verificationCase.update({
@@ -120,9 +136,14 @@ exports.updateCaseStatus = updateCaseStatus;
 const getCaseById = async (req, res) => {
     try {
         const adminId = req.user?.id;
+        const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
         const caseId = req.params.caseId;
+        const caseWhere = { id: caseId };
+        if (!isSuperAdmin) {
+            caseWhere.adminId = adminId;
+        }
         const caseData = await db_1.default.verificationCase.findFirst({
-            where: { id: caseId, adminId },
+            where: caseWhere,
             include: {
                 customer: true,
                 agent: { select: { firstName: true, lastName: true, branch: true } },
@@ -135,7 +156,7 @@ const getCaseById = async (req, res) => {
         const data = {
             id: caseData.id,
             customer: (0, helpers_1.parseFullName)(caseData.customer.firstName, caseData.customer.lastName),
-            type: caseData.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
+            type: caseData.type,
             status: (0, helpers_1.resolveCaseStatus)(caseData.status),
             agent: (0, helpers_1.resolveAgentName)(caseData.agent ?? null),
             branch: caseData.branch ?? caseData.agent?.branch ?? caseData.customer.branch ?? 'Unassigned',
@@ -161,6 +182,7 @@ exports.getCaseById = getCaseById;
 const assignBulkCases = async (req, res) => {
     try {
         const adminId = req.user?.id;
+        const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
         const { caseIds, agentId } = req.body;
         if (!caseIds || !Array.isArray(caseIds) || caseIds.length === 0) {
             return res.status(400).json({ success: false, message: 'No cases provided' });
@@ -168,17 +190,23 @@ const assignBulkCases = async (req, res) => {
         if (!agentId) {
             return res.status(400).json({ success: false, message: 'Agent ID is required' });
         }
+        const agentWhere = { id: agentId, role: 'FIELD_AGENT' };
+        const casesWhere = { id: { in: caseIds } };
+        if (!isSuperAdmin) {
+            agentWhere.adminId = adminId;
+            casesWhere.adminId = adminId;
+        }
         const [agent, casesToAssign] = await Promise.all([
-            db_1.default.user.findFirst({ where: { id: agentId, role: 'FIELD_AGENT', adminId } }),
+            db_1.default.user.findFirst({ where: agentWhere }),
             db_1.default.verificationCase.findMany({
-                where: { id: { in: caseIds }, adminId },
+                where: casesWhere,
                 include: { customer: true }
             })
         ]);
         if (!agent)
             return res.status(404).json({ success: false, message: 'Field Agent not found under your account' });
         const updated = await db_1.default.verificationCase.updateMany({
-            where: { id: { in: caseIds }, adminId },
+            where: casesWhere,
             data: { agentId, status: 'ASSIGNED' }
         });
         const customerNames = casesToAssign.map(c => (0, helpers_1.parseFullName)(c.customer.firstName, c.customer.lastName)).join(', ');
@@ -199,18 +227,25 @@ exports.assignBulkCases = assignBulkCases;
 const batchAssignCases = async (req, res) => {
     try {
         const adminId = req.user?.id;
+        const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
         const { assignments } = req.body;
         if (!assignments || typeof assignments !== 'object' || Object.keys(assignments).length === 0) {
             return res.status(400).json({ success: false, message: 'No assignments provided' });
         }
         const caseIds = Object.keys(assignments);
         const agentIds = Array.from(new Set(Object.values(assignments)));
+        const agentWhere = { id: { in: agentIds }, role: 'FIELD_AGENT' };
+        const casesWhere = { id: { in: caseIds } };
+        if (!isSuperAdmin) {
+            agentWhere.adminId = adminId;
+            casesWhere.adminId = adminId;
+        }
         const [agents, casesData] = await Promise.all([
             db_1.default.user.findMany({
-                where: { id: { in: agentIds }, role: 'FIELD_AGENT', adminId }
+                where: agentWhere
             }),
             db_1.default.verificationCase.findMany({
-                where: { id: { in: caseIds }, adminId },
+                where: casesWhere,
                 include: { customer: true }
             })
         ]);

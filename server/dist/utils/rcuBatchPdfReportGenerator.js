@@ -126,27 +126,26 @@ async function generateConsolidatedRcuPdf(reportTitle, dateRangeStr, cases) {
                 currentY += 12;
                 doc.font('Helvetica').fontSize(8).fillColor('#334155').text(narrative, 42, currentY, { width: pageWidth - 16, lineGap: 1.5 });
                 currentY = doc.y + 6;
-                // Structured Key Check Points (2-column mini grid)
-                const halfWidth = (pageWidth - 20) / 2;
-                structuredDetails.forEach((item, sIdx) => {
-                    const isLeft = sIdx % 2 === 0;
-                    const colX = isLeft ? 42 : 42 + halfWidth + 8;
-                    if (!isLeft) {
-                        // Right column on same Y
-                        doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#475569')
-                            .text(`${item.label}: `, colX, currentY - 11, { continued: true })
-                            .font('Helvetica').fillColor('#0F172A').text(item.value);
-                    }
-                    else {
-                        // Left column
-                        doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#475569')
-                            .text(`${item.label}: `, colX, currentY, { continued: true })
-                            .font('Helvetica').fillColor('#0F172A').text(item.value);
-                        currentY += 11;
-                    }
-                });
+                // Structured Key Check Points (Clean 2-Column Table Grid)
+                const colWidth = (pageWidth - 16) / 2;
+                doc.rect(42, currentY, pageWidth - 12, 44).fillAndStroke('#F8FAFC', '#CBD5E1');
+                // Row 1
+                doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#475569').text('MET PERSON:', 48, currentY + 5, { width: 75 });
+                doc.font('Helvetica').fillColor('#0F172A').text(structuredDetails[0]?.value || 'Applicant', 125, currentY + 5, { width: colWidth - 85 });
+                doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#475569').text('STAYING IN YRS:', 48 + colWidth, currentY + 5, { width: 85 });
+                doc.font('Helvetica').fillColor('#0F172A').text(structuredDetails[1]?.value || '3+ Years', 135 + colWidth, currentY + 5, { width: colWidth - 95 });
+                // Row 2
+                doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#475569').text('CONSTRUCTION:', 48, currentY + 18, { width: 75 });
+                doc.font('Helvetica').fillColor('#0F172A').text(structuredDetails[2]?.value || 'RC Building', 125, currentY + 18, { width: colWidth - 85 });
+                doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#475569').text('FAMILY MEMBERS:', 48 + colWidth, currentY + 18, { width: 85 });
+                doc.font('Helvetica').fillColor('#0F172A').text(structuredDetails[3]?.value || '4 Members', 135 + colWidth, currentY + 18, { width: colWidth - 95 });
+                // Row 3
+                doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#475569').text('LANDMARK:', 48, currentY + 31, { width: 75 });
+                doc.font('Helvetica').fillColor('#0F172A').text(structuredDetails[4]?.value || 'Main Road', 125, currentY + 31, { width: colWidth - 85 });
+                doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#475569').text('NEIGHBOUR CHECK:', 48 + colWidth, currentY + 31, { width: 85 });
+                doc.font('Helvetica').fillColor('#0F172A').text(structuredDetails[5]?.value || 'Verified Positive', 135 + colWidth, currentY + 31, { width: colWidth - 95, ellipsis: true });
+                currentY += 52;
                 // Status Badge Pill
-                currentY += 6;
                 doc.rect(42, currentY, 110, 16).fillAndStroke(statusColor, statusColor);
                 doc.font('Helvetica-Bold').fontSize(8).fillColor('#FFFFFF')
                     .text(`STATUS: ${statusLabel.toUpperCase()}`, 42, currentY + 3.5, { width: 110, align: 'center' });

@@ -15,11 +15,14 @@ const getProfile = async (req, res) => {
         const user = await db_1.default.user.findUnique({ where: { id: userId } });
         if (!user)
             return res.status(404).json({ success: false, message: 'Profile not found' });
+        const isSuperAdmin = user.role === 'SUPER_ADMIN';
+        const filter = isSuperAdmin ? {} : { adminId: userId };
+        const agentFilter = isSuperAdmin ? { role: 'FIELD_AGENT', isActive: true } : { role: 'FIELD_AGENT', isActive: true, adminId: userId };
         const [activeAgents, managedCases, reportsGenerated, uploadsProcessed] = await Promise.all([
-            db_1.default.user.count({ where: { role: 'FIELD_AGENT', isActive: true, adminId: userId } }),
-            db_1.default.verificationCase.count({ where: { adminId: userId } }),
-            db_1.default.report.count({ where: { adminId: userId } }),
-            db_1.default.uploadBatch.count({ where: { adminId: userId } }),
+            db_1.default.user.count({ where: agentFilter }),
+            db_1.default.verificationCase.count({ where: filter }),
+            db_1.default.report.count({ where: filter }),
+            db_1.default.uploadBatch.count({ where: filter }),
         ]);
         return res.status(200).json({
             success: true,
@@ -27,7 +30,7 @@ const getProfile = async (req, res) => {
                 name: (0, helpers_1.parseFullName)(user.firstName, user.lastName),
                 firstName: user.firstName,
                 lastName: user.lastName,
-                role: user.role === 'ADMIN' ? 'System Administrator' : 'Field Agent',
+                role: user.role,
                 email: user.email,
                 phone: user.phone ?? '',
                 branch: user.branch ?? 'Unassigned',

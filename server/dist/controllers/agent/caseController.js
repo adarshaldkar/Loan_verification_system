@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadEvidence = exports.submitVerification = exports.updateAgentCaseStatus = exports.getAgentCaseById = exports.getAgentCases = void 0;
+exports.updateAgentCaseRemark = exports.uploadVoice = exports.uploadEvidence = exports.submitVerification = exports.updateAgentCaseStatus = exports.getAgentCaseById = exports.getAgentCases = void 0;
 const db_1 = __importDefault(require("../../config/db"));
 const helpers_1 = require("../../utils/helpers");
 const getAgentCases = async (req, res) => {
@@ -199,3 +199,67 @@ const uploadEvidence = async (req, res) => {
     }
 };
 exports.uploadEvidence = uploadEvidence;
+// POST /agent/cases/:id/voice — upload voice recording for a section
+const uploadVoice = async (req, res) => {
+    try {
+        const agentId = req.user?.id;
+        const id = req.params.id;
+        const fileUrl = req.file?.path;
+        const { section } = req.body; // e.g. "Address & Meeting Confirmation"
+        if (!fileUrl) {
+            return res.status(400).json({ success: false, message: 'No voice file uploaded' });
+        }
+        const existing = await db_1.default.verificationCase.findFirst({ where: { id, agentId } });
+        if (!existing) {
+            return res.status(404).json({ success: false, message: 'Case not found or not assigned to you' });
+        }
+        const media = await db_1.default.media.create({
+            data: {
+                verificationCaseId: id,
+                url: fileUrl,
+                publicId: req.file?.filename || 'unknown',
+                type: 'VOICE',
+                section: section || null,
+            },
+        });
+        return res.status(201).json({
+            success: true,
+            message: 'Voice recording uploaded',
+            data: { id: media.id, url: media.url, section: media.section },
+        });
+    }
+    catch (error) {
+        return (0, helpers_1.apiError)(res, 'Failed to upload voice recording', 500, error);
+    }
+};
+exports.uploadVoice = uploadVoice;
+const updateAgentCaseRemark = async (req, res) => {
+    try {
+        const agentId = req.user?.id;
+        const id = req.params.id;
+        const { remarks, status } = req.body;
+        const existing = await db_1.default.verificationCase.findFirst({ where: { id, agentId } });
+        if (!existing) {
+            return res.status(404).json({ success: false, message: 'Case not found or not assigned to you' });
+        }
+        const updated = await db_1.default.verificationCase.update({
+            where: { id },
+            data: {
+                remarks: remarks !== undefined ? remarks : existing.remarks,
+                status: status || existing.status,
+            },
+        });
+        await (0, helpers_1.createAuditLog)({
+            actor: `Agent (${agentId})`,
+            action: `Agent updated remark/status for Case`,
+            entity: `Case ${id}`,
+            ip: req.ip || 'system',
+            adminId: req.user?.adminId,
+        });
+        return res.status(200).json({ success: true, message: 'Remark saved successfully', data: updated });
+    }
+    catch (error) {
+        return (0, helpers_1.apiError)(res, 'Failed to save remark', 500, error);
+    }
+};
+exports.updateAgentCaseRemark = updateAgentCaseRemark;

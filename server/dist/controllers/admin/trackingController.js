@@ -10,24 +10,45 @@ const redis_1 = __importDefault(require("../../config/redis"));
 const getActiveRides = async (req, res) => {
     try {
         const adminId = req.user?.id;
-        // Fetch rides that are STARTED belonging to this admin
+        const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
+        const whereClause = { status: 'STARTED' };
+        if (!isSuperAdmin) {
+            whereClause.adminId = adminId;
+        }
+        // Fetch rides that are STARTED, newest first
         const activeRides = await db_1.default.agentRide.findMany({
-            where: {
-                adminId,
-                status: 'STARTED',
-            },
+            where: whereClause,
             include: {
                 agent: {
-                    select: { id: true, firstName: true, lastName: true, phone: true }
+                    select: { id: true, firstName: true, lastName: true, phone: true, branch: true },
                 },
                 locations: {
                     orderBy: { timestamp: 'desc' },
-                    take: 1 // Only get the latest known location
-                }
-            }
+                    take: 1, // Only get the latest known location
+                },
+            },
+            orderBy: { startTime: 'desc' },
         });
+        // Deduplicate rides so each agent only has 1 active ride card
+        const agentSeen = new Set();
+        const deduplicatedRides = [];
+        for (const ride of activeRides) {
+            if (!agentSeen.has(ride.agentId)) {
+                agentSeen.add(ride.agentId);
+                deduplicatedRides.push(ride);
+            }
+            else {
+                // Auto-close stale duplicate ride in DB asynchronously
+                db_1.default.agentRide
+                    .update({
+                    where: { id: ride.id },
+                    data: { status: 'COMPLETED', endTime: new Date() },
+                })
+                    .catch(() => { });
+            }
+        }
         // Merge in the latest real-time coordinates cached in Redis (sub-second accuracy)
-        const activeRidesWithLatest = await Promise.all(activeRides.map(async (ride) => {
+        const activeRidesWithLatest = await Promise.all(deduplicatedRides.map(async (ride) => {
             try {
                 const latestLocStr = await redis_1.default.get(`ride:latest:${ride.id}`);
                 if (latestLocStr) {
@@ -59,6 +80,7 @@ exports.getActiveRides = getActiveRides;
 const getRideHistory = async (req, res) => {
     try {
         const adminId = req.user?.id;
+        const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
         const rideId = req.params.rideId;
         const ride = await db_1.default.agentRide.findUnique({
             where: { id: rideId },
@@ -71,7 +93,7 @@ const getRideHistory = async (req, res) => {
                 }
             }
         });
-        if (!ride || ride.adminId !== adminId) {
+        if (!ride || (!isSuperAdmin && ride.adminId !== adminId)) {
             return res.status(404).json({ success: false, message: 'Ride not found' });
         }
         return res.status(200).json({ success: true, data: ride });
@@ -84,9 +106,10 @@ exports.getRideHistory = getRideHistory;
 const forceEndRide = async (req, res) => {
     try {
         const adminId = req.user?.id;
+        const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
         const rideId = req.params.rideId;
         const ride = await db_1.default.agentRide.findUnique({ where: { id: rideId } });
-        if (!ride || ride.adminId !== adminId) {
+        if (!ride || (!isSuperAdmin && ride.adminId !== adminId)) {
             return res.status(404).json({ success: false, message: 'Ride not found' });
         }
         if (ride.status !== 'STARTED') {

@@ -10,21 +10,35 @@ const helpers_1 = require("../../utils/helpers");
 const getAgents = async (req, res) => {
     try {
         const adminId = req.user?.id;
+        const requester = await db_1.default.user.findUnique({ where: { id: adminId } });
+        const isSuperAdmin = requester?.role === 'SUPER_ADMIN';
+        const whereClause = { role: 'FIELD_AGENT' };
+        if (!isSuperAdmin) {
+            whereClause.OR = [
+                { adminId },
+                requester?.branch ? { branch: requester.branch } : {},
+                { adminId: null },
+            ].filter((obj) => Object.keys(obj).length > 0);
+        }
         const agents = await db_1.default.user.findMany({
-            where: { role: 'FIELD_AGENT', adminId },
-            include: { assignedCases: true },
-            orderBy: { createdAt: 'asc' },
+            where: whereClause,
+            include: {
+                assignedCases: {
+                    select: { id: true, status: true, createdAt: true, completedAt: true, updatedAt: true },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
         });
         const data = agents.map((agent) => {
-            const assignedCases = agent.assignedCases;
+            const assignedCases = agent.assignedCases || [];
             const completedCases = assignedCases.filter((item) => item.status === 'COMPLETED' || item.status === 'APPROVED').length;
-            const activeCases = assignedCases.filter((item) => item.status === 'ASSIGNED' || item.status === 'IN_PROGRESS').length;
+            const activeCases = assignedCases.filter((item) => item.status === 'ASSIGNED' || item.status === 'IN_PROGRESS' || item.status === 'PENDING').length;
             const rejectedCases = assignedCases.filter((item) => item.status === 'REJECTED').length;
-            const totalResolved = completedCases + rejectedCases;
-            const successRate = totalResolved === 0 ? 0 : Math.round((completedCases / totalResolved) * 100);
+            const totalCases = assignedCases.length;
+            const successRate = totalCases === 0 ? 0 : Math.min(100, Math.round((completedCases / totalCases) * 100));
             const completedDurations = assignedCases
                 .filter((item) => (item.status === 'COMPLETED' || item.status === 'APPROVED') && item.completedAt)
-                .map((item) => Math.max(1, Math.round((new Date(item.completedAt).getTime() - new Date(item.createdAt).getTime()) / 86400000)));
+                .map((item) => Math.max(0.5, Math.round(((new Date(item.completedAt).getTime() - new Date(item.createdAt).getTime()) / 86400000) * 10) / 10));
             const avgTurnaround = completedDurations.length
                 ? `${(completedDurations.reduce((sum, value) => sum + value, 0) / completedDurations.length).toFixed(1)} days`
                 : '—';
@@ -39,6 +53,8 @@ const getAgents = async (req, res) => {
                 status: agent.isActive ? 'Active' : 'Inactive',
                 activeCases,
                 completedCases,
+                rejectedCases,
+                totalCases,
                 successRate,
                 avgTurnaround,
             };
@@ -53,15 +69,31 @@ exports.getAgents = getAgents;
 const toggleAgentStatus = async (req, res) => {
     try {
         const adminId = req.user?.id;
+        const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
         const agentId = req.params.agentId;
-        const agent = await db_1.default.user.findFirst({ where: { id: agentId, adminId } });
+        const whereClause = { id: agentId, role: 'FIELD_AGENT' };
+        if (!isSuperAdmin) {
+            whereClause.adminId = adminId;
+        }
+        const agent = await db_1.default.user.findFirst({ where: whereClause });
         if (!agent)
             return res.status(404).json({ success: false, message: 'Agent not found' });
         const updated = await db_1.default.user.update({
             where: { id: agentId },
             data: { isActive: !agent.isActive },
         });
-        return res.status(200).json({ success: true, message: `Agent ${updated.isActive ? 'activated' : 'deactivated'}`, data: updated });
+        await (0, helpers_1.createAuditLog)({
+            actor: `Admin (${adminId})`,
+            action: updated.isActive ? 'Activated agent' : 'Deactivated agent',
+            entity: `Agent ${(0, helpers_1.parseFullName)(agent.firstName, agent.lastName)} (${agent.email})`,
+            ip: req.ip || 'system',
+            adminId,
+        });
+        return res.status(200).json({
+            success: true,
+            message: `Agent ${updated.isActive ? 'activated' : 'deactivated'} successfully`,
+            data: updated,
+        });
     }
     catch (error) {
         return (0, helpers_1.apiError)(res, 'Failed to toggle agent status', 500, error);
@@ -71,9 +103,14 @@ exports.toggleAgentStatus = toggleAgentStatus;
 const updateAgent = async (req, res) => {
     try {
         const adminId = req.user?.id;
+        const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
         const agentId = req.params.agentId;
         const { firstName, lastName, email, phone, branch, password } = req.body;
-        const agent = await db_1.default.user.findFirst({ where: { id: agentId, adminId } });
+        const whereClause = { id: agentId, role: 'FIELD_AGENT' };
+        if (!isSuperAdmin) {
+            whereClause.adminId = adminId;
+        }
+        const agent = await db_1.default.user.findFirst({ where: whereClause });
         if (!agent)
             return res.status(404).json({ success: false, message: 'Agent not found' });
         const updateData = {
@@ -89,6 +126,13 @@ const updateAgent = async (req, res) => {
         const updated = await db_1.default.user.update({
             where: { id: agentId },
             data: updateData,
+        });
+        await (0, helpers_1.createAuditLog)({
+            actor: `Admin (${adminId})`,
+            action: 'Updated agent profile',
+            entity: `Agent ${(0, helpers_1.parseFullName)(updated.firstName, updated.lastName)} (${updated.email})`,
+            ip: req.ip || 'system',
+            adminId,
         });
         return res.status(200).json({ success: true, message: 'Agent updated successfully', data: updated });
     }

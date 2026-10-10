@@ -32,8 +32,10 @@ router.get('/dashboard', dashboardController_1.getAgentDashboard);
 router.get('/cases', caseController_1.getAgentCases);
 router.get('/cases/:id', caseController_1.getAgentCaseById);
 router.patch('/cases/:id/status', caseController_1.updateAgentCaseStatus);
+router.patch('/cases/:id/remarks', caseController_1.updateAgentCaseRemark);
 router.post('/cases/:id/submit', caseController_1.submitVerification);
 router.post('/cases/:id/evidence', cloudinary_1.upload.single('file'), caseController_1.uploadEvidence);
+router.post('/cases/:id/voice', cloudinary_1.uploadAudio.single('audio'), caseController_1.uploadVoice);
 // ── Profile ────────────────────────────────────────────────────────────────
 router.get('/profile', profileController_1.getAgentProfile);
 router.put('/profile', profileController_1.updateAgentProfile);

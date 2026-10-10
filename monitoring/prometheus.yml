@@ -1,0 +1,18 @@
+# Prometheus Configuration for Loan Verification Management System (LVMS)
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "lvms-backend"
+    metrics_path: "/metrics"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["backend:5000"]
+        labels:
+          app: "lvms-express-api"
+          environment: "production"
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

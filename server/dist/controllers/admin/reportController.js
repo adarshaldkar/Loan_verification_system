@@ -7,8 +7,8 @@ exports.exportRcuBatchPdf = exports.downloadCaseRcuPdf = exports.downloadCaseRcu
 const db_1 = __importDefault(require("../../config/db"));
 const helpers_1 = require("../../utils/helpers");
 const rcuReportGenerator_1 = require("../../utils/rcuReportGenerator");
-const rcuPdfReportGenerator_1 = require("../../utils/rcuPdfReportGenerator");
 const rcuBatchPdfReportGenerator_1 = require("../../utils/rcuBatchPdfReportGenerator");
+const reports_1 = require("../../utils/reports");
 const getReports = async (req, res) => {
     try {
         const adminId = req.user?.id;
@@ -149,7 +149,7 @@ const downloadCaseRcuPdf = async (req, res) => {
         if (!caseData) {
             return res.status(404).json({ success: false, message: 'Case not found or unauthorized' });
         }
-        const pdfBuffer = await (0, rcuPdfReportGenerator_1.generateRcuPdfReport)(caseData);
+        const pdfBuffer = await (0, reports_1.generateDynamicCasePdf)(caseData);
         const safeApplicant = `${caseData.customer.firstName}_${caseData.customer.lastName}`.replace(/[^a-zA-Z0-9_]/g, '');
         const filename = `RCU_REPORT_${safeApplicant}_${caseData.customer.applicationId || caseId.slice(0, 8)}.pdf`;
         res.setHeader('Content-Type', 'application/pdf');

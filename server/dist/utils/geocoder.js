@@ -6,8 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.generateSearchCandidates = generateSearchCandidates;
 exports.findKnownRegion = findKnownRegion;
 exports.geocodeAddress = geocodeAddress;
+exports.batchGeocodeAddresses = batchGeocodeAddresses;
 const redis_1 = __importDefault(require("../config/redis"));
-// City/district anchors. Used ONLY when Nominatim is rate-limited/unreachable.
+// City/district authentic anchors. Used ONLY when online geocoders are unreachable.
 const KNOWN_REGION_COORDINATES = {
     puducherry: { lat: 11.9416, lng: 79.8083 },
     pondicherry: { lat: 11.9416, lng: 79.8083 },
@@ -51,7 +52,7 @@ const KNOWN_REGION_COORDINATES = {
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
 const NOMINATIM_USER_AGENT = 'LoanVerificationSystem/1.0 (Vistaar Financial Services; loan verification field app)';
 const REQUEST_INTERVAL_MS = 1100; // Nominatim usage policy: max 1 req/sec
-const RESULT_TTL_SECONDS = 60 * 60 * 24 * 30;
+const RESULT_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days cache
 let lastRequestAt = 0;
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -87,14 +88,50 @@ function findKnownRegion(rawAddress) {
     const normalized = rawAddress.toLowerCase().replace(/[^a-z]/g, '');
     for (const [key, coords] of Object.entries(KNOWN_REGION_COORDINATES)) {
         if (normalized.includes(key.replace(/[^a-z]/g, ''))) {
-            let hash = 0;
-            for (let i = 0; i < rawAddress.length; i++) {
-                hash = rawAddress.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            const latJitter = (Math.abs(hash) % 50) / 5000 - 0.005;
-            const lngJitter = ((Math.abs(hash) >> 4) % 50) / 5000 - 0.005;
-            return { lat: coords.lat + latJitter, lng: coords.lng + lngJitter };
+            // Return authentic centroid without artificial jitter
+            return { lat: coords.lat, lng: coords.lng };
         }
+    }
+    return null;
+}
+/**
+ * High-precision Google Geocoding API integration (Used when GOOGLE_MAPS_API_KEY is configured).
+ */
+async function queryGoogleGeocoding(query) {
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.GEOCODING_API_KEY;
+    if (!apiKey)
+        return null;
+    try {
+        const params = new URLSearchParams({
+            address: query,
+            key: apiKey,
+            region: 'in',
+        });
+        const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`);
+        if (!res.ok)
+            return null;
+        const data = await res.json();
+        if (data.status === 'OK' && data.results && data.results.length > 0) {
+            const first = data.results[0];
+            const loc = first.geometry?.location;
+            if (loc && typeof loc.lat === 'number' && typeof loc.lng === 'number') {
+                const locationType = first.geometry?.location_type;
+                const accuracy = locationType === 'ROOFTOP' || locationType === 'RANGE_INTERPOLATED'
+                    ? 'house'
+                    : locationType === 'GEOMETRIC_CENTER'
+                        ? 'street'
+                        : 'city';
+                return {
+                    lat: loc.lat,
+                    lng: loc.lng,
+                    accuracy,
+                    displayName: first.formatted_address || query,
+                };
+            }
+        }
+    }
+    catch (err) {
+        console.warn('[Google Geocoder] Query failed, falling back to OSM:', err.message);
     }
     return null;
 }
@@ -154,16 +191,23 @@ async function queryNominatim(query) {
     }
     return null;
 }
+// Local in-memory address cache to avoid duplicate network calls
+const memoryAddressCache = new Map();
 function cacheKey(rawAddress) {
     return `geocode:${rawAddress.trim().toLowerCase().replace(/\s+/g, ' ')}`;
 }
 async function readCache(key) {
+    const mem = memoryAddressCache.get(key);
+    if (mem)
+        return mem;
     try {
         const cached = await redis_1.default.get(key);
         if (cached) {
             const parsed = JSON.parse(cached);
             if (parsed && typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
-                return { ...parsed, source: 'cache' };
+                const res = { ...parsed, source: 'cache' };
+                memoryAddressCache.set(key, res);
+                return res;
             }
         }
     }
@@ -173,6 +217,7 @@ async function readCache(key) {
     return null;
 }
 async function writeCache(key, result) {
+    memoryAddressCache.set(key, result);
     try {
         await redis_1.default.set(key, JSON.stringify(result), 'EX', RESULT_TTL_SECONDS);
     }
@@ -181,18 +226,26 @@ async function writeCache(key, result) {
     }
 }
 /**
- * Resolves a raw address to coordinates.
- * Tiers: Redis cache -> Nominatim (OSM) -> city dictionary.
- * If nothing resolves, returns null lat/lng (unknown) — NEVER a fabricated pin.
+ * Resolves a raw address to precise coordinates.
+ * Tiers: Memory Cache -> Redis Cache -> Google Maps API -> Nominatim (OSM) -> Regional Dictionary.
  */
 async function geocodeAddress(rawAddress) {
     if (!rawAddress || !rawAddress.trim()) {
         return { lat: null, lng: null, accuracy: 'unknown', source: 'unknown' };
     }
     const key = cacheKey(rawAddress);
+    // 1. Check Memory & Redis Cache
     const cached = await readCache(key);
     if (cached)
         return cached;
+    // 2. Google Maps Geocoding API (Fast, high-accuracy)
+    const googleResult = await queryGoogleGeocoding(rawAddress.trim());
+    if (googleResult) {
+        const result = { ...googleResult, source: 'google' };
+        await writeCache(key, result);
+        return result;
+    }
+    // 3. Fallback: Search candidates via OSM / Nominatim
     for (const query of generateSearchCandidates(rawAddress)) {
         const r = await queryNominatim(query);
         if (r) {
@@ -201,6 +254,7 @@ async function geocodeAddress(rawAddress) {
             return result;
         }
     }
+    // 4. Fallback: Known Regional Centroid (True coordinates, no jitter)
     const known = findKnownRegion(rawAddress);
     if (known) {
         const result = { ...known, accuracy: 'city', source: 'dictionary' };
@@ -210,4 +264,33 @@ async function geocodeAddress(rawAddress) {
     const result = { lat: null, lng: null, accuracy: 'unknown', source: 'unknown' };
     await writeCache(key, result);
     return result;
+}
+/**
+ * High-performance parallel batch geocoding with concurrency pool.
+ * Processes addresses in concurrent chunks (default 10) with automatic deduplication.
+ */
+async function batchGeocodeAddresses(addresses, concurrency = 10, onProgress) {
+    const uniqueAddresses = Array.from(new Set(addresses.map((a) => (a || '').trim()).filter(Boolean)));
+    const resultMap = new Map();
+    let completed = 0;
+    const total = uniqueAddresses.length;
+    for (let i = 0; i < uniqueAddresses.length; i += concurrency) {
+        const chunk = uniqueAddresses.slice(i, i + concurrency);
+        const chunkPromises = chunk.map(async (addr) => {
+            try {
+                const res = await geocodeAddress(addr);
+                resultMap.set(addr, res);
+            }
+            catch {
+                resultMap.set(addr, { lat: null, lng: null, accuracy: 'unknown', source: 'unknown' });
+            }
+            finally {
+                completed++;
+                if (onProgress)
+                    onProgress(completed, total);
+            }
+        });
+        await Promise.all(chunkPromises);
+    }
+    return resultMap;
 }

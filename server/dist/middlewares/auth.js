@@ -14,7 +14,11 @@ const authenticateToken = (req, res, next) => {
         return res.status(401).json({ success: false, message: 'Access denied. No authentication token provided.' });
     }
     try {
-        const secret = process.env.JWT_SECRET || '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08';
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+            console.error('CRITICAL: JWT_SECRET is missing from environment variables.');
+            return res.status(500).json({ success: false, message: 'Server configuration error: Authentication secret missing.' });
+        }
         const decoded = jsonwebtoken_1.default.verify(token, secret);
         req.user = decoded;
         next();

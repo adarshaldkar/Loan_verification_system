@@ -10,8 +10,19 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const routes_1 = __importDefault(require("./routes"));
 const security_1 = require("./middlewares/security");
+const metrics_1 = require("./middlewares/metrics");
 // Load environment variables FIRST
 dotenv_1.default.config();
+// Validate Critical Environment Variables on Startup
+const requiredEnvVars = ['DATABASE_URL', 'JWT_SECRET'];
+for (const key of requiredEnvVars) {
+    if (!process.env[key]) {
+        console.error(`❌ CRITICAL STARTUP ERROR: Environment variable "${key}" is not set.`);
+        if (process.env.NODE_ENV === 'production') {
+            process.exit(1);
+        }
+    }
+}
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
 // Allowed CORS Origins
@@ -23,13 +34,14 @@ const allowedOrigins = [
 // CORS Middleware
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps, curl, Postman)
+        // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
         if (!origin)
             return callback(null, true);
-        if (allowedOrigins.includes(origin) || origin.endsWith('.localhost:3000')) {
+        const isAllowed = allowedOrigins.some(allowed => origin === allowed || origin.endsWith('.localhost:3000') || (allowed && origin.startsWith(allowed)));
+        if (isAllowed || process.env.NODE_ENV !== 'production') {
             return callback(null, true);
         }
-        return callback(null, true); // Permissive in dev mode for smooth development
+        return callback(new Error(`CORS blocked for origin: ${origin}`));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -43,6 +55,9 @@ app.use((0, cookie_parser_1.default)());
 app.use(security_1.ipBlacklistHandler);
 app.use(security_1.globalLimiter);
 app.use(security_1.trackSecurityFailures);
+app.use(metrics_1.metricsMiddleware);
+// ─── Prometheus Metrics Scraping Endpoint ───────────────────────────────────
+app.get('/metrics', metrics_1.metricsHandler);
 // ─── Health & Keep-Alive / Wake-up Endpoints (Bypasses rate limiting) ───────
 const healthCheckHandler = (req, res) => {
     res.status(200).json({

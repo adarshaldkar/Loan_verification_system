@@ -10,10 +10,25 @@ const geocoder_1 = require("../../utils/geocoder");
 const getCustomers = async (req, res) => {
     try {
         const adminId = req.user?.id;
+        const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
+        const whereClause = {};
+        if (!isSuperAdmin) {
+            whereClause.adminId = adminId;
+        }
         const customers = await db_1.default.customer.findMany({
-            where: { adminId },
+            where: whereClause,
             include: {
                 verificationCases: {
+                    include: {
+                        agent: {
+                            select: {
+                                id: true,
+                                firstName: true,
+                                lastName: true,
+                                branch: true,
+                            }
+                        }
+                    },
                     orderBy: { createdAt: 'desc' },
                     take: 1,
                 },
@@ -21,16 +36,23 @@ const getCustomers = async (req, res) => {
             orderBy: { createdAt: 'desc' },
         });
         const data = customers.map((customer) => {
-            const latestCase = customer.verificationCases[0];
+            const latestCase = customer.verificationCases?.[0];
             return {
                 id: customer.applicationId,
+                customerId: customer.id,
+                caseId: latestCase?.id || null,
                 name: (0, helpers_1.parseFullName)(customer.firstName, customer.lastName),
+                email: customer.email || '',
                 phone: customer.phone ?? '',
-                address: customer.address,
-                loanType: customer.loanType,
+                address: customer.address || '',
+                loanType: customer.loanType || 'Personal Loan',
+                loanAmount: customer.loanAmount || 0,
+                businessName: customer.businessName || '',
+                caseType: latestCase?.type || customer.loanType || 'RESIDENTIAL',
                 caseStatus: (0, helpers_1.resolveCaseStatus)(latestCase?.status ?? 'PENDING'),
-                branch: customer.branch ?? latestCase?.branch ?? 'Unassigned',
-                uploadDate: (0, helpers_1.formatDateTime)(customer.updatedAt),
+                assignedAgent: latestCase?.agent ? (0, helpers_1.parseFullName)(latestCase.agent.firstName, latestCase.agent.lastName) : 'Unassigned',
+                branch: customer.branch ?? latestCase?.branch ?? latestCase?.agent?.branch ?? 'Unassigned',
+                uploadDate: (0, helpers_1.formatDateTime)(customer.updatedAt || customer.createdAt),
             };
         });
         return res.status(200).json({ success: true, data });

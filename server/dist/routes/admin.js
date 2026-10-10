@@ -81,6 +81,7 @@ router.get('/settings', settingsController_1.getSettings);
 router.put('/settings', settingsController_1.updateSettings);
 // ── Bulk Upload ────────────────────────────────────────────────────────────
 router.post('/upload/bulk', uploadController_1.bulkUploadCases);
+router.get('/upload/batches', uploadController_1.getUploadBatches);
 router.get('/upload/batch/:batchId', uploadController_1.getBatchStatus);
 // ── Admins ──────────────────────────────────────────────────────────────────
 router.get('/admins', manageAdminsController_1.getAdmins);

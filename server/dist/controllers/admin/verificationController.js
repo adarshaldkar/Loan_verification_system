@@ -10,29 +10,39 @@ const helpers_1 = require("../../utils/helpers");
 const getCompletedCases = async (req, res) => {
     try {
         const adminId = req.user?.id;
+        const role = req.user?.role;
+        const statusParam = req.query.status;
+        // SUPER_ADMIN sees all completed cases; ADMIN/MANAGER see only their own
+        const whereClause = {};
+        if (role !== 'SUPER_ADMIN') {
+            whereClause.adminId = adminId;
+        }
+        if (statusParam && statusParam !== 'All') {
+            whereClause.status = statusParam;
+        }
+        else {
+            whereClause.status = { in: ['COMPLETED', 'APPROVED', 'REJECTED', 'PENDING', 'IN_PROGRESS'] };
+        }
         const cases = await db_1.default.verificationCase.findMany({
-            where: {
-                adminId,
-                status: 'COMPLETED',
-            },
+            where: whereClause,
             include: {
                 customer: true,
                 agent: { select: { id: true, firstName: true, lastName: true, branch: true, email: true } },
                 media: true,
             },
-            orderBy: { completedAt: 'desc' },
+            orderBy: { updatedAt: 'desc' },
         });
         const data = cases.map((item) => ({
             id: item.id,
             customer: (0, helpers_1.parseFullName)(item.customer.firstName, item.customer.lastName),
             applicationId: item.customer.applicationId,
-            type: item.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
+            type: item.type,
             status: item.status,
             agent: (0, helpers_1.resolveAgentName)(item.agent ?? null),
             agentId: item.agentId,
             agentEmail: item.agent?.email ?? null,
             branch: item.branch ?? item.agent?.branch ?? item.customer.branch ?? 'Unassigned',
-            submittedAt: item.completedAt ? (0, helpers_1.formatDateTime)(item.completedAt) : 'Pending',
+            submittedAt: item.completedAt ? (0, helpers_1.formatDateTime)(item.completedAt) : (0, helpers_1.formatDateTime)(item.updatedAt),
             loanAmount: item.customer.loanAmount,
             loanType: item.customer.loanType,
             address: item.customer.address,
@@ -49,9 +59,15 @@ exports.getCompletedCases = getCompletedCases;
 const getVerificationDetail = async (req, res) => {
     try {
         const adminId = req.user?.id;
+        const role = req.user?.role;
         const caseId = req.params.caseId;
+        // SUPER_ADMIN can view any case; others only their own
+        const whereClause = { id: caseId };
+        if (role !== 'SUPER_ADMIN') {
+            whereClause.adminId = adminId;
+        }
         const caseData = await db_1.default.verificationCase.findFirst({
-            where: { id: caseId, adminId },
+            where: whereClause,
             include: {
                 customer: true,
                 agent: { select: { id: true, firstName: true, lastName: true, branch: true, email: true, phone: true } },
@@ -80,7 +96,7 @@ const getVerificationDetail = async (req, res) => {
                 loanType: caseData.customer.loanType,
                 businessName: caseData.customer.businessName,
             },
-            type: caseData.type === 'RESIDENTIAL' ? 'Residential' : 'Business',
+            type: caseData.type,
             status: caseData.status,
             agent: {
                 name: (0, helpers_1.resolveAgentName)(caseData.agent ?? null),
@@ -90,7 +106,7 @@ const getVerificationDetail = async (req, res) => {
                 branch: caseData.agent?.branch ?? 'N/A',
             },
             branch: caseData.branch ?? caseData.agent?.branch ?? caseData.customer.branch ?? 'Unassigned',
-            submittedAt: caseData.completedAt ? (0, helpers_1.formatDateTime)(caseData.completedAt) : 'Pending',
+            submittedAt: caseData.completedAt ? (0, helpers_1.formatDateTime)(caseData.completedAt) : (0, helpers_1.formatDateTime)(caseData.updatedAt),
             createdAt: (0, helpers_1.formatDateTime)(caseData.createdAt),
             // Geo-tag data
             geoTag: {
@@ -100,7 +116,7 @@ const getVerificationDetail = async (req, res) => {
             },
             // Agent remarks
             remarks: caseData.remarks || 'No remarks provided.',
-            // Residential / Business form data
+            // Verification form data
             profileData,
             // Media evidence (photos)
             media: caseData.media.map((m) => ({
@@ -108,6 +124,7 @@ const getVerificationDetail = async (req, res) => {
                 url: m.url,
                 publicId: m.publicId,
                 type: m.type,
+                section: m.section || null,
                 createdAt: (0, helpers_1.formatDateTime)(m.createdAt),
             })),
         };
@@ -127,8 +144,13 @@ const reviewCase = async (req, res) => {
         if (!['APPROVED', 'REJECTED', 'NEEDS_REVISION'].includes(decision)) {
             return res.status(400).json({ success: false, message: 'Invalid decision. Must be APPROVED, REJECTED, or NEEDS_REVISION.' });
         }
+        const isSuperAdmin = req.user?.role === 'SUPER_ADMIN';
+        const whereClause = { id: caseId };
+        if (!isSuperAdmin) {
+            whereClause.adminId = adminId;
+        }
         const existingCase = await db_1.default.verificationCase.findFirst({
-            where: { id: caseId, adminId },
+            where: whereClause,
             include: {
                 agent: { select: { id: true, firstName: true, lastName: true } },
                 customer: { select: { firstName: true, lastName: true, applicationId: true } },

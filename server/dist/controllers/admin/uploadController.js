@@ -3,12 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getBatchStatus = exports.bulkUploadCases = exports.activeBatches = void 0;
+exports.getUploadBatches = exports.getBatchStatus = exports.bulkUploadCases = void 0;
 const db_1 = __importDefault(require("../../config/db"));
 const helpers_1 = require("../../utils/helpers");
-const geocoder_1 = require("../../utils/geocoder");
-// Memory cache to store active batch progress updates
-exports.activeBatches = new Map();
+const uploadQueue_1 = require("../../queues/uploadQueue");
 const bulkUploadCases = async (req, res) => {
     try {
         const adminId = req.user?.id;
@@ -40,135 +38,21 @@ const bulkUploadCases = async (req, res) => {
                 adminId,
             }
         });
-        // 3. Initialize progress tracking
-        exports.activeBatches.set(batch.id, {
+        // 3. Enqueue Background Processing via BullMQ / Parallel Engine
+        await (0, uploadQueue_1.enqueueUploadJob)({
+            batchId: batch.id,
             fileName: batch.fileName,
-            totalRows: rows.length,
-            processedRows: 0,
-            validRows: 0,
-            errorRows: 0,
-            status: 'PROCESSING',
-            message: 'Initialising background import...',
-            caseIds: [],
+            rows,
+            adminId,
+            userEmail: req.user?.email || 'Admin',
+            ip: req.ip || 'system',
         });
-        // 4. Return success immediately
-        res.status(200).json({
+        // 4. Instant Response (< 100ms)
+        return res.status(200).json({
             success: true,
-            message: 'File uploaded successfully. Background processing started.',
+            message: 'File accepted. High-performance parallel background processing started.',
             batchId: batch.id,
             totalRows: rows.length,
-        });
-        // 5. Spawn background processor
-        setImmediate(async () => {
-            let processedCount = 0;
-            let validCount = 0;
-            let errorCount = 0;
-            let createdCaseIds = [];
-            for (const row of rows) {
-                try {
-                    if (!row.name || !row.phone || !row.address) {
-                        errorCount++;
-                        processedCount++;
-                        continue;
-                    }
-                    const [firstName, ...lastNameParts] = String(row.name).trim().split(' ');
-                    const lastName = lastNameParts.join(' ') || '';
-                    const phone = String(row.phone).trim();
-                    let customer = await db_1.default.customer.findFirst({
-                        where: {
-                            firstName: { equals: firstName, mode: 'insensitive' },
-                            lastName: { equals: lastName, mode: 'insensitive' },
-                            phone: phone,
-                            adminId,
-                        }
-                    });
-                    if (!customer) {
-                        customer = await db_1.default.customer.create({
-                            data: {
-                                applicationId: `APP-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
-                                firstName,
-                                lastName,
-                                phone: phone,
-                                address: String(row.address).trim(),
-                                loanAmount: Number(row.loanAmount) || 0,
-                                loanType: row.loanType || 'Personal',
-                                adminId,
-                            }
-                        });
-                    }
-                    // Geocode address before creating the case (throttled to 1 req/sec; Redis-cached)
-                    let addrLat = null;
-                    let addrLng = null;
-                    let addrAcc = null;
-                    try {
-                        const r = await (0, geocoder_1.geocodeAddress)(String(row.address).trim());
-                        if (r.lat != null && r.lng != null) {
-                            addrLat = r.lat;
-                            addrLng = r.lng;
-                            addrAcc = r.accuracy === 'unknown' ? null : r.accuracy;
-                        }
-                    }
-                    catch { /* non-fatal — leave null */ }
-                    const newCase = await db_1.default.verificationCase.create({
-                        data: {
-                            customerId: customer.id,
-                            status: 'PENDING',
-                            type: String(row.type).toUpperCase() === 'BUSINESS' ? 'BUSINESS' : 'RESIDENTIAL',
-                            adminId,
-                            addressLatitude: addrLat ?? undefined,
-                            addressLongitude: addrLng ?? undefined,
-                            addressAccuracy: addrAcc ?? undefined,
-                        }
-                    });
-                    createdCaseIds.push(newCase.id);
-                    validCount++;
-                    processedCount++;
-                    exports.activeBatches.set(batch.id, {
-                        fileName: batch.fileName,
-                        totalRows: rows.length,
-                        processedRows: processedCount,
-                        validRows: validCount,
-                        errorRows: errorCount,
-                        status: 'PROCESSING',
-                        message: `Processing row ${processedCount} of ${rows.length}...`,
-                        caseIds: createdCaseIds,
-                    });
-                }
-                catch (err) {
-                    errorCount++;
-                    processedCount++;
-                }
-            }
-            try {
-                await db_1.default.uploadBatch.update({
-                    where: { id: batch.id },
-                    data: {
-                        status: 'COMPLETED',
-                        validRows: validCount,
-                        errorRows: errorCount,
-                    }
-                });
-                exports.activeBatches.set(batch.id, {
-                    fileName: batch.fileName,
-                    totalRows: rows.length,
-                    processedRows: processedCount,
-                    validRows: validCount,
-                    errorRows: errorCount,
-                    status: 'COMPLETED',
-                    message: `Import complete. Successfully imported ${validCount} cases.`,
-                    caseIds: createdCaseIds,
-                });
-                await (0, helpers_1.createAuditLog)({
-                    action: `Completed Excel import: ${validCount} valid, ${errorCount} errors`,
-                    actor: `Admin (${adminId})`,
-                    entity: 'Upload Module',
-                    ip: '127.0.0.1',
-                    adminId,
-                });
-            }
-            catch (dbErr) {
-                console.error('Failed to update upload batch status in database:', dbErr);
-            }
         });
     }
     catch (error) {
@@ -182,7 +66,7 @@ const getBatchStatus = async (req, res) => {
         if (!adminId)
             return res.status(401).json({ success: false, message: 'Unauthorized' });
         const batchId = req.params.batchId;
-        const progress = exports.activeBatches.get(batchId);
+        const progress = uploadQueue_1.activeBatches.get(batchId);
         if (progress) {
             return res.status(200).json({ success: true, data: progress });
         }
@@ -202,7 +86,7 @@ const getBatchStatus = async (req, res) => {
                 errorRows: batch.errorRows,
                 status: batch.status,
                 message: batch.status === 'COMPLETED' ? 'Import complete.' : 'Import failed.',
-                caseIds: [], // We don't store caseIds in db for uploadBatch currently
+                caseIds: [],
             }
         });
     }
@@ -211,3 +95,28 @@ const getBatchStatus = async (req, res) => {
     }
 };
 exports.getBatchStatus = getBatchStatus;
+const getUploadBatches = async (req, res) => {
+    try {
+        const adminId = req.user?.id;
+        const role = req.user?.role;
+        if (!adminId)
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        const whereClause = {};
+        if (role !== 'SUPER_ADMIN') {
+            whereClause.adminId = adminId;
+        }
+        const batches = await db_1.default.uploadBatch.findMany({
+            where: whereClause,
+            orderBy: { createdAt: 'desc' },
+            take: 25,
+        });
+        return res.status(200).json({
+            success: true,
+            data: batches,
+        });
+    }
+    catch (error) {
+        return (0, helpers_1.apiError)(res, 'Failed to fetch upload batches history', 500, error);
+    }
+};
+exports.getUploadBatches = getUploadBatches;

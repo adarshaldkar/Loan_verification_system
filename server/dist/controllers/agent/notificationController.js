@@ -13,19 +13,58 @@ const getAgentNotifications = async (req, res) => {
             where: { agentId },
             include: { customer: true },
             orderBy: { updatedAt: 'desc' },
-            take: 20,
+            take: 30,
         });
-        const notifications = cases.map((c) => ({
-            id: c.id,
-            type: c.status === 'ASSIGNED' ? 'new_case' : 'status_update',
-            title: c.status === 'ASSIGNED'
-                ? `New case assigned: ${(0, helpers_1.parseFullName)(c.customer.firstName, c.customer.lastName)}`
-                : `Case updated to ${(0, helpers_1.resolveCaseStatus)(c.status)}`,
-            body: c.customer.address,
-            caseId: c.id,
-            time: (0, helpers_1.formatDateTime)(c.updatedAt),
-            read: c.status !== 'ASSIGNED',
-        }));
+        const notifications = cases.map((c) => {
+            let type = 'INFO';
+            let title = '';
+            let priority = 'Low';
+            const customerName = c.customer ? (0, helpers_1.parseFullName)(c.customer.firstName, c.customer.lastName) : 'Unknown Customer';
+            let pd = null;
+            try {
+                pd = typeof c.profileData === 'string' ? JSON.parse(c.profileData) : c.profileData;
+            }
+            catch { }
+            const isRevision = pd?.adminReview?.decision === 'NEEDS_REVISION';
+            if (isRevision) {
+                type = 'RE_VERIFICATION';
+                title = `Action Required: Re-verification for ${customerName}`;
+                priority = 'High';
+            }
+            else if (c.status === 'APPROVED' || c.status === 'COMPLETED') {
+                type = 'APPROVED';
+                title = `Case Verified & Approved: ${customerName}`;
+            }
+            else if (c.status === 'REJECTED') {
+                type = 'REJECTED';
+                title = `Verification Declined: ${customerName}`;
+                priority = 'High';
+            }
+            else if (c.status === 'ASSIGNED' || c.status === 'PENDING') {
+                type = 'ASSIGNMENT';
+                title = `New Verification Assigned: ${customerName}`;
+                priority = 'High';
+            }
+            else {
+                type = 'INFO';
+                title = `Status Updated: ${customerName} (${(0, helpers_1.resolveCaseStatus)(c.status)})`;
+            }
+            return {
+                id: c.id,
+                type,
+                priority,
+                title,
+                body: c.customer?.address || 'No address provided',
+                customerName,
+                phone: c.customer?.phone || '',
+                loanType: c.customer?.loanType || 'Loan Verification',
+                caseId: c.id,
+                applicationId: c.customer?.applicationId || `APP-${c.id.slice(0, 8).toUpperCase()}`,
+                status: c.status,
+                time: (0, helpers_1.formatDateTime)(c.updatedAt),
+                read: c.status === 'COMPLETED' || c.status === 'APPROVED',
+            };
+        });
         return res.status(200).json({ success: true, data: notifications });
     }
     catch (error) {
