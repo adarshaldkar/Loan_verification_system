@@ -3,6 +3,7 @@ import prisma from '../../config/db';
 import { AuthRequest } from '../../middlewares/auth';
 import { apiError } from '../../utils/helpers';
 import redisClient from '../../config/redis';
+import { gpsPingsTotal } from '../../middlewares/metrics';
 
 // Helper to calculate distance between two coordinates in km using Haversine formula
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -63,6 +64,7 @@ export const logLocationPing = async (req: AuthRequest, res: Response) => {
     const { rideId, latitude, longitude, speed } = req.body;
 
     if (!rideId || latitude == null || longitude == null) {
+      gpsPingsTotal.labels('rejected').inc();
       return res.status(400).json({ success: false, message: 'Missing required parameters' });
     }
 
@@ -92,8 +94,11 @@ export const logLocationPing = async (req: AuthRequest, res: Response) => {
     }
 
     if (!ride || ride.agentId !== agentId || ride.status !== 'STARTED') {
+      gpsPingsTotal.labels('rejected').inc();
       return res.status(403).json({ success: false, message: 'Invalid or inactive ride' });
     }
+
+    gpsPingsTotal.labels('accepted').inc();
 
     // Retrieve last location from Redis to calculate distance
     const lastLocStr = await redisClient.get(redisKey);

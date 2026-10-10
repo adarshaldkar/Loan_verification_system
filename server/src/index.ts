@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import routes from './routes';
 import { globalLimiter, ipBlacklistHandler, trackSecurityFailures } from './middlewares/security';
-import { metricsMiddleware, metricsHandler, recordPageViewHandler } from './middlewares/metrics';
+import { metricsMiddleware, metricsHandler, recordPageViewHandler, requestIdMiddleware } from './middlewares/metrics';
 
 // Load environment variables FIRST
 dotenv.config();
@@ -51,6 +51,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
 }));
+
+// Request ID Tracing Middleware (Must run first for request correlation)
+app.use(requestIdMiddleware);
 
 // Security & Parsing Middlewares
 app.use(helmet({ crossOriginResourcePolicy: false }));

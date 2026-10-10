@@ -7,6 +7,7 @@ exports.endRide = exports.logLocationPing = exports.startRide = void 0;
 const db_1 = __importDefault(require("../../config/db"));
 const helpers_1 = require("../../utils/helpers");
 const redis_1 = __importDefault(require("../../config/redis"));
+const metrics_1 = require("../../middlewares/metrics");
 // Helper to calculate distance between two coordinates in km using Haversine formula
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; // Radius of the earth in km
@@ -59,6 +60,7 @@ const logLocationPing = async (req, res) => {
         const agentId = req.user?.id;
         const { rideId, latitude, longitude, speed } = req.body;
         if (!rideId || latitude == null || longitude == null) {
+            metrics_1.gpsPingsTotal.labels('rejected').inc();
             return res.status(400).json({ success: false, message: 'Missing required parameters' });
         }
         const latNum = parseFloat(latitude.toString());
@@ -84,8 +86,10 @@ const logLocationPing = async (req, res) => {
             }
         }
         if (!ride || ride.agentId !== agentId || ride.status !== 'STARTED') {
+            metrics_1.gpsPingsTotal.labels('rejected').inc();
             return res.status(403).json({ success: false, message: 'Invalid or inactive ride' });
         }
+        metrics_1.gpsPingsTotal.labels('accepted').inc();
         // Retrieve last location from Redis to calculate distance
         const lastLocStr = await redis_1.default.get(redisKey);
         let lastLoc = null;

@@ -7,6 +7,7 @@ exports.getUploadBatches = exports.getBatchStatus = exports.bulkUploadCases = vo
 const db_1 = __importDefault(require("../../config/db"));
 const helpers_1 = require("../../utils/helpers");
 const uploadQueue_1 = require("../../queues/uploadQueue");
+const metrics_1 = require("../../middlewares/metrics");
 const bulkUploadCases = async (req, res) => {
     try {
         const adminId = req.user?.id;
@@ -14,6 +15,7 @@ const bulkUploadCases = async (req, res) => {
             return res.status(401).json({ success: false, message: 'Unauthorized' });
         const { fileName, rows } = req.body;
         if (!rows || !Array.isArray(rows) || rows.length === 0) {
+            metrics_1.excelImportRecordsTotal.labels('failed').inc();
             return (0, helpers_1.apiError)(res, 'No valid rows provided', 400);
         }
         // 1. Excel Format Validation
@@ -21,11 +23,13 @@ const bulkUploadCases = async (req, res) => {
         const requiredKeys = ['name', 'phone', 'address', 'loanAmount', 'loanType', 'type'];
         const hasRequiredFormat = requiredKeys.every(k => k in sampleRow);
         if (!hasRequiredFormat) {
+            metrics_1.excelImportRecordsTotal.labels('failed').inc(rows.length);
             return res.status(400).json({
                 success: false,
                 message: 'The uploaded file is not in the required format! Required columns: Customer Name, Phone Number, Address, Loan Amount, Loan Type, Case Type.'
             });
         }
+        metrics_1.excelImportRecordsTotal.labels('success').inc(rows.length);
         // 2. Create the Upload Batch in database
         const batch = await db_1.default.uploadBatch.create({
             data: {

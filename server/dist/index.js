@@ -47,6 +47,8 @@ app.use((0, cors_1.default)({
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
 }));
+// Request ID Tracing Middleware (Must run first for request correlation)
+app.use(metrics_1.requestIdMiddleware);
 // Security & Parsing Middlewares
 app.use((0, helmet_1.default)({ crossOriginResourcePolicy: false }));
 app.use(express_1.default.json());
@@ -58,6 +60,9 @@ app.use(security_1.trackSecurityFailures);
 app.use(metrics_1.metricsMiddleware);
 // ─── Prometheus Metrics Scraping Endpoint ───────────────────────────────────
 app.get('/metrics', metrics_1.metricsHandler);
+// ─── Frontend Page-View Analytics Ingestion ──────────────────────────────────
+app.post('/api/v1/analytics/page-view', metrics_1.recordPageViewHandler);
+app.post('/api/analytics/page-view', metrics_1.recordPageViewHandler);
 // ─── Health & Keep-Alive / Wake-up Endpoints (Bypasses rate limiting) ───────
 const healthCheckHandler = (req, res) => {
     res.status(200).json({

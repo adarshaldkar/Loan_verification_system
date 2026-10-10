@@ -12,7 +12,7 @@ export default function PageAnalyticsTracker() {
   useEffect(() => {
     if (!pathname) return;
 
-    // Report previous page duration if switching pages
+    // Report previous page duration when switching pages
     if (prevPathRef.current && prevPathRef.current !== pathname) {
       const durationMs = Date.now() - startTimeRef.current;
       sendTelemetry({
@@ -45,6 +45,42 @@ export default function PageAnalyticsTracker() {
       error: false,
     });
 
+    // ─── Core Web Vitals Monitoring via PerformanceObserver ──────────────────
+    let clsScore = 0;
+    let observer: PerformanceObserver | null = null;
+
+    if (typeof window !== "undefined" && "PerformanceObserver" in window) {
+      try {
+        observer = new PerformanceObserver((entryList) => {
+          for (const entry of entryList.getEntries()) {
+            if (entry.entryType === "largest-contentful-paint") {
+              const lcpSeconds = entry.startTime / 1000;
+              sendTelemetry({
+                page: pathname,
+                role,
+                error: false,
+                webVitals: { lcp: lcpSeconds },
+              });
+            } else if (entry.entryType === "layout-shift") {
+              const shift = (entry as any).value || 0;
+              clsScore += shift;
+              sendTelemetry({
+                page: pathname,
+                role,
+                error: false,
+                webVitals: { cls: clsScore },
+              });
+            }
+          }
+        });
+
+        observer.observe({
+          type: "largest-contentful-paint",
+          buffered: true,
+        });
+      } catch {}
+    }
+
     // Global client-side unhandled error listener for this page
     const errorHandler = (event: ErrorEvent) => {
       sendTelemetry({
@@ -58,6 +94,9 @@ export default function PageAnalyticsTracker() {
     window.addEventListener("error", errorHandler);
     return () => {
       window.removeEventListener("error", errorHandler);
+      if (observer) {
+        observer.disconnect();
+      }
     };
   }, [pathname]);
 
@@ -70,6 +109,7 @@ function sendTelemetry(data: {
   durationMs?: number;
   error: boolean;
   errorType?: string;
+  webVitals?: Record<string, number>;
 }) {
   try {
     const payload = JSON.stringify(data);

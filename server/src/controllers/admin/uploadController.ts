@@ -3,6 +3,7 @@ import prisma from '../../config/db';
 import { AuthRequest } from '../../middlewares/auth';
 import { apiError } from '../../utils/helpers';
 import { enqueueUploadJob, activeBatches } from '../../queues/uploadQueue';
+import { excelImportRecordsTotal } from '../../middlewares/metrics';
 
 export const bulkUploadCases = async (req: AuthRequest, res: Response) => {
   try {
@@ -12,6 +13,7 @@ export const bulkUploadCases = async (req: AuthRequest, res: Response) => {
     const { fileName, rows } = req.body;
 
     if (!rows || !Array.isArray(rows) || rows.length === 0) {
+      excelImportRecordsTotal.labels('failed').inc();
       return apiError(res, 'No valid rows provided', 400);
     }
 
@@ -21,11 +23,14 @@ export const bulkUploadCases = async (req: AuthRequest, res: Response) => {
     const hasRequiredFormat = requiredKeys.every(k => k in sampleRow);
 
     if (!hasRequiredFormat) {
+      excelImportRecordsTotal.labels('failed').inc(rows.length);
       return res.status(400).json({
         success: false,
         message: 'The uploaded file is not in the required format! Required columns: Customer Name, Phone Number, Address, Loan Amount, Loan Type, Case Type.'
       });
     }
+
+    excelImportRecordsTotal.labels('success').inc(rows.length);
 
     // 2. Create the Upload Batch in database
     const batch = await prisma.uploadBatch.create({
