@@ -2,10 +2,20 @@
 
 import React, { useEffect, useState } from "react";
 import { Smartphone, Download, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+// Capture beforeinstallprompt globally at earliest script evaluation
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", (e: any) => {
+    e.preventDefault();
+    (window as any).__lvms_deferred_prompt = e;
+  });
+}
 
 export async function triggerPwaInstall() {
   if (typeof window === "undefined") return;
+
   const prompt = (window as any).__lvms_deferred_prompt;
   if (prompt) {
     try {
@@ -19,6 +29,30 @@ export async function triggerPwaInstall() {
       console.warn("Native prompt trigger failed:", err);
     }
   }
+
+  // Detect iOS Safari
+  const userAgent = (window.navigator.userAgent || "").toLowerCase();
+  const isIOS =
+    /iphone|ipad|ipod/.test(userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  if (isIOS) {
+    toast.info("On iPhone: Tap Safari's Share button ⎋ then 'Add to Home Screen'");
+    return;
+  }
+
+  // Check if already in standalone app mode
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as any).standalone === true ||
+    document.referrer.includes("android-app://");
+
+  if (isStandalone) {
+    toast.success("Sky Line Risk App is already installed!");
+    return;
+  }
+
+  // Fallback to trigger global prompt if available
   window.dispatchEvent(new CustomEvent("lvms:open-install-prompt"));
 }
 
@@ -32,27 +66,43 @@ interface InstallAppButtonProps {
 export default function InstallAppButton({
   className,
   variant = "secondary",
-  label = "Install App on Phone",
+  label = "Install Sky Line Risk App",
   sublabel,
 }: InstallAppButtonProps) {
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (window.navigator as any).standalone === true ||
       document.referrer.includes("android-app://");
     setIsInstalled(standalone);
 
+    const handleBeforePrompt = (e: any) => {
+      e.preventDefault();
+      (window as any).__lvms_deferred_prompt = e;
+    };
+    window.addEventListener("beforeinstallprompt", handleBeforePrompt);
+
     const handleInstalled = () => setIsInstalled(true);
     window.addEventListener("appinstalled", handleInstalled);
-    return () => window.removeEventListener("appinstalled", handleInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforePrompt);
+      window.removeEventListener("appinstalled", handleInstalled);
+    };
   }, []);
 
   if (isInstalled) {
     return (
-      <div className={cn("flex items-center justify-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold py-2 px-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl", className)}>
+      <div
+        className={cn(
+          "flex items-center justify-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold py-2 px-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl",
+          className
+        )}
+      >
         <CheckCircle2 className="w-3.5 h-3.5" />
         <span>Sky Line Risk App Installed</span>
       </div>
@@ -85,7 +135,7 @@ export default function InstallAppButton({
               </span>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              {sublabel || "Quick 1-click home screen install for mobile officers"}
+              {sublabel || "Tap to install directly on your phone home screen"}
             </p>
           </div>
         </div>

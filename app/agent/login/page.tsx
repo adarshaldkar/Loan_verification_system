@@ -138,7 +138,7 @@ export default function AgentLoginPage() {
         <div className="pt-2 border-t border-gray-100 dark:border-slate-800">
           <InstallAppButton
             variant="banner"
-            label="Install LVMS Agent App"
+            label="Install Sky Line Risk Agent App"
             sublabel="Tap to install directly on your home screen"
           />
         </div>

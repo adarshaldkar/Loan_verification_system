@@ -178,7 +178,7 @@ export default function LoginPage() {
           <div className="pt-3 mt-4 border-t border-slate-100">
             <InstallAppButton
               variant="banner"
-              label="Install LVMS App"
+              label="Install Sky Line Risk App"
               sublabel="Tap to install directly on your home screen"
             />
           </div>
