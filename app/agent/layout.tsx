@@ -6,7 +6,8 @@ import { useState, useEffect } from "react";
 import {
   FiGrid, FiBriefcase, FiCheckSquare, FiBell, FiUser, FiLogOut,
   FiShield, FiMenu, FiX, FiRefreshCw, FiWifi, FiWifiOff,
-  FiMapPin, FiChevronDown, FiUploadCloud, FiMoon, FiSun
+  FiMapPin, FiChevronDown, FiUploadCloud, FiMoon, FiSun,
+  FiSmartphone, FiDownload
 } from "react-icons/fi";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -124,6 +125,24 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
             </div>
           </div>
         ))}
+
+        {/* Install Mobile App Option */}
+        <div>
+          <p className="text-[10px] font-semibold text-gray-400 dark:text-slate-500 px-3 mb-1.5 tracking-widest">DEVICE</p>
+          <button
+            onClick={() => {
+              onClose?.();
+              window.dispatchEvent(new CustomEvent("lvms:open-install-prompt"));
+            }}
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-semibold text-sky-600 dark:text-sky-400 bg-sky-50/60 dark:bg-sky-950/30 hover:bg-sky-100 dark:hover:bg-sky-900/40 border border-sky-200/60 dark:border-sky-800/60 transition-all cursor-pointer"
+          >
+            <FiSmartphone className="w-4 h-4 shrink-0 text-sky-600 dark:text-sky-400" />
+            <span className="flex-1 text-left">Install App</span>
+            <span className="text-[10px] bg-sky-500 text-white font-bold px-1.5 py-0.5 rounded shadow-sm">
+              PWA
+            </span>
+          </button>
+        </div>
       </nav>
 
       {/* Bottom status */}
@@ -203,6 +222,20 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
       >
         {offline ? <FiWifiOff className="w-3.5 h-3.5" /> : <FiUploadCloud className="w-3.5 h-3.5" />}
         {offline ? "Offline Mode" : "Offline Mode"}
+      </button>
+
+      {/* Install App Quick Trigger */}
+      <button
+        onClick={() => {
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("lvms:open-install-prompt"));
+          }
+        }}
+        className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/50 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-900/50 transition-colors shadow-sm cursor-pointer"
+        title="Install LVMS Agent Mobile App"
+      >
+        <FiSmartphone className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+        <span className="hidden sm:inline">Install App</span>
       </button>
 
       {/* GPS */}

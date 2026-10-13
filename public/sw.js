@@ -5,9 +5,6 @@ const STATIC_ASSETS = [
   '/manifest.json',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
-  '/agent/login',
-  '/agent',
-  '/agent/cases',
   '/offline.html',
 ];
 

@@ -2,6 +2,8 @@
   "name": "LVMS Field Agent",
   "short_name": "LVMS",
   "description": "Enterprise Loan Verification & Field Officer Management System",
+  "id": "/agent",
+  "scope": "/",
   "start_url": "/agent",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -12,13 +14,25 @@
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
