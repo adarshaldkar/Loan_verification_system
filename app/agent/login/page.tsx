@@ -6,6 +6,7 @@ import { FiShield, FiMail, FiLock, FiEye, FiEyeOff, FiAlertCircle } from "react-
 import { toast } from "sonner";
 import { agentLoginApi } from "@/lib/api";
 import { STORAGE_KEYS } from "@/lib/constants";
+import InstallAppButton from "@/components/InstallAppButton";
 
 export default function AgentLoginPage() {
   const router = useRouter();
@@ -110,7 +111,7 @@ export default function AgentLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all shadow-sm flex items-center justify-center gap-2 mt-4 disabled:opacity-60"
+            className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all shadow-sm flex items-center justify-center gap-2 mt-4 disabled:opacity-60 cursor-pointer"
             style={{ background: "#1E4DB7" }}
           >
             {loading ? (
@@ -124,6 +125,15 @@ export default function AgentLoginPage() {
           </button>
 
         </form>
+
+        {/* ── Quick Install Mobile App Button ── */}
+        <div className="pt-2 border-t border-gray-100 dark:border-slate-800">
+          <InstallAppButton
+            variant="banner"
+            label="Install LVMS Agent App"
+            sublabel="Tap to install directly on your home screen"
+          />
+        </div>
 
         <p className="text-center text-[11px] text-gray-400 dark:text-slate-500">
           Contact your administrator if you forgot your credentials

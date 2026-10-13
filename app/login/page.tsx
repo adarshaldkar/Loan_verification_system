@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { loginApi } from "@/lib/api";
 import { STORAGE_KEYS } from "@/lib/constants";
+import InstallAppButton from "@/components/InstallAppButton";
 
 /* ─── Login Page ─────────────────────────────────────────────────────────── */
 
@@ -177,8 +178,17 @@ export default function LoginPage() {
             </Button>
           </form>
 
+          {/* ── Quick Install Mobile App Button ── */}
+          <div className="pt-3 mt-4 border-t border-slate-100">
+            <InstallAppButton
+              variant="banner"
+              label="Install LVMS App"
+              sublabel="Tap to install directly on your home screen"
+            />
+          </div>
+
           {/* Demo hint */}
-          <p className="text-center text-xs text-slate-400 mt-6">
+          <p className="text-center text-xs text-slate-400 mt-5">
             Contact your administrator for login credentials.
           </p>
         </div>

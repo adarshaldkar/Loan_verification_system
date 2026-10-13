@@ -84,6 +84,7 @@ export default function PwaInstallPrompt() {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
+      (window as any).__lvms_deferred_prompt = e;
       const isDismissed = sessionStorage.getItem("lvms_pwa_dismissed");
       if (!isDismissed) {
         setShowPrompt(true);
@@ -109,12 +110,29 @@ export default function PwaInstallPrompt() {
       setShowPrompt(false);
       setShowGuideModal(false);
       setDeferredPrompt(null);
+      (window as any).__lvms_deferred_prompt = null;
     };
 
     window.addEventListener("appinstalled", handleAppInstalled);
 
-    // 8. Custom event listener for manual triggers from topbar/menu
-    const handleManualTrigger = () => {
+    // 8. Custom event listener for manual triggers from topbar/menu/login
+    const handleManualTrigger = async () => {
+      const prompt = (window as any).__lvms_deferred_prompt || deferredPrompt;
+      if (prompt) {
+        try {
+          prompt.prompt();
+          const { outcome } = await prompt.userChoice;
+          if (outcome === "accepted") {
+            setShowPrompt(false);
+            setIsInstalled(true);
+          }
+          (window as any).__lvms_deferred_prompt = null;
+          setDeferredPrompt(null);
+          return;
+        } catch (err) {
+          console.warn("Manual trigger prompt notice:", err);
+        }
+      }
       setShowGuideModal(true);
     };
     window.addEventListener("lvms:open-install-prompt", handleManualTrigger);
