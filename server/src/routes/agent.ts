@@ -49,7 +49,9 @@ router.get('/notifications', getAgentNotifications);
 import { pingLimiter } from '../middlewares/security';
 
 // ── Rides & Tracking ───────────────────────────────────────────────────────
-import { startRide, logLocationPing, endRide } from '../controllers/agent/rideController';
+import { startRide, logLocationPing, endRide, getCurrentRide, getAgentDailySummary } from '../controllers/agent/rideController';
+router.get('/rides/current', getCurrentRide);
+router.get('/rides/daily-summary', getAgentDailySummary);
 router.post('/rides/start', startRide);
 router.post('/rides/ping', pingLimiter, logLocationPing);
 router.post('/rides/end', endRide);

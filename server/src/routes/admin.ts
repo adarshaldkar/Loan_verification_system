@@ -102,10 +102,23 @@ router.get('/admins', getAdmins);
 router.post('/admins/register', validate(registerAdminSchema), registerAdmin);
 router.put('/admins/:adminId', validate(updateAdminSchema), updateAdmin);
 
-// ── Tracking ───────────────────────────────────────────────────────────────
-import { getActiveRides, getRideHistory, forceEndRide } from '../controllers/admin/trackingController';
+// ── Tracking & Fuel Reimbursements ─────────────────────────────────────────
+import {
+  getActiveRides,
+  getRideHistory,
+  forceEndRide,
+  getReimbursementClaims,
+  updateReimbursementStatus,
+  getFuelRateSetting,
+  updateFuelRateSetting,
+} from '../controllers/admin/trackingController';
+
 router.get('/tracking/active', getActiveRides);
 router.get('/tracking/history/:rideId', getRideHistory);
 router.post('/tracking/rides/:rideId/end', forceEndRide);
+router.get('/tracking/reimbursements', getReimbursementClaims);
+router.patch('/tracking/reimbursements/:rideId', updateReimbursementStatus);
+router.get('/settings/fuel-rate', getFuelRateSetting);
+router.put('/settings/fuel-rate', updateFuelRateSetting);
 
 export default router;

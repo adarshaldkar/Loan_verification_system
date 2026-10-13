@@ -16,7 +16,8 @@ import { Button } from "@/components/ui/button";
 import ScheduleRouteMap from "@/components/shared/ScheduleRouteMap";
 import {
   startRideApi, endRideApi, logLocationPingApi, geocodeCasesApi,
-  getAgentDashboardApi, getAgentCasesApi, updateAgentCaseRemarkApi, uploadEvidenceApi
+  getAgentDashboardApi, getAgentCasesApi, updateAgentCaseRemarkApi, uploadEvidenceApi,
+  getCurrentRideApi, getAgentDailySummaryApi
 } from "@/lib/api";
 import { getProfileByCode } from "@/lib/verificationProfiles";
 import DateRangePicker, { DateRangeOption, getDynamicDateRanges } from "@/components/shared/DateRangePicker";
@@ -64,9 +65,51 @@ export default function AgentDashboard() {
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const docInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Tracking State
+  // Tracking & Mileage State
   const [activeRideId, setActiveRideId] = useState<string | null>(null);
   const [rideDuration, setRideDuration] = useState(0);
+  const [rideDistance, setRideDistance] = useState(0);
+  const [fuelCost, setFuelCost] = useState(0);
+  const [fuelRate, setFuelRate] = useState(3.5);
+  const [isRideModalOpen, setIsRideModalOpen] = useState(false);
+  const [dailyTravel, setDailyTravel] = useState<{ totalDistance: number; totalFuelCost: number; totalRides: number }>({
+    totalDistance: 0,
+    totalFuelCost: 0,
+    totalRides: 0,
+  });
+
+  // Restore Active Ride & Daily Travel on mount / reload
+  useEffect(() => {
+    async function restoreRideAndTravel() {
+      try {
+        const [rideRes, summaryRes] = await Promise.all([
+          getCurrentRideApi().catch(() => ({ data: { data: null } })),
+          getAgentDailySummaryApi().catch(() => ({ data: { data: null } })),
+        ]);
+
+        if (rideRes.data?.data) {
+          const r = rideRes.data.data;
+          setActiveRideId(r.id);
+          setRideDuration(r.elapsedSeconds || 0);
+          setRideDistance(r.totalDistance || 0);
+          setFuelCost(r.fuelCost || 0);
+          setFuelRate(r.fuelRatePerKm || 3.5);
+          toast.success(`Active ride restored: ${(r.totalDistance || 0).toFixed(2)} km • ₹${(r.fuelCost || 0).toFixed(2)} fuel`);
+        }
+
+        if (summaryRes.data?.data) {
+          setDailyTravel({
+            totalDistance: summaryRes.data.data.totalDistance || 0,
+            totalFuelCost: summaryRes.data.data.totalFuelCost || 0,
+            totalRides: summaryRes.data.data.totalRides || 0,
+          });
+        }
+      } catch (err) {
+        console.error("Error restoring ride session:", err);
+      }
+    }
+    restoreRideAndTravel();
+  }, []);
 
   // Ride Location Pinger & Timer
   useEffect(() => {
@@ -79,23 +122,33 @@ export default function AgentDashboard() {
     let pingFailCount = 0;
     const pinger = setInterval(() => {
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(async (pos) => {
-          try {
-            await logLocationPingApi({
-              rideId: activeRideId,
-              latitude: pos.coords.latitude,
-              longitude: pos.coords.longitude,
-              speed: pos.coords.speed || 0,
-            });
-            pingFailCount = 0;
-          } catch (e) {
-            pingFailCount++;
-            if (pingFailCount >= 3) {
-              toast.error("GPS tracking interrupted. Please check your connection.");
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            try {
+              const res = await logLocationPingApi({
+                rideId: activeRideId,
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                speed: pos.coords.speed || 0,
+                accuracy: pos.coords.accuracy,
+              });
+              if (res.data?.data) {
+                setRideDistance(res.data.data.totalDistance || 0);
+                setFuelCost(res.data.data.fuelCost || 0);
+                if (res.data.data.fuelRatePerKm) setFuelRate(res.data.data.fuelRatePerKm);
+              }
               pingFailCount = 0;
+            } catch (e) {
+              pingFailCount++;
+              if (pingFailCount >= 3) {
+                toast.error("GPS tracking interrupted. Please check your connection.");
+                pingFailCount = 0;
+              }
             }
-          }
-        });
+          },
+          undefined,
+          { enableHighAccuracy: true }
+        );
       }
     }, 10000); // ping every 10s
 
@@ -120,8 +173,13 @@ export default function AgentDashboard() {
   const handleStartRide = async () => {
     try {
       const res = await startRideApi();
-      setActiveRideId(res.data.data.id);
-      toast.success("Ride started! Tracking your live route.");
+      const r = res.data.data;
+      setActiveRideId(r.id);
+      setRideDistance(r.totalDistance || 0);
+      setFuelCost(r.fuelCost || 0);
+      setFuelRate(r.fuelRatePerKm || 3.5);
+      setRideDuration(0);
+      toast.success("Ride started! Tracking live odometer & fuel allowance.");
       if ("wakeLock" in navigator) {
         try {
           (window as any).wakeLockObj = await (navigator as any).wakeLock.request("screen");
@@ -135,10 +193,23 @@ export default function AgentDashboard() {
   const handleEndRide = async () => {
     if (!activeRideId) return;
     try {
-      await endRideApi(activeRideId);
+      const res = await endRideApi(activeRideId);
+      const ended = res.data.data;
       setActiveRideId(null);
+      setIsRideModalOpen(false);
       setRideDuration(0);
-      toast.success("Ride ended successfully.");
+      toast.success(`Ride completed! ${(ended.totalDistance || 0).toFixed(2)} km • ₹${(ended.fuelCost || 0).toFixed(2)} fuel allowance claimed.`);
+
+      // Refresh daily summary
+      const summaryRes = await getAgentDailySummaryApi().catch(() => null);
+      if (summaryRes?.data?.data) {
+        setDailyTravel({
+          totalDistance: summaryRes.data.data.totalDistance || 0,
+          totalFuelCost: summaryRes.data.data.totalFuelCost || 0,
+          totalRides: summaryRes.data.data.totalRides || 0,
+        });
+      }
+
       if ((window as any).wakeLockObj) {
         (window as any).wakeLockObj.release();
         (window as any).wakeLockObj = null;
@@ -558,40 +629,101 @@ export default function AgentDashboard() {
 
   return (
     <>
-      {/* ── Active Ride Overlay Banner ── */}
+      {/* ── Persistent Floating Active Ride Telemetry Bar (Swiggy / Rapido Style) ── */}
       {activeRideId && (
-        <div className="fixed inset-0 z-[9999] bg-slate-900/95 backdrop-blur-md text-white flex flex-col items-center justify-center p-6">
-          <div className="bg-slate-800 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl space-y-6 border border-slate-700">
-            <div className="mx-auto w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center relative">
-              <div className="absolute inset-0 border-4 border-emerald-500 rounded-full border-t-transparent animate-spin"></div>
-              <FiMapPin className="w-10 h-10 text-emerald-400" />
-            </div>
-            
-            <div>
-              <h2 className="text-2xl font-bold mb-1 tracking-tight">Ride Active & Tracking</h2>
-              <p className="text-slate-400 text-xs">Your live location is actively syncing with your branch admin.</p>
-            </div>
-
-            <div className="bg-slate-900 rounded-xl p-5 border border-slate-700 shadow-inner">
-              <div className="text-4xl font-mono tracking-widest text-emerald-400 font-bold">
-                {Math.floor(rideDuration / 60).toString().padStart(2, '0')}:{ (rideDuration % 60).toString().padStart(2, '0') }
+        <aside aria-label="Live Ride Tracking" className="fixed bottom-4 left-4 right-4 md:left-auto md:right-8 z-50 md:max-w-md bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-md text-white rounded-2xl shadow-2xl border border-slate-700/80 p-4 transition-all animate-in slide-in-from-bottom-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 relative">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping absolute top-1 right-1" />
+                <span className="text-lg">🛵</span>
               </div>
-              <div className="text-[10px] text-slate-500 mt-1 uppercase tracking-widest font-semibold">Elapsed Ride Duration</div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white tracking-wide uppercase">Ride Active</span>
+                  <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-800/40">
+                    {Math.floor(rideDuration / 60).toString().padStart(2, '0')}:{(rideDuration % 60).toString().padStart(2, '0')}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-300">
+                  <span className="font-semibold text-white">{(rideDistance || 0).toFixed(2)} km</span>
+                  <span className="text-slate-500">•</span>
+                  <span className="text-amber-300 font-bold">₹{(fuelCost || 0).toFixed(2)} fuel</span>
+                  <span className="text-[10px] text-slate-400 font-normal">(@₹{fuelRate}/km)</span>
+                </div>
+              </div>
             </div>
 
-            {/* Navigation Shortcuts */}
-            <div className="space-y-2 text-left bg-slate-900/50 p-4 rounded-xl border border-slate-700/60">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Next Assigned Stop</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => setIsRideModalOpen(true)}
+                className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                title="View Navigation & Stops"
+              >
+                Stops
+              </button>
+              <button
+                onClick={handleEndRide}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-sm shadow-rose-900/30"
+              >
+                End
+              </button>
+            </div>
+          </div>
+        </aside>
+      )}
+
+      {/* ── Expandable Ride Details & Navigation Modal ── */}
+      {isRideModalOpen && (
+        <div className="fixed inset-0 z-[9999] bg-slate-900/80 backdrop-blur-sm text-white flex flex-col items-center justify-center p-4">
+          <div className="bg-slate-900 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl space-y-5 border border-slate-700 animate-in zoom-in-95">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">🛵</span>
+                <h3 className="font-bold text-base text-white">Live Ride Telemetry</h3>
+              </div>
+              <button
+                onClick={() => setIsRideModalOpen(false)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <div className="text-center">
+                <p className="text-[10px] text-slate-400 uppercase font-semibold">Duration</p>
+                <p className="text-base font-bold font-mono text-emerald-400 mt-0.5">
+                  {Math.floor(rideDuration / 60).toString().padStart(2, '0')}:{(rideDuration % 60).toString().padStart(2, '0')}
+                </p>
+              </div>
+              <div className="text-center border-x border-slate-800">
+                <p className="text-[10px] text-slate-400 uppercase font-semibold">Odometer</p>
+                <p className="text-base font-bold text-white mt-0.5">
+                  {(rideDistance || 0).toFixed(2)} km
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-[10px] text-slate-400 uppercase font-semibold">Fuel Cost</p>
+                <p className="text-base font-bold text-amber-400 mt-0.5">
+                  ₹{(fuelCost || 0).toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            {/* Next Stop Navigation */}
+            <div className="space-y-2 text-left bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Next Target Stop</span>
               {selectedCase ? (
-                <div className="pt-1.5 space-y-2.5">
+                <div className="pt-1 space-y-2">
                   <div className="text-xs">
                     <p className="font-bold text-slate-200">{selectedCase.customer}</p>
                     <p className="text-slate-400 truncate text-[11px] mt-0.5">{selectedCase.address}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pt-1">
                     <Button
                       onClick={() => triggerNavigation(selectedCase.address)}
-                      className="flex-1 h-9 bg-[#1E4DB7] hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5"
+                      className="flex-1 h-8 bg-[#1E4DB7] hover:bg-blue-700 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5"
                     >
                       <FiNavigation className="w-3.5 h-3.5" />
                       <span>Directions</span>
@@ -599,10 +731,10 @@ export default function AgentDashboard() {
                     <Button
                       onClick={triggerMultiRouteNavigation}
                       disabled={destinations.length === 0}
-                      className="flex-1 h-9 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5"
+                      className="flex-1 h-8 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg flex items-center justify-center gap-1.5"
                     >
                       <FiMapPin className="w-3.5 h-3.5" />
-                      <span>Full Route</span>
+                      <span>Route Map</span>
                     </Button>
                   </div>
                 </div>
@@ -611,12 +743,20 @@ export default function AgentDashboard() {
               )}
             </div>
 
-            <Button 
-              onClick={handleEndRide}
-              className="w-full h-12 bg-rose-600 hover:bg-rose-700 text-white font-bold text-base rounded-xl transition-all shadow-[0_0_20px_rgba(225,29,72,0.3)]"
-            >
-              End Ride & Complete Tracking
-            </Button>
+            <div className="flex gap-2 pt-2">
+              <Button
+                onClick={() => setIsRideModalOpen(false)}
+                className="flex-1 h-10 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl"
+              >
+                Close View
+              </Button>
+              <Button
+                onClick={handleEndRide}
+                className="flex-1 h-10 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-rose-900/30"
+              >
+                End Ride Session
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -649,6 +789,50 @@ export default function AgentDashboard() {
             onChange={handleDateRangeChange}
             align="end"
           />
+        </div>
+      </div>
+
+      {/* ── Today's Travel & Fuel Allowance Summary Banner (Rapido/Swiggy Style) ── */}
+      <div className="bg-gradient-to-r from-blue-900/90 via-slate-900 to-indigo-950 text-white rounded-2xl p-4 md:p-5 shadow-lg border border-blue-800/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-2xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-2xl shrink-0">
+            🛵
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-base text-white">Daily Field Travel & Petrol Allowance</h3>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                Rate: ₹{fuelRate}/km
+              </span>
+            </div>
+            <p className="text-xs text-blue-200/80 mt-0.5">
+              Verified GPS odometer distance and auto-calculated fuel expense claim for today.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 bg-black/30 p-2 rounded-xl border border-white/10 shrink-0">
+          <div className="px-3 border-r border-white/10 text-center">
+            <p className="text-[10px] font-semibold text-blue-200 uppercase">Today's Travel</p>
+            <p className="text-lg font-extrabold text-white">{(dailyTravel.totalDistance || 0).toFixed(1)} <span className="text-xs font-normal text-slate-300">km</span></p>
+          </div>
+          <div className="px-3 border-r border-white/10 text-center">
+            <p className="text-[10px] font-semibold text-amber-200 uppercase">Fuel Allowance</p>
+            <p className="text-lg font-extrabold text-amber-400">₹{(dailyTravel.totalFuelCost || 0).toFixed(2)}</p>
+          </div>
+          <div className="px-2 text-center">
+            <button
+              onClick={activeRideId ? () => setIsRideModalOpen(true) : handleStartRide}
+              className={cn(
+                "px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer",
+                activeRideId
+                  ? "bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                  : "bg-blue-600 hover:bg-blue-500 text-white"
+              )}
+            >
+              {activeRideId ? "Ride In Progress" : "Start Live Ride"}
+            </button>
+          </div>
         </div>
       </div>
 

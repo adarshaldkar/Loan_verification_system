@@ -126,6 +126,7 @@ model SystemSetting {
   emailDigest        Boolean  @default(true)
   notifyNewUpload    Boolean  @default(false)
   notifyCaseComplete Boolean  @default(false)
+  fuelRatePerKm      Float    @default(3.5)
   updatedAt          DateTime @updatedAt
   adminId            String?  @unique
 }
@@ -156,31 +157,68 @@ model Media {
 }
 
 model AgentRide {
-  id            String          @id @default(uuid())
-  agentId       String
-  adminId       String
-  startTime     DateTime        @default(now())
-  endTime       DateTime?
-  status        String          @default("STARTED")
-  totalDistance Float           @default(0)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  locations     AgentLocation[] @relation("RideLocations")
-  agent         User            @relation("AgentRides", fields: [agentId], references: [id], onDelete: Cascade)
+  id                  String          @id @default(uuid())
+  agentId             String
+  adminId             String
+  startTime           DateTime        @default(now())
+  endTime             DateTime?
+  status              String          @default("STARTED")
+  totalDistance       Float           @default(0)
+  fuelRatePerKm       Float           @default(3.5)
+  fuelCost            Float           @default(0)
+  reimbursementStatus String          @default("PENDING") // PENDING, APPROVED, REJECTED
+  claimedAmount       Float?
+  approvedAmount      Float?
+  approvedAt          DateTime?
+  approvedBy          String?
+  notes               String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  locations           AgentLocation[] @relation("RideLocations")
+  tripSegments        TripSegment[]   @relation("RideSegments")
+  agent               User            @relation("AgentRides", fields: [agentId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([agentId, status])
   @@index([adminId, status])
+  @@index([createdAt])
 }
 
 model AgentLocation {
-  id        String    @id @default(uuid())
-  rideId    String
-  latitude  Float
-  longitude Float
-  speed     Float?
-  timestamp DateTime  @default(now())
-  ride      AgentRide @relation("RideLocations", fields: [rideId], references: [id], onDelete: Cascade)
+  id            String    @id @default(uuid())
+  rideId        String
+  latitude      Float
+  longitude     Float
+  speed         Float?
+  accuracy      Float?
+  isAnomaly     Boolean   @default(false)
+  anomalyReason String?
+  timestamp     DateTime  @default(now())
+  ride          AgentRide @relation("RideLocations", fields: [rideId], references: [id], onDelete: Cascade)
 
   @@index([rideId, timestamp])
+}
+
+model TripSegment {
+  id          String    @id @default(uuid())
+  rideId      String
+  agentId     String
+  caseId      String?
+  fromAddress String?
+  toAddress   String?
+  startLat    Float
+  startLng    Float
+  endLat      Float?
+  endLng      Float?
+  distanceKm  Float     @default(0)
+  fuelCost    Float     @default(0)
+  startTime   DateTime  @default(now())
+  endTime     DateTime?
+  status      String    @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED
+  createdAt   DateTime  @default(now())
+  ride        AgentRide @relation("RideSegments", fields: [rideId], references: [id], onDelete: Cascade)
+
+  @@index([rideId])
+  @@index([agentId])
+  @@index([caseId])
 }

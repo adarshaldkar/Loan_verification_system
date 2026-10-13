@@ -216,18 +216,43 @@ export const getAgentNotificationsApi = () =>
   api.get("/agent/notifications");
 
 // ─── Agent Ride Tracking ───────────────────────────────────────────────────
+export const getCurrentRideApi = () =>
+  api.get("/agent/rides/current");
+export const getAgentDailySummaryApi = (date?: string) =>
+  api.get("/agent/rides/daily-summary", { params: date ? { date } : {} });
 export const startRideApi = () =>
   api.post("/agent/rides/start");
 export const endRideApi = (rideId: string) =>
   api.post("/agent/rides/end", { rideId });
-export const logLocationPingApi = (data: { rideId: string; latitude: number; longitude: number; speed?: number }) =>
-  api.post("/agent/rides/ping", data);
+export const logLocationPingApi = (data: {
+  rideId: string;
+  latitude: number;
+  longitude: number;
+  speed?: number;
+  accuracy?: number;
+}) => api.post("/agent/rides/ping", data);
 
-// ─── Admin Tracking Map ───────────────────────────────────────────────────
+// ─── Admin Tracking & Fuel Reimbursements ─────────────────────────────────
 export const getActiveRidesApi = () =>
   api.get("/admin/tracking/active");
 export const getRideHistoryApi = (rideId: string) =>
   api.get(`/admin/tracking/history/${rideId}`);
+export const forceEndRideApi = (rideId: string) =>
+  api.post(`/admin/tracking/rides/${rideId}/end`);
+export const getReimbursementClaimsApi = (params?: {
+  status?: string;
+  agentId?: string;
+  startDate?: string;
+  endDate?: string;
+}) => api.get("/admin/tracking/reimbursements", { params });
+export const updateReimbursementStatusApi = (
+  rideId: string,
+  data: { status: "APPROVED" | "REJECTED" | "PENDING"; approvedAmount?: number; notes?: string }
+) => api.patch(`/admin/tracking/reimbursements/${rideId}`, data);
+export const getFuelRateSettingApi = () =>
+  api.get("/admin/settings/fuel-rate");
+export const updateFuelRateSettingApi = (fuelRatePerKm: number) =>
+  api.put("/admin/settings/fuel-rate", { fuelRatePerKm });
 
 // ─── Admin Verification APIs ───────────────────────────────────────────────
 export const getCompletedCasesApi = () =>
@@ -240,10 +265,6 @@ export const reviewCaseApi = (caseId: string, data: {
   decision: "APPROVED" | "REJECTED" | "NEEDS_REVISION";
   adminRemarks?: string;
 }) => api.post(`/admin/verification/${caseId}/review`, data);
-
-// ─── Admin Ride Termination ───────────────────────────────────────────────
-export const forceEndRideApi = (rideId: string) =>
-  api.post(`/admin/tracking/rides/${rideId}/end`);
 
 // ─── Geocoding (OSM Nominatim server-side proxy) ──────────────────────────
 export const geocodeAddressApi = (address: string) =>
