@@ -7,11 +7,63 @@ export const getAgentCases = async (req: AuthRequest, res: Response) => {
   try {
     const agentId = req.user?.id as string;
     const status = req.query.status as string | undefined;
+    const startDateParam = req.query.startDate as string | undefined;
+    const endDateParam = req.query.endDate as string | undefined;
+
+    const period = ((req.query.period as string) || '').toLowerCase().trim();
+
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+    const now = new Date();
+
+    if (startDateParam && endDateParam) {
+      startDate = new Date(startDateParam);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(endDateParam);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (period === 'today') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    } else if (period === 'last 7 days') {
+      startDate = new Date(now.getTime() - 6 * 86400000);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    } else if (period === 'this week') {
+      const dayOfWeek = now.getDay();
+      const diffToMonday = (dayOfWeek + 6) % 7;
+      startDate = new Date(now.getTime() - diffToMonday * 86400000);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(startDate.getTime() + 6 * 86400000);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (period === 'last week') {
+      const dayOfWeek = now.getDay();
+      const diffToMonday = (dayOfWeek + 6) % 7;
+      const monday = new Date(now.getTime() - diffToMonday * 86400000);
+      startDate = new Date(monday.getTime() - 7 * 86400000);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(monday.getTime() - 1 * 86400000);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (period === 'this month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    } else if (period === 'last month') {
+      startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    }
+
+    const dateFilter: any = {};
+    if (startDate && endDate) {
+      dateFilter.OR = [
+        { createdAt: { gte: startDate, lte: endDate } },
+        { updatedAt: { gte: startDate, lte: endDate } },
+      ];
+    }
 
     const cases = await prisma.verificationCase.findMany({
       where: {
         agentId,
         ...(status && status !== 'All' ? { status } : {}),
+        ...dateFilter,
       },
       include: { customer: true, media: true },
       orderBy: { updatedAt: 'desc' },

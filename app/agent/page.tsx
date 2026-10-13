@@ -19,6 +19,7 @@ import {
   getAgentDashboardApi, getAgentCasesApi, updateAgentCaseRemarkApi, uploadEvidenceApi
 } from "@/lib/api";
 import { getProfileByCode } from "@/lib/verificationProfiles";
+import DateRangePicker, { DateRangeOption, getDynamicDateRanges } from "@/components/shared/DateRangePicker";
 
 /* ─── Agent Dashboard ─────────────────────────────────────────────────────── */
 
@@ -29,10 +30,7 @@ export default function AgentDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<"All" | "Pending" | "In Progress" | "High Priority">("All");
   const [activeKpi, setActiveKpi] = useState<string | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [currentDate, setCurrentDate] = useState(() => {
-    return new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  });
+  const [dateRange, setDateRange] = useState<DateRangeOption>(() => getDynamicDateRanges()[2]);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [liveCases, setLiveCases] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -239,12 +237,25 @@ export default function AgentDashboard() {
     };
   }) || [];
 
-  const loadDashboard = async (isManualRefresh = false) => {
+  const loadDashboard = async (
+    isManualRefresh = false,
+    selectedRange = dateRange,
+    start?: string,
+    end?: string
+  ) => {
     try {
       if (isManualRefresh) setRefreshing(true);
+      const params: any = { period: selectedRange.periodKey || selectedRange.label };
+      const sDate = start || selectedRange.startDate;
+      const eDate = end || selectedRange.endDate;
+      if (sDate && eDate) {
+        params.startDate = sDate;
+        params.endDate = eDate;
+      }
+
       const [dashRes, casesRes] = await Promise.all([
-        getAgentDashboardApi(),
-        getAgentCasesApi(),
+        getAgentDashboardApi(params),
+        getAgentCasesApi(params),
       ]);
       setDashboardData(dashRes.data.data);
       const cases = casesRes.data.data || [];
@@ -265,8 +276,14 @@ export default function AgentDashboard() {
     }
   };
 
+  const handleDateRangeChange = (range: DateRangeOption, start?: string, end?: string) => {
+    setDateRange(range);
+    loadDashboard(false, range, start, end);
+    toast.success(`Date filter: ${range.label}`);
+  };
+
   useEffect(() => {
-    loadDashboard();
+    loadDashboard(false, dateRange);
   }, []);
 
   // Currently active selected case
@@ -627,42 +644,11 @@ export default function AgentDashboard() {
             <span>{refreshing ? "Refreshing..." : "Refresh"}</span>
           </button>
 
-          <div className="relative">
-            <button
-              onClick={() => setShowDatePicker(!showDatePicker)}
-              className="flex items-center gap-2 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 shadow-sm hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors"
-            >
-              <FiCalendar className="w-4 h-4 text-gray-400 dark:text-slate-500" />
-              <span>{currentDate}</span>
-              <FiChevronDown className="w-4 h-4 text-gray-400 dark:text-slate-500" />
-            </button>
-            
-            {showDatePicker && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-950 border border-gray-100 dark:border-slate-800 rounded-xl shadow-lg z-50 py-1.5">
-                {Array.from({ length: 4 }).map((_, i) => {
-                  const d = new Date();
-                  d.setDate(d.getDate() + i);
-                  const str = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-                  return (
-                    <button
-                      key={str}
-                      onClick={() => {
-                        setCurrentDate(str);
-                        setShowDatePicker(false);
-                        toast.success(`Date changed to ${str}`);
-                      }}
-                      className={cn(
-                        "w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors",
-                        currentDate === str ? "text-[#1E4DB7] font-semibold" : "text-gray-600 dark:text-slate-400"
-                      )}
-                    >
-                      {str}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <DateRangePicker
+            value={dateRange}
+            onChange={handleDateRangeChange}
+            align="end"
+          />
         </div>
       </div>
 

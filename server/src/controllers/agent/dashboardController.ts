@@ -6,8 +6,50 @@ import { parseFullName, formatDateTime, apiError } from '../../utils/helpers';
 export const getAgentDashboard = async (req: AuthRequest, res: Response) => {
   try {
     const agentId = req.user?.id as string;
+    const period = ((req.query.period as string) || '').toLowerCase().trim();
+    const startDateParam = req.query.startDate as string;
+    const endDateParam = req.query.endDate as string;
 
-    const [agent, cases] = await Promise.all([
+    const now = new Date();
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+
+    if (startDateParam && endDateParam) {
+      startDate = new Date(startDateParam);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(endDateParam);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (period === 'today') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    } else if (period === 'last 7 days') {
+      startDate = new Date(now.getTime() - 6 * 86400000);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    } else if (period === 'this week') {
+      const dayOfWeek = now.getDay();
+      const diffToMonday = (dayOfWeek + 6) % 7;
+      startDate = new Date(now.getTime() - diffToMonday * 86400000);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(startDate.getTime() + 6 * 86400000);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (period === 'last week') {
+      const dayOfWeek = now.getDay();
+      const diffToMonday = (dayOfWeek + 6) % 7;
+      const monday = new Date(now.getTime() - diffToMonday * 86400000);
+      startDate = new Date(monday.getTime() - 7 * 86400000);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(monday.getTime() - 1 * 86400000);
+      endDate.setHours(23, 59, 59, 999);
+    } else if (period === 'this month') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    } else if (period === 'last month') {
+      startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    }
+
+    const [agent, allCases] = await Promise.all([
       prisma.user.findUnique({
         where: { id: agentId },
         select: { firstName: true, lastName: true, branch: true, email: true, phone: true },
@@ -20,6 +62,20 @@ export const getAgentDashboard = async (req: AuthRequest, res: Response) => {
     ]);
 
     if (!agent) return res.status(404).json({ success: false, message: 'Agent not found' });
+
+    let cases = allCases;
+    if (startDate && endDate) {
+      cases = allCases.filter((c) => {
+        const cDate = c.createdAt ? new Date(c.createdAt) : null;
+        const uDate = c.updatedAt ? new Date(c.updatedAt) : null;
+        const compDate = c.completedAt ? new Date(c.completedAt) : null;
+        return (
+          (cDate && cDate >= startDate! && cDate <= endDate!) ||
+          (uDate && uDate >= startDate! && uDate <= endDate!) ||
+          (compDate && compDate >= startDate! && compDate <= endDate!)
+        );
+      });
+    }
 
     let branchCity = 'Local Area';
     if (agent.branch) {

@@ -167,11 +167,13 @@ export const agentLoginApi = (email: string, password: string) =>
 export const agentLogoutApi = () =>
   api.post("/auth/logout");
 
-export const getAgentDashboardApi = () =>
-  api.get("/agent/dashboard");
+export const getAgentDashboardApi = (params?: { period?: string; startDate?: string; endDate?: string }) =>
+  api.get("/agent/dashboard", { params });
 
-export const getAgentCasesApi = (status?: string) =>
-  api.get("/agent/cases", { params: status && status !== "All" ? { status } : {} });
+export const getAgentCasesApi = (params?: { status?: string; startDate?: string; endDate?: string; period?: string } | string) => {
+  const queryParams = typeof params === "string" ? (params !== "All" ? { status: params } : {}) : (params || {});
+  return api.get("/agent/cases", { params: queryParams });
+};
 
 export const getAgentCaseByIdApi = (id: string) =>
   api.get(`/agent/cases/${id}`);

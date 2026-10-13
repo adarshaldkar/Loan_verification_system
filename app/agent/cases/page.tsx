@@ -15,6 +15,7 @@ import { getProfileByCode, VERIFICATION_PROFILES } from "@/lib/verificationProfi
 import { STATUS_COLORS } from "@/lib/constants";
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import PaginationControls from "@/components/shared/PaginationControls";
+import DateRangePicker, { DateRangeOption, getDynamicDateRanges } from "@/components/shared/DateRangePicker";
 
 type CaseStatus = "ASSIGNED" | "PENDING" | "TRAVELLING" | "AT_LOCATION" | "IN_PROGRESS" | "SUBMITTED" | "COMPLETED" | "RE_VERIFICATION" | "REJECTED" | "APPROVED";
 type CaseType   = string;
@@ -58,6 +59,7 @@ export default function AssignedCasesPage() {
   const debouncedSearch               = useDebounce(search, 250);
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [profileFilter, setProfileFilter] = useState<string>("All");
+  const [dateRange, setDateRange]     = useState<DateRangeOption>(() => getDynamicDateRanges()[2]);
   const [sortBy, setSortBy]           = useState<"newest" | "priority" | "name" | "amount">("newest");
   const [viewMode, setViewMode]       = useState<"grid" | "list">("grid");
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,14 +72,30 @@ export default function AssignedCasesPage() {
   // Reset to page 1 on filter or search change
   useEffect(() => {
     setCurrentPage(1);
-  }, [debouncedSearch, statusFilter, profileFilter, sortBy]);
+  }, [debouncedSearch, statusFilter, profileFilter, sortBy, dateRange]);
 
-  async function fetchCases(isManual = false) {
+  async function fetchCases(
+    isManual = false,
+    currentRange = dateRange,
+    start?: string,
+    end?: string
+  ) {
     if (isManual) setRefreshing(true);
     else setLoading(true);
     setError(null);
     try {
-      const res = await getAgentCasesApi();
+      const params: any = {
+        status: statusFilter !== "All" ? statusFilter : undefined,
+        period: currentRange.periodKey || currentRange.label,
+      };
+      const sDate = start || currentRange.startDate;
+      const eDate = end || currentRange.endDate;
+      if (sDate && eDate) {
+        params.startDate = sDate;
+        params.endDate = eDate;
+      }
+
+      const res = await getAgentCasesApi(params);
       const fetched: AgentCase[] = (res.data.data || []).map((c: any) => ({
         id: c.id,
         applicationId: c.applicationId || `APP-${c.id.slice(0, 8).toUpperCase()}`,
@@ -107,8 +125,14 @@ export default function AssignedCasesPage() {
     }
   }
 
+  const handleDateRangeChange = (range: DateRangeOption, start?: string, end?: string) => {
+    setDateRange(range);
+    fetchCases(false, range, start, end);
+    toast.success(`Cases filtered: ${range.label}`);
+  };
+
   useEffect(() => {
-    fetchCases();
+    fetchCases(false, dateRange);
   }, []);
 
   // Filtered & Sorted Cases
@@ -281,11 +305,17 @@ export default function AssignedCasesPage() {
           <button
             onClick={() => fetchCases(true)}
             disabled={refreshing}
-            className="flex items-center gap-1.5 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-xs font-semibold text-gray-700 dark:text-slate-300 shadow-sm hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors"
+            className="flex items-center gap-1.5 bg-white dark:bg-slate-950 border border-gray-200 dark:border-slate-800 rounded-xl px-3.5 py-2 text-xs font-semibold text-gray-700 dark:text-slate-300 shadow-sm hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors cursor-pointer"
           >
             <FiRefreshCw className={cn("w-3.5 h-3.5 text-[#1E4DB7]", refreshing && "animate-spin")} />
             <span>{refreshing ? "Refreshing..." : "Refresh"}</span>
           </button>
+
+          <DateRangePicker
+            value={dateRange}
+            onChange={handleDateRangeChange}
+            align="end"
+          />
         </div>
       </div>
 
