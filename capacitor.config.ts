@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.lvms.loanverification',
-  appName: 'LVMS Field Agent',
+  appId: 'com.skylinerisk.audit',
+  appName: 'Sky Line Risk Audit Services',
   webDir: 'public',
   server: {
     // Replace with your production deployed HTTPS URL (e.g. 'https://lvms-app.vercel.app')
@@ -12,12 +12,12 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: true,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#080e1e',
   },
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,
-      backgroundColor: '#0f172a',
+      backgroundColor: '#080e1e',
       showSpinner: false,
     },
   },
