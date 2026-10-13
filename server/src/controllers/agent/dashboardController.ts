@@ -66,6 +66,7 @@ export const getAgentDashboard = async (req: AuthRequest, res: Response) => {
     let cases = allCases;
     if (startDate && endDate) {
       cases = allCases.filter((c) => {
+        if (c.status === 'ASSIGNED' || c.status === 'IN_PROGRESS' || c.status === 'PENDING') return true;
         const cDate = c.createdAt ? new Date(c.createdAt) : null;
         const uDate = c.updatedAt ? new Date(c.updatedAt) : null;
         const compDate = c.completedAt ? new Date(c.completedAt) : null;

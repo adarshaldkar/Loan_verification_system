@@ -39,6 +39,11 @@ export const getDynamicDateRanges = (): DateRangeOption[] => {
 
   return [
     {
+      label: "All Time",
+      value: "All Time",
+      periodKey: "all",
+    },
+    {
       label: "Today",
       value: fmt(now),
       periodKey: "Today",

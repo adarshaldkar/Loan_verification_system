@@ -31,7 +31,7 @@ export default function AgentDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<"All" | "Pending" | "In Progress" | "High Priority">("All");
   const [activeKpi, setActiveKpi] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState<DateRangeOption>(() => getDynamicDateRanges()[2]);
+  const [dateRange, setDateRange] = useState<DateRangeOption>(() => getDynamicDateRanges()[0]);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [liveCases, setLiveCases] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");

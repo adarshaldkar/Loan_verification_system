@@ -56,6 +56,7 @@ export const getAgentCases = async (req: AuthRequest, res: Response) => {
       dateFilter.OR = [
         { createdAt: { gte: startDate, lte: endDate } },
         { updatedAt: { gte: startDate, lte: endDate } },
+        { status: { in: ['ASSIGNED', 'IN_PROGRESS', 'PENDING'] } },
       ];
     }
 
