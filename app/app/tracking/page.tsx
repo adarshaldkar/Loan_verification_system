@@ -5,10 +5,6 @@ import {
   getActiveRidesApi,
   getRideHistoryApi,
   forceEndRideApi,
-  getReimbursementClaimsApi,
-  updateReimbursementStatusApi,
-  getFuelRateSettingApi,
-  updateFuelRateSettingApi,
 } from "@/lib/api";
 import { toast } from "sonner";
 import {
@@ -17,13 +13,7 @@ import {
   FiClock,
   FiActivity,
   FiStopCircle,
-  FiDollarSign,
-  FiCheck,
-  FiX,
-  FiDownload,
-  FiSettings,
   FiRefreshCw,
-  FiFileText,
 } from "react-icons/fi";
 import maplibregl from "maplibre-gl";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -65,17 +55,6 @@ export default function TrackingPage() {
   const [selectedRideId, setSelectedRideId] = useState<string | null>(null);
   const [selectedHistory, setSelectedHistory] = useState<any | null>(null);
 
-  // Reimbursements modal & settings state
-  const [showReimbursementModal, setShowReimbursementModal] = useState(false);
-  const [reimbursementData, setReimbursementData] = useState<{ claims: any[]; summary: any } | null>(null);
-  const [loadingClaims, setLoadingClaims] = useState(false);
-  const [claimsFilter, setClaimsFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL");
-
-  // Fuel Rate Configuration state
-  const [fuelRate, setFuelRate] = useState<number>(3.5);
-  const [editingFuelRate, setEditingFuelRate] = useState(false);
-  const [tempFuelRate, setTempFuelRate] = useState("3.5");
-
   const mapRef = useRef<MapRef | null>(null);
   const prevRideCountRef = useRef(0);
 
@@ -96,20 +75,6 @@ export default function TrackingPage() {
     loadActiveRides();
     const interval = setInterval(() => loadActiveRides(true), 10000);
     return () => clearInterval(interval);
-  }, []);
-
-  // Load Fuel Rate Setting on mount
-  useEffect(() => {
-    async function loadFuelRate() {
-      try {
-        const res = await getFuelRateSettingApi();
-        if (res.data?.data?.fuelRatePerKm) {
-          setFuelRate(res.data.data.fuelRatePerKm);
-          setTempFuelRate(res.data.data.fuelRatePerKm.toString());
-        }
-      } catch {}
-    }
-    loadFuelRate();
   }, []);
 
   // Fit bounds to show all active rides on initial load
@@ -167,7 +132,7 @@ export default function TrackingPage() {
   const handleEndRide = async (rideId: string) => {
     const ride = activeRides.find((r) => r.id === rideId);
     const agentName = ride ? `${ride.agent?.firstName ?? ""} ${ride.agent?.lastName ?? ""}`.trim() : "this agent";
-    if (!window.confirm(`Stop tracking for ${agentName}? This will finalize their odometer distance and submit their fuel allowance claim.`)) {
+    if (!window.confirm(`Stop tracking for ${agentName}? This will finalize their active odometer distance.`)) {
       return;
     }
     try {
@@ -183,89 +148,9 @@ export default function TrackingPage() {
     }
   };
 
-  // Load Reimbursement Claims
-  const loadReimbursementClaims = async () => {
-    try {
-      setLoadingClaims(true);
-      const res = await getReimbursementClaimsApi({
-        status: claimsFilter === "ALL" ? undefined : claimsFilter,
-      });
-      setReimbursementData(res.data.data);
-    } catch {
-      toast.error("Failed to load reimbursement claims");
-    } finally {
-      setLoadingClaims(false);
-    }
-  };
-
-  useEffect(() => {
-    if (showReimbursementModal) {
-      loadReimbursementClaims();
-    }
-  }, [showReimbursementModal, claimsFilter]);
-
-  const handleUpdateClaim = async (rideId: string, status: "APPROVED" | "REJECTED") => {
-    try {
-      await updateReimbursementStatusApi(rideId, { status });
-      toast.success(`Claim marked as ${status}`);
-      loadReimbursementClaims();
-    } catch {
-      toast.error("Failed to update claim status");
-    }
-  };
-
-  const handleSaveFuelRate = async () => {
-    const num = parseFloat(tempFuelRate);
-    if (isNaN(num) || num <= 0 || num > 50) {
-      toast.error("Please enter a valid rate between ₹0.1 and ₹50 per km");
-      return;
-    }
-    try {
-      await updateFuelRateSettingApi(num);
-      setFuelRate(num);
-      setEditingFuelRate(false);
-      toast.success(`Fuel reimbursement rate updated to ₹${num.toFixed(2)}/km`);
-    } catch {
-      toast.error("Failed to update fuel rate");
-    }
-  };
-
-  // Export claims to CSV
-  const exportClaimsToCSV = () => {
-    if (!reimbursementData?.claims?.length) {
-      toast.error("No claims available to export");
-      return;
-    }
-    const headers = ["Ride ID", "Date", "Agent Name", "Phone", "Branch", "Total Distance (KM)", "Rate (₹/km)", "Fuel Cost (₹)", "Status"];
-    const rows = reimbursementData.claims.map((c) => [
-      c.id,
-      new Date(c.createdAt).toLocaleDateString(),
-      `${c.agent?.firstName || ""} ${c.agent?.lastName || ""}`.trim(),
-      c.agent?.phone || "",
-      c.agent?.branch || "",
-      (c.totalDistance || 0).toFixed(2),
-      c.fuelRatePerKm || fuelRate,
-      (c.fuelCost || 0).toFixed(2),
-      c.reimbursementStatus || "PENDING",
-    ]);
-
-    const csvContent =
-      "data:text/csv;charset=utf-8," +
-      [headers.join(","), ...rows.map((e) => e.map((val) => `"${val}"`).join(","))].join("\n");
-
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Fuel_Claims_Report_${new Date().toISOString().split("T")[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Fuel claims report downloaded!");
-  };
-
   return (
     <div className="space-y-4">
-      {/* ── Top Bar with Fuel Allowance Info & Actions ── */}
+      {/* ── Top Bar ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 rounded-2xl border border-gray-100 dark:border-slate-800 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center text-xl shrink-0">
@@ -279,51 +164,12 @@ export default function TrackingPage() {
               </span>
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Real-time GPS telemetry, anti-fraud movement states, and auto-calculated petrol allowances.
+              Real-time GPS telemetry, anti-fraud movement states, and distance odometers.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Rate Pill */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300">
-            <span>Rate:</span>
-            {editingFuelRate ? (
-              <div className="flex items-center gap-1">
-                <input
-                  type="number"
-                  step="0.1"
-                  value={tempFuelRate}
-                  onChange={(e) => setTempFuelRate(e.target.value)}
-                  className="w-16 px-1.5 py-0.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-xs font-bold"
-                />
-                <button onClick={handleSaveFuelRate} className="text-emerald-600 hover:text-emerald-500 font-bold">
-                  ✓
-                </button>
-                <button onClick={() => setEditingFuelRate(false)} className="text-rose-500 hover:text-rose-400 font-bold">
-                  ✕
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setEditingFuelRate(true)}
-                className="font-bold text-[#1E4DB7] dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
-                title="Click to edit company fuel rate"
-              >
-                <span>₹{fuelRate.toFixed(2)}/km</span>
-                <FiSettings className="w-3 h-3 text-slate-400" />
-              </button>
-            )}
-          </div>
-
-          <button
-            onClick={() => setShowReimbursementModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/40 dark:hover:bg-blue-900/40 text-[#1E4DB7] dark:text-blue-300 text-xs font-bold transition-all shadow-sm cursor-pointer"
-          >
-            <FiDollarSign className="w-4 h-4 text-emerald-600" />
-            <span>Fuel Reimbursements</span>
-          </button>
-
           <button
             onClick={() => loadActiveRides()}
             disabled={loading}
@@ -421,7 +267,7 @@ export default function TrackingPage() {
                     </div>
 
                     {/* Stats Pill Row */}
-                    <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 text-xs">
+                    <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 text-xs">
                       <div>
                         <span className="text-[10px] text-slate-400 uppercase font-medium">Odometer</span>
                         <p className="font-bold text-slate-800 dark:text-slate-200 font-mono mt-0.5">
@@ -432,12 +278,6 @@ export default function TrackingPage() {
                         <span className="text-[10px] text-slate-400 uppercase font-medium">Speed</span>
                         <p className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5">
                           {speedKmh} km/h
-                        </p>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 uppercase font-medium">Fuel Claim</span>
-                        <p className="font-bold text-amber-600 dark:text-amber-400 font-mono mt-0.5">
-                          ₹{(ride.fuelCost || 0).toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -533,7 +373,7 @@ export default function TrackingPage() {
                         <span>Speed: {speedKmh} km/h</span>
                       </div>
                       <div className="text-xs font-semibold text-emerald-700 pt-1 border-t border-slate-200">
-                        Odometer: {(ride.totalDistance || 0).toFixed(2)} km • Petrol: ₹{(ride.fuelCost || 0).toFixed(2)}
+                        Odometer: {(ride.totalDistance || 0).toFixed(2)} km
                       </div>
                     </div>
                   </MarkerPopup>
@@ -569,177 +409,6 @@ export default function TrackingPage() {
           </div>
         </div>
       </div>
-
-      {/* ── Fuel Claims & Reimbursements Modal ── */}
-      {showReimbursementModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-4xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-100 dark:border-slate-800 animate-in zoom-in-95">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center text-xl shrink-0">
-                  ⛽
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">
-                    Field Mileage & Fuel Reimbursement Claims
-                  </h3>
-                  <p className="text-xs text-slate-400">
-                    Review and approve GPS-verified travel claims calculated at ₹{fuelRate}/km.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={exportClaimsToCSV}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  <FiDownload className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Export CSV</span>
-                </button>
-                <button
-                  onClick={() => setShowReimbursementModal(false)}
-                  className="w-8 h-8 rounded-full text-slate-400 hover:text-slate-600 flex items-center justify-center cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            {/* Summary Cards */}
-            {reimbursementData?.summary && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 my-4">
-                <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-2xl border border-gray-100 dark:border-slate-800 text-center">
-                  <p className="text-[10px] text-slate-400 uppercase font-semibold">Total Verified KM</p>
-                  <p className="text-lg font-extrabold text-slate-900 dark:text-slate-100 mt-0.5">
-                    {reimbursementData.summary.totalDistance} km
-                  </p>
-                </div>
-                <div className="bg-amber-50/50 dark:bg-amber-950/20 p-3 rounded-2xl border border-amber-100 dark:border-amber-900/40 text-center">
-                  <p className="text-[10px] text-amber-600 dark:text-amber-400 uppercase font-semibold">Total Claimed</p>
-                  <p className="text-lg font-extrabold text-amber-700 dark:text-amber-300 mt-0.5">
-                    ₹{reimbursementData.summary.totalClaimed}
-                  </p>
-                </div>
-                <div className="bg-emerald-50/50 dark:bg-emerald-950/20 p-3 rounded-2xl border border-emerald-100 dark:border-emerald-900/40 text-center">
-                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400 uppercase font-semibold">Total Approved</p>
-                  <p className="text-lg font-extrabold text-emerald-700 dark:text-emerald-300 mt-0.5">
-                    ₹{reimbursementData.summary.totalApproved}
-                  </p>
-                </div>
-                <div className="bg-blue-50/50 dark:bg-blue-950/20 p-3 rounded-2xl border border-blue-100 dark:border-blue-900/40 text-center">
-                  <p className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-semibold">Pending Review</p>
-                  <p className="text-lg font-extrabold text-blue-700 dark:text-blue-300 mt-0.5">
-                    {reimbursementData.summary.pendingCount}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* Filter Pills */}
-            <div className="flex gap-2 pb-3">
-              {(["ALL", "PENDING", "APPROVED", "REJECTED"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setClaimsFilter(tab)}
-                  className={cn(
-                    "px-3 py-1 rounded-xl text-xs font-bold transition-colors cursor-pointer",
-                    claimsFilter === tab
-                      ? "bg-slate-900 dark:bg-white text-white dark:text-slate-900"
-                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200"
-                  )}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            {/* Claims Table */}
-            <div className="flex-1 overflow-y-auto border border-gray-100 dark:border-slate-800 rounded-2xl">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 dark:bg-slate-950 text-slate-500 font-semibold sticky top-0 border-b border-gray-100 dark:border-slate-800">
-                  <tr>
-                    <th className="py-2.5 px-3">Date</th>
-                    <th className="py-2.5 px-3">Agent</th>
-                    <th className="py-2.5 px-3">Branch</th>
-                    <th className="py-2.5 px-3">Odometer (KM)</th>
-                    <th className="py-2.5 px-3">Fuel Claim</th>
-                    <th className="py-2.5 px-3">Status</th>
-                    <th className="py-2.5 px-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
-                  {loadingClaims ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-8 text-slate-400">
-                        Loading fuel claims...
-                      </td>
-                    </tr>
-                  ) : !reimbursementData?.claims?.length ? (
-                    <tr>
-                      <td colSpan={7} className="text-center py-8 text-slate-400">
-                        No reimbursement claims found.
-                      </td>
-                    </tr>
-                  ) : (
-                    reimbursementData.claims.map((claim) => (
-                      <tr key={claim.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                        <td className="py-2.5 px-3 text-slate-500 whitespace-nowrap">
-                          {new Date(claim.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-200">
-                          {claim.agent?.firstName} {claim.agent?.lastName}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-500">{claim.agent?.branch || "N/A"}</td>
-                        <td className="py-2.5 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
-                          {(claim.totalDistance || 0).toFixed(2)} km
-                        </td>
-                        <td className="py-2.5 px-3 font-mono font-bold text-amber-600 dark:text-amber-400">
-                          ₹{(claim.fuelCost || 0).toFixed(2)}
-                        </td>
-                        <td className="py-2.5 px-3">
-                          <span
-                            className={cn(
-                              "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
-                              claim.reimbursementStatus === "APPROVED"
-                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                                : claim.reimbursementStatus === "REJECTED"
-                                ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                                : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
-                            )}
-                          >
-                            {claim.reimbursementStatus || "PENDING"}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-right">
-                          {claim.reimbursementStatus === "PENDING" ? (
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => handleUpdateClaim(claim.id, "APPROVED")}
-                                className="px-2 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[11px] font-bold transition-colors cursor-pointer"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleUpdateClaim(claim.id, "REJECTED")}
-                                className="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[11px] font-bold transition-colors cursor-pointer"
-                              >
-                                Reject
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-[11px] text-slate-400 font-medium">Decided</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

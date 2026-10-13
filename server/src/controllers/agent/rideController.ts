@@ -74,7 +74,7 @@ export const getCurrentRide = async (req: AuthRequest, res: Response) => {
 
 /**
  * POST /api/agent/rides/start
- * Atomically starts a new tracking session with the company-configured fuel rate.
+ * Atomically starts a new tracking session for the field agent.
  */
 export const startRide = async (req: AuthRequest, res: Response) => {
   try {
@@ -83,17 +83,6 @@ export const startRide = async (req: AuthRequest, res: Response) => {
 
     const agent = await prisma.user.findUnique({ where: { id: agentId } });
     if (!agent || !agent.adminId) return res.status(400).json({ success: false, message: 'Invalid agent' });
-
-    // Look up company-approved fuel rate per km
-    let fuelRatePerKm = 3.5;
-    try {
-      const settings = await prisma.systemSetting.findFirst({
-        where: { adminId: agent.adminId },
-      });
-      if (settings?.fuelRatePerKm && settings.fuelRatePerKm > 0) {
-        fuelRatePerKm = settings.fuelRatePerKm;
-      }
-    } catch {}
 
     // Concurrency-safe atomic transaction: close any dangling active rides first
     const [_, newRide] = await prisma.$transaction([
@@ -106,8 +95,6 @@ export const startRide = async (req: AuthRequest, res: Response) => {
           agentId,
           adminId: agent.adminId,
           status: 'STARTED',
-          fuelRatePerKm,
-          fuelCost: 0,
         },
       }),
     ]);
@@ -233,13 +220,10 @@ export const logLocationPing = async (req: AuthRequest, res: Response) => {
     await redisClient.set(`ride:latest:${rideId}`, JSON.stringify(latestLocData), 'EX', 600);
 
     let updatedDistance = ride.totalDistance;
-    let updatedFuelCost = ride.fuelCost || 0;
-    const fuelRate = ride.fuelRatePerKm || 3.5;
 
     // If anchor advanced or first coordinate, persist to PostgreSQL
     if (addedDistance > 0 || !anchor) {
       updatedDistance = parseFloat((ride.totalDistance + addedDistance).toFixed(3));
-      updatedFuelCost = parseFloat((updatedDistance * fuelRate).toFixed(2));
 
       const [_, updatedRideRecord] = await prisma.$transaction([
         prisma.agentLocation.create({
@@ -257,13 +241,11 @@ export const logLocationPing = async (req: AuthRequest, res: Response) => {
           where: { id: rideId },
           data: {
             totalDistance: updatedDistance,
-            fuelCost: updatedFuelCost,
           },
         }),
       ]);
 
       ride.totalDistance = updatedRideRecord.totalDistance;
-      ride.fuelCost = updatedRideRecord.fuelCost;
       await redisClient.set(`ride:data:${rideId}`, JSON.stringify(ride), 'EX', 300);
     }
 
@@ -273,8 +255,6 @@ export const logLocationPing = async (req: AuthRequest, res: Response) => {
         id: rideId,
         status: ride.status,
         totalDistance: updatedDistance,
-        fuelCost: updatedFuelCost,
-        fuelRatePerKm: fuelRate,
         latestLocation: latestLocData,
         isAnomaly,
       },
@@ -286,7 +266,7 @@ export const logLocationPing = async (req: AuthRequest, res: Response) => {
 
 /**
  * POST /api/agent/rides/end
- * Concludes ride session and finalizes fuel reimbursement claim.
+ * Concludes ride session and finalizes odometer distance.
  */
 export const endRide = async (req: AuthRequest, res: Response) => {
   try {
@@ -298,16 +278,11 @@ export const endRide = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ success: false, message: 'Invalid ride' });
     }
 
-    const finalFuelCost = parseFloat(((ride.totalDistance || 0) * (ride.fuelRatePerKm || 3.5)).toFixed(2));
-
     const updatedRide = await prisma.agentRide.update({
       where: { id: rideId },
       data: {
         status: 'COMPLETED',
         endTime: new Date(),
-        fuelCost: finalFuelCost,
-        claimedAmount: finalFuelCost,
-        reimbursementStatus: 'PENDING',
       },
     });
 
@@ -324,7 +299,7 @@ export const endRide = async (req: AuthRequest, res: Response) => {
 
 /**
  * GET /api/agent/rides/daily-summary
- * Fetches today's odometer travel, fuel expense allowance, and individual legs.
+ * Fetches today's odometer travel distance and individual trip legs.
  */
 export const getAgentDailySummary = async (req: AuthRequest, res: Response) => {
   try {
@@ -349,16 +324,12 @@ export const getAgentDailySummary = async (req: AuthRequest, res: Response) => {
     const totalDistance = parseFloat(
       rides.reduce((sum, r) => sum + (r.totalDistance || 0), 0).toFixed(2)
     );
-    const totalFuelCost = parseFloat(
-      rides.reduce((sum, r) => sum + (r.fuelCost || 0), 0).toFixed(2)
-    );
 
     return res.status(200).json({
       success: true,
       data: {
         date: dateParam,
         totalDistance,
-        totalFuelCost,
         totalRides: rides.length,
         rides,
       },

@@ -232,27 +232,13 @@ export const logLocationPingApi = (data: {
   accuracy?: number;
 }) => api.post("/agent/rides/ping", data);
 
-// ─── Admin Tracking & Fuel Reimbursements ─────────────────────────────────
+// ─── Admin Tracking ────────────────────────────────────────────────────────
 export const getActiveRidesApi = () =>
   api.get("/admin/tracking/active");
 export const getRideHistoryApi = (rideId: string) =>
   api.get(`/admin/tracking/history/${rideId}`);
 export const forceEndRideApi = (rideId: string) =>
   api.post(`/admin/tracking/rides/${rideId}/end`);
-export const getReimbursementClaimsApi = (params?: {
-  status?: string;
-  agentId?: string;
-  startDate?: string;
-  endDate?: string;
-}) => api.get("/admin/tracking/reimbursements", { params });
-export const updateReimbursementStatusApi = (
-  rideId: string,
-  data: { status: "APPROVED" | "REJECTED" | "PENDING"; approvedAmount?: number; notes?: string }
-) => api.patch(`/admin/tracking/reimbursements/${rideId}`, data);
-export const getFuelRateSettingApi = () =>
-  api.get("/admin/settings/fuel-rate");
-export const updateFuelRateSettingApi = (fuelRatePerKm: number) =>
-  api.put("/admin/settings/fuel-rate", { fuelRatePerKm });
 
 // ─── Admin Verification APIs ───────────────────────────────────────────────
 export const getCompletedCasesApi = () =>

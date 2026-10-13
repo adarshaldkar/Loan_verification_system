@@ -69,12 +69,9 @@ export default function AgentDashboard() {
   const [activeRideId, setActiveRideId] = useState<string | null>(null);
   const [rideDuration, setRideDuration] = useState(0);
   const [rideDistance, setRideDistance] = useState(0);
-  const [fuelCost, setFuelCost] = useState(0);
-  const [fuelRate, setFuelRate] = useState(3.5);
   const [isRideModalOpen, setIsRideModalOpen] = useState(false);
-  const [dailyTravel, setDailyTravel] = useState<{ totalDistance: number; totalFuelCost: number; totalRides: number }>({
+  const [dailyTravel, setDailyTravel] = useState<{ totalDistance: number; totalRides: number }>({
     totalDistance: 0,
-    totalFuelCost: 0,
     totalRides: 0,
   });
 
@@ -92,15 +89,12 @@ export default function AgentDashboard() {
           setActiveRideId(r.id);
           setRideDuration(r.elapsedSeconds || 0);
           setRideDistance(r.totalDistance || 0);
-          setFuelCost(r.fuelCost || 0);
-          setFuelRate(r.fuelRatePerKm || 3.5);
-          toast.success(`Active ride restored: ${(r.totalDistance || 0).toFixed(2)} km • ₹${(r.fuelCost || 0).toFixed(2)} fuel`);
+          toast.success(`Active ride restored: ${(r.totalDistance || 0).toFixed(2)} km`);
         }
 
         if (summaryRes.data?.data) {
           setDailyTravel({
             totalDistance: summaryRes.data.data.totalDistance || 0,
-            totalFuelCost: summaryRes.data.data.totalFuelCost || 0,
             totalRides: summaryRes.data.data.totalRides || 0,
           });
         }
@@ -134,8 +128,6 @@ export default function AgentDashboard() {
               });
               if (res.data?.data) {
                 setRideDistance(res.data.data.totalDistance || 0);
-                setFuelCost(res.data.data.fuelCost || 0);
-                if (res.data.data.fuelRatePerKm) setFuelRate(res.data.data.fuelRatePerKm);
               }
               pingFailCount = 0;
             } catch (e) {
@@ -176,10 +168,8 @@ export default function AgentDashboard() {
       const r = res.data.data;
       setActiveRideId(r.id);
       setRideDistance(r.totalDistance || 0);
-      setFuelCost(r.fuelCost || 0);
-      setFuelRate(r.fuelRatePerKm || 3.5);
       setRideDuration(0);
-      toast.success("Ride started! Tracking live odometer & fuel allowance.");
+      toast.success("Ride started! Tracking live distance odometer.");
       if ("wakeLock" in navigator) {
         try {
           (window as any).wakeLockObj = await (navigator as any).wakeLock.request("screen");
@@ -198,14 +188,13 @@ export default function AgentDashboard() {
       setActiveRideId(null);
       setIsRideModalOpen(false);
       setRideDuration(0);
-      toast.success(`Ride completed! ${(ended.totalDistance || 0).toFixed(2)} km • ₹${(ended.fuelCost || 0).toFixed(2)} fuel allowance claimed.`);
+      toast.success(`Ride completed! ${(ended.totalDistance || 0).toFixed(2)} km travelled.`);
 
       // Refresh daily summary
       const summaryRes = await getAgentDailySummaryApi().catch(() => null);
       if (summaryRes?.data?.data) {
         setDailyTravel({
           totalDistance: summaryRes.data.data.totalDistance || 0,
-          totalFuelCost: summaryRes.data.data.totalFuelCost || 0,
           totalRides: summaryRes.data.data.totalRides || 0,
         });
       }
@@ -648,8 +637,7 @@ export default function AgentDashboard() {
                 <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-300">
                   <span className="font-semibold text-white">{(rideDistance || 0).toFixed(2)} km</span>
                   <span className="text-slate-500">•</span>
-                  <span className="text-amber-300 font-bold">₹{(fuelCost || 0).toFixed(2)} fuel</span>
-                  <span className="text-[10px] text-slate-400 font-normal">(@₹{fuelRate}/km)</span>
+                  <span className="text-emerald-400 font-medium">GPS Active</span>
                 </div>
               </div>
             </div>
@@ -690,23 +678,17 @@ export default function AgentDashboard() {
               </button>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 bg-slate-950 p-3 rounded-xl border border-slate-800">
-              <div className="text-center">
+            <div className="grid grid-cols-2 gap-3 bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+              <div className="text-center border-r border-slate-800">
                 <p className="text-[10px] text-slate-400 uppercase font-semibold">Duration</p>
-                <p className="text-base font-bold font-mono text-emerald-400 mt-0.5">
+                <p className="text-lg font-bold font-mono text-emerald-400 mt-0.5">
                   {Math.floor(rideDuration / 60).toString().padStart(2, '0')}:{(rideDuration % 60).toString().padStart(2, '0')}
                 </p>
               </div>
-              <div className="text-center border-x border-slate-800">
-                <p className="text-[10px] text-slate-400 uppercase font-semibold">Odometer</p>
-                <p className="text-base font-bold text-white mt-0.5">
-                  {(rideDistance || 0).toFixed(2)} km
-                </p>
-              </div>
               <div className="text-center">
-                <p className="text-[10px] text-slate-400 uppercase font-semibold">Fuel Cost</p>
-                <p className="text-base font-bold text-amber-400 mt-0.5">
-                  ₹{(fuelCost || 0).toFixed(2)}
+                <p className="text-[10px] text-slate-400 uppercase font-semibold">Odometer</p>
+                <p className="text-lg font-bold text-white mt-0.5">
+                  {(rideDistance || 0).toFixed(2)} km
                 </p>
               </div>
             </div>
@@ -792,7 +774,7 @@ export default function AgentDashboard() {
         </div>
       </div>
 
-      {/* ── Today's Travel & Fuel Allowance Summary Banner (Rapido/Swiggy Style) ── */}
+      {/* ── Today's Travel & Distance Odometer Banner ── */}
       <div className="bg-gradient-to-r from-blue-900/90 via-slate-900 to-indigo-950 text-white rounded-2xl p-4 md:p-5 shadow-lg border border-blue-800/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3.5">
           <div className="w-12 h-12 rounded-2xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-2xl shrink-0">
@@ -800,25 +782,25 @@ export default function AgentDashboard() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-base text-white">Daily Field Travel & Petrol Allowance</h3>
+              <h3 className="font-bold text-base text-white">Daily Field Travel & Distance Odometer</h3>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                Rate: ₹{fuelRate}/km
+                Live GPS Active
               </span>
             </div>
             <p className="text-xs text-blue-200/80 mt-0.5">
-              Verified GPS odometer distance and auto-calculated fuel expense claim for today.
+              Verified GPS odometer distance and completed verification routes for today.
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3 bg-black/30 p-2 rounded-xl border border-white/10 shrink-0">
           <div className="px-3 border-r border-white/10 text-center">
-            <p className="text-[10px] font-semibold text-blue-200 uppercase">Today's Travel</p>
+            <p className="text-[10px] font-semibold text-blue-200 uppercase">Today's Distance</p>
             <p className="text-lg font-extrabold text-white">{(dailyTravel.totalDistance || 0).toFixed(1)} <span className="text-xs font-normal text-slate-300">km</span></p>
           </div>
           <div className="px-3 border-r border-white/10 text-center">
-            <p className="text-[10px] font-semibold text-amber-200 uppercase">Fuel Allowance</p>
-            <p className="text-lg font-extrabold text-amber-400">₹{(dailyTravel.totalFuelCost || 0).toFixed(2)}</p>
+            <p className="text-[10px] font-semibold text-blue-200 uppercase">Trips Today</p>
+            <p className="text-lg font-extrabold text-emerald-400">{dailyTravel.totalRides || 0}</p>
           </div>
           <div className="px-2 text-center">
             <button
