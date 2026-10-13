@@ -238,6 +238,14 @@ try {
     { connection: { url: redisUrl, maxRetriesPerRequest: 1 }, concurrency: 2 }
   );
 
+  uploadQueue.on('error', () => {
+    // Suppress connection retry logging when Redis is unavailable in local dev
+  });
+
+  uploadWorker.on('error', () => {
+    // Suppress connection retry logging when Redis is unavailable in local dev
+  });
+
   uploadWorker.on('failed', (job, err) => {
     if (job?.data?.batchId) {
       const prev = activeBatches.get(job.data.batchId);
