@@ -49,12 +49,20 @@ export default function AgentLoginPage() {
       <div className="w-full max-w-md bg-white dark:bg-slate-950 rounded-3xl p-8 border border-gray-100 dark:border-slate-800 shadow-sm space-y-6">
         
         {/* Logo */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#1E4DB7] text-white shadow-md shadow-blue-500/10">
-            <FiShield className="w-7 h-7" />
-          </div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">LVMS</h1>
-          <p className="text-xs text-gray-400 dark:text-slate-500 font-semibold">Field Verification Agent Portal</p>
+        <div className="text-center space-y-3">
+          <img
+            src="/logo-full.png"
+            alt="Sky Line Risk Audit Services"
+            className="h-14 mx-auto object-contain dark:hidden"
+          />
+          <img
+            src="/logo-white-text.png"
+            alt="Sky Line Risk Audit Services"
+            className="h-14 mx-auto object-contain hidden dark:block"
+          />
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold tracking-wide">
+            Field Verification Agent Portal
+          </p>
         </div>
 
         {/* Form */}

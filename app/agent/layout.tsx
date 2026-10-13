@@ -59,20 +59,18 @@ function Sidebar({ onClose, onLogout }: { onClose?: () => void; onLogout?: () =>
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-950 border-r border-gray-100 dark:border-slate-800">
       {/* Logo */}
-      <div className="flex items-center justify-between px-5 h-14 border-b border-gray-100 dark:border-slate-800">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "#1E4DB7" }}>
-            <FiShield className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <p className="text-[14px] font-bold text-gray-900 dark:text-slate-100 leading-tight" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-              LVMS
+      <div className="flex items-center justify-between px-4 h-16 border-b border-gray-100 dark:border-slate-800">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <img src="/logo-icon.png" alt="Sky Line Risk" className="w-9 h-9 object-contain shrink-0" />
+          <div className="min-w-0">
+            <p className="text-[12px] font-black text-gray-900 dark:text-slate-100 leading-tight tracking-tight truncate" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
+              SKY LINE RISK
             </p>
-            <p className="text-[10px] text-gray-400 dark:text-slate-500">Agent Panel</p>
+            <p className="text-[9px] text-gray-400 dark:text-slate-500 font-semibold tracking-wide uppercase truncate">Audit Services</p>
           </div>
         </div>
         {onClose && (
-          <button onClick={onClose} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-400 lg:hidden">
+          <button onClick={onClose} className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-400 lg:hidden p-1">
             <FiX className="w-5 h-5" />
           </button>
         )}

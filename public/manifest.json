@@ -1,7 +1,7 @@
 {
-  "name": "LVMS Field Agent",
-  "short_name": "LVMS",
-  "description": "Enterprise Loan Verification & Field Officer Management System",
+  "name": "Sky Line Risk Audit Services",
+  "short_name": "SkyLine Risk",
+  "description": "Sky Line Risk Audit Services — Enterprise Loan Verification & Field Officer Management System",
   "id": "/agent",
   "scope": "/",
   "start_url": "/agent",

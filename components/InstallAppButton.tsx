@@ -54,7 +54,7 @@ export default function InstallAppButton({
     return (
       <div className={cn("flex items-center justify-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold py-2 px-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl", className)}>
         <CheckCircle2 className="w-3.5 h-3.5" />
-        <span>LVMS App Installed</span>
+        <span>Sky Line Risk App Installed</span>
       </div>
     );
   }
@@ -70,9 +70,11 @@ export default function InstallAppButton({
         )}
       >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white flex items-center justify-center shadow-md shadow-sky-500/20 group-hover:scale-105 transition-transform">
-            <Smartphone className="w-5 h-5" />
-          </div>
+          <img
+            src="/logo-icon.png"
+            alt="Sky Line Risk"
+            className="w-10 h-10 object-contain p-1 rounded-xl bg-white dark:bg-slate-800 border border-sky-500/20 shadow-sm shrink-0 group-hover:scale-105 transition-transform"
+          />
           <div>
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-bold text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-sky-400 transition-colors">

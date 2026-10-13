@@ -64,15 +64,13 @@ function SidebarContent({
           collapsed && "justify-center px-2"
         )}
       >
-        <div className="w-9 h-9 rounded-xl bg-[#1E3A5F] dark:bg-slate-800 flex items-center justify-center shrink-0">
-          <FiShield className="text-white w-5 h-5" />
-        </div>
+        <img src="/logo-icon.png" alt="Sky Line Risk" className="w-9 h-9 object-contain shrink-0" />
         {!collapsed && (
-          <div className="overflow-hidden">
-            <p className="text-[13px] font-bold text-slate-900 dark:text-slate-100 leading-tight" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
-              LVMS
+          <div className="overflow-hidden min-w-0">
+            <p className="text-[12px] font-black text-slate-900 dark:text-slate-100 leading-tight tracking-tight truncate" style={{ fontFamily: "var(--font-plus-jakarta)" }}>
+              SKY LINE RISK
             </p>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight">Loan Verification</p>
+            <p className="text-[9px] text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider truncate">Audit Services</p>
           </div>
         )}
       </div>

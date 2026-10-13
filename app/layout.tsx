@@ -42,19 +42,20 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "LVMS — Loan Verification Management System",
-    template: "%s | LVMS",
+    default: "Sky Line Risk Audit Services — LVMS",
+    template: "%s | Sky Line Risk Audit Services",
   },
   description:
-    "Enterprise loan verification platform for field operations and admin management.",
+    "Sky Line Risk Audit Services — Enterprise loan verification platform for field operations and risk audit management.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "LVMS Agent",
+    title: "Sky Line Risk",
   },
   icons: {
-    icon: "/icons/icon-192.png",
+    icon: "/logo-icon.png",
+    shortcut: "/logo-icon.png",
     apple: "/icons/icon-192.png",
   },
 };

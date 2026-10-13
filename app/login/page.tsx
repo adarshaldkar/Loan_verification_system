@@ -63,18 +63,14 @@ export default function LoginPage() {
         {/* Card */}
         <div className="card-flat p-8 shadow-sm">
           {/* Logo */}
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shadow-md" style={{ background: "#1E3A5F" }}>
-              <FiShield className="text-white w-7 h-7" />
-            </div>
-            <h1
-              className="text-xl font-bold text-slate-900 text-center"
-              style={{ fontFamily: "var(--font-plus-jakarta)" }}
-            >
-              LVMS
-            </h1>
-            <p className="text-xs text-slate-400 text-center mt-0.5">
-              Loan Verification Management System
+          <div className="flex flex-col items-center mb-6">
+            <img
+              src="/logo-full.png"
+              alt="Sky Line Risk Audit Services"
+              className="h-14 mx-auto object-contain mb-2"
+            />
+            <p className="text-xs text-slate-500 text-center font-medium">
+              Loan Verification & Risk Audit Platform
             </p>
           </div>
 

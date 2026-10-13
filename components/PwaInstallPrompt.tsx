@@ -183,13 +183,15 @@ export default function PwaInstallPrompt() {
         <div className="fixed bottom-4 left-3 right-3 sm:left-6 sm:right-6 md:left-auto md:right-6 md:max-w-md z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
           <div className="bg-slate-900/95 backdrop-blur-xl border border-sky-500/30 text-white p-3.5 sm:p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-3 ring-1 ring-white/10">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center flex-shrink-0 shadow-lg shadow-sky-500/20">
-                <Smartphone className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-              </div>
+              <img
+                src="/logo-icon.png"
+                alt="Sky Line Risk"
+                className="w-11 h-11 sm:w-12 sm:h-12 object-contain p-1 rounded-xl bg-slate-800/90 border border-slate-700/80 shrink-0 shadow-lg"
+              />
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <h4 className="font-semibold text-xs sm:text-sm text-slate-100 truncate">
-                    Install LVMS Agent App
+                    Sky Line Risk App
                   </h4>
                   <span className="text-[10px] bg-sky-500/20 text-sky-400 font-semibold px-2 py-0.5 rounded-full border border-sky-500/30">
                     PWA
@@ -233,18 +235,20 @@ export default function PwaInstallPrompt() {
             {/* Header */}
             <div className="flex items-start justify-between gap-3 mb-5">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center shadow-md shadow-sky-500/30">
-                  <Smartphone className="w-6 h-6 text-white" />
-                </div>
+                <img
+                  src="/logo-icon.png"
+                  alt="Sky Line Risk"
+                  className="w-12 h-12 object-contain p-1 rounded-2xl bg-slate-800/90 border border-slate-700 shadow-md shrink-0"
+                />
                 <div>
                   <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                    Install LVMS App
+                    Sky Line Risk App
                     <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium">
                       Mobile Ready
                     </span>
                   </h3>
                   <p className="text-xs text-slate-400">
-                    Run LVMS as a native full-screen app on your phone
+                    Sky Line Risk Audit Services field app
                   </p>
                 </div>
               </div>

@@ -93,9 +93,11 @@ export default function ForgotPasswordPage() {
         <div className="card-flat p-8 shadow-sm bg-white rounded-2xl border border-border">
           {/* Header */}
           <div className="flex flex-col items-center mb-8">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shadow-md bg-[--color-brand-900]">
-              <FiShield className="text-white w-7 h-7" />
-            </div>
+            <img
+              src="/logo-icon.png"
+              alt="Sky Line Risk"
+              className="w-14 h-14 object-contain mb-3"
+            />
             <h1 className="text-xl font-bold text-slate-900 text-center font-heading">
               {step === 1 && "Reset Password"}
               {step === 2 && "Enter OTP"}
