@@ -331,9 +331,9 @@ export default function DynamicVerificationForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ─── Left 2 Columns: Dynamic Form Sections ─── */}
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* ─── Left Column: Dynamic Form Sections ─── */}
+        <div className="lg:col-span-7 xl:col-span-8 space-y-6">
           {profile.sections.map((section, sIdx) => (
             <div
               key={sIdx}
@@ -443,7 +443,7 @@ export default function DynamicVerificationForm({
         </div>
 
         {/* ─── Right Column ─── */}
-        <div className="space-y-6">
+        <div className="lg:col-span-5 xl:col-span-4 space-y-6">
           {/* 1. Evidence Photos Box */}
           <div
             className={cn(

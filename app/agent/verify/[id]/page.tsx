@@ -119,7 +119,7 @@ export default function CaseVerificationFormPage({
 
   if (loading) {
     return (
-      <div className="space-y-6 max-w-6xl">
+      <div className="space-y-6 w-full">
         <div className="flex items-center gap-3">
           <Skeleton className="h-9 w-9 rounded-lg" />
           <div className="space-y-1">
@@ -150,7 +150,7 @@ export default function CaseVerificationFormPage({
   }
 
   return (
-    <div className="space-y-6 max-w-6xl pb-16">
+    <div className="space-y-6 w-full pb-16">
       {/* ─── Top Nav Bar ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">

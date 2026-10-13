@@ -109,7 +109,7 @@ export default function VerificationProcessPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 max-w-6xl">
+      <div className="space-y-6 w-full">
         <div className="space-y-2">
           <Skeleton className="h-8 w-56" />
           <Skeleton className="h-4 w-80" />
@@ -128,7 +128,7 @@ export default function VerificationProcessPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-6xl pb-16">
+    <div className="space-y-6 w-full pb-16">
       {/* ─── Top Header ─── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
