@@ -8,9 +8,9 @@ import { AuthRequest } from '../middlewares/auth';
 
 const resendApiKey = process.env.RESEND_API_KEY;
 if (!resendApiKey) {
-  console.warn('WARNING: RESEND_API_KEY is not set. Password reset emails will fail.');
+  console.warn('WARNING: RESEND_API_KEY is not set. Password reset emails will log to console.');
 }
-const resend = new Resend(resendApiKey || '');
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -152,12 +152,16 @@ export const forgotPassword = async (req: Request, res: Response) => {
       </div>
     `;
 
-    await resend.emails.send({
-      from: 'LVMS System <onboarding@resend.dev>',
-      to: user.email,
-      subject: 'LVMS Password Reset Code',
-      html: emailHtml
-    });
+    if (resend) {
+      await resend.emails.send({
+        from: 'LVMS System <onboarding@resend.dev>',
+        to: user.email,
+        subject: 'LVMS Password Reset Code',
+        html: emailHtml
+      });
+    } else {
+      console.log(`[PASSWORD RESET OTP] For ${user.email}: ${otp}`);
+    }
 
     res.status(200).json({ success: true, message: 'An OTP has been sent to your email.' });
   } catch (error: any) {
