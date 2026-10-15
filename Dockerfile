@@ -1,7 +1,7 @@
 # ── Multi-stage Dockerfile for Next.js Frontend ──
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json ./
 RUN npm install
 
 FROM node:20-bookworm-slim AS builder
