@@ -46,3 +46,9 @@ android/app/build/
 android/build/
 *.apk
 *.aab
+
+# database backups
+backups/
+*.json.gz
+*.sql
+*.sql.gz
