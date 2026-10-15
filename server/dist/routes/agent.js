@@ -45,6 +45,8 @@ router.get('/notifications', notificationController_1.getAgentNotifications);
 const security_1 = require("../middlewares/security");
 // ── Rides & Tracking ───────────────────────────────────────────────────────
 const rideController_1 = require("../controllers/agent/rideController");
+router.get('/rides/current', rideController_1.getCurrentRide);
+router.get('/rides/daily-summary', rideController_1.getAgentDailySummary);
 router.post('/rides/start', rideController_1.startRide);
 router.post('/rides/ping', security_1.pingLimiter, rideController_1.logLocationPing);
 router.post('/rides/end', rideController_1.endRide);

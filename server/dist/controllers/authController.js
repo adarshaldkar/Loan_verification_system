@@ -11,9 +11,13 @@ const crypto_1 = __importDefault(require("crypto"));
 const db_1 = __importDefault(require("../config/db"));
 const resendApiKey = process.env.RESEND_API_KEY;
 if (!resendApiKey) {
-    console.warn('WARNING: RESEND_API_KEY is not set. Password reset emails will fail.');
+    console.warn('WARNING: RESEND_API_KEY is not set. Password reset emails will log to console.');
 }
-const resend = new resend_1.Resend(resendApiKey || '');
+const resend = resendApiKey ? new resend_1.Resend(resendApiKey) : null;
+// Cookie flags. Secure+SameSite=None is required for HTTPS cross-origin; over plain HTTP
+// (before SSL is set up) browsers reject such cookies, so set COOKIE_SECURE=false there.
+const cookieSecure = process.env.NODE_ENV === 'production' && process.env.COOKIE_SECURE !== 'false';
+const cookieSameSite = cookieSecure ? 'none' : 'lax';
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
     console.error('CRITICAL: JWT_SECRET is not defined in environment variables.');
@@ -69,8 +73,8 @@ const loginUser = async (req, res) => {
         // Set JWT in HttpOnly cookie (sameSite=none + secure=true for cross-origin Vercel to Render)
         res.cookie('token', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            secure: cookieSecure,
+            sameSite: cookieSameSite,
             maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
         });
         res.status(200).json({
@@ -96,8 +100,8 @@ exports.loginUser = loginUser;
 const logoutUser = (req, res) => {
     res.clearCookie('token', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+        secure: cookieSecure,
+        sameSite: cookieSameSite
     });
     res.status(200).json({ success: true, message: 'Logged out successfully' });
 };
@@ -137,12 +141,17 @@ const forgotPassword = async (req, res) => {
         </div>
       </div>
     `;
-        await resend.emails.send({
-            from: 'LVMS System <onboarding@resend.dev>',
-            to: user.email,
-            subject: 'LVMS Password Reset Code',
-            html: emailHtml
-        });
+        if (resend) {
+            await resend.emails.send({
+                from: 'LVMS System <onboarding@resend.dev>',
+                to: user.email,
+                subject: 'LVMS Password Reset Code',
+                html: emailHtml
+            });
+        }
+        else {
+            console.log(`[PASSWORD RESET OTP] For ${user.email}: ${otp}`);
+        }
         res.status(200).json({ success: true, message: 'An OTP has been sent to your email.' });
     }
     catch (error) {

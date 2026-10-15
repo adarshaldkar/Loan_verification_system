@@ -113,4 +113,10 @@ router.get('/tracking/active', getActiveRides);
 router.get('/tracking/history/:rideId', getRideHistory);
 router.post('/tracking/rides/:rideId/end', forceEndRide);
 
+// ── Automated Database Backup & Mirroring ───────────────────────────
+import { triggerManualBackup, getStatus } from '../controllers/admin/backupController';
+
+router.post('/backup/trigger', requireRole(['SUPER_ADMIN']), triggerManualBackup);
+router.get('/backup/status', requireRole(['SUPER_ADMIN']), getStatus);
+
 export default router;

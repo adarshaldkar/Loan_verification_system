@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.endRide = exports.logLocationPing = exports.startRide = void 0;
+exports.getAgentDailySummary = exports.endRide = exports.logLocationPing = exports.startRide = exports.getCurrentRide = void 0;
 const db_1 = __importDefault(require("../../config/db"));
 const helpers_1 = require("../../utils/helpers");
 const redis_1 = __importDefault(require("../../config/redis"));
@@ -11,14 +11,68 @@ const metrics_1 = require("../../middlewares/metrics");
 // Helper to calculate distance between two coordinates in km using Haversine formula
 function calculateDistance(lat1, lon1, lat2, lon2) {
     const R = 6371; // Radius of the earth in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
     const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        Math.cos((lat1 * Math.PI) / 180) *
+            Math.cos((lat2 * Math.PI) / 180) *
+            Math.sin(dLon / 2) *
+            Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 }
+/**
+ * GET /api/agent/rides/current
+ * Restores active ride upon browser refresh, network reconnection or app reopening.
+ */
+const getCurrentRide = async (req, res) => {
+    try {
+        const agentId = req.user?.id;
+        if (!agentId)
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        const activeRide = await db_1.default.agentRide.findFirst({
+            where: { agentId, status: 'STARTED' },
+            include: {
+                locations: {
+                    orderBy: { timestamp: 'desc' },
+                    take: 5,
+                },
+                tripSegments: {
+                    orderBy: { startTime: 'desc' },
+                },
+            },
+            orderBy: { startTime: 'desc' },
+        });
+        if (!activeRide) {
+            return res.status(200).json({ success: true, data: null });
+        }
+        // Check cached latest ping in Redis for sub-second position
+        let latestCached = null;
+        try {
+            const cachedStr = await redis_1.default.get(`ride:latest:${activeRide.id}`);
+            if (cachedStr)
+                latestCached = JSON.parse(cachedStr);
+        }
+        catch { }
+        const elapsedSeconds = Math.max(0, Math.floor((Date.now() - new Date(activeRide.startTime).getTime()) / 1000));
+        return res.status(200).json({
+            success: true,
+            data: {
+                ...activeRide,
+                elapsedSeconds,
+                latestLocation: latestCached || activeRide.locations[0] || null,
+            },
+        });
+    }
+    catch (error) {
+        return (0, helpers_1.apiError)(res, 'Failed to fetch current ride', 500, error);
+    }
+};
+exports.getCurrentRide = getCurrentRide;
+/**
+ * POST /api/agent/rides/start
+ * Atomically starts a new tracking session for the field agent.
+ */
 const startRide = async (req, res) => {
     try {
         const agentId = req.user?.id;
@@ -27,27 +81,24 @@ const startRide = async (req, res) => {
         const agent = await db_1.default.user.findUnique({ where: { id: agentId } });
         if (!agent || !agent.adminId)
             return res.status(400).json({ success: false, message: 'Invalid agent' });
-        // Close any previous pending rides for this agent (DB FIRST, then Redis to avoid race condition)
-        const activeRides = await db_1.default.agentRide.findMany({
-            where: { agentId, status: 'STARTED' }
-        });
-        await db_1.default.agentRide.updateMany({
-            where: { agentId, status: 'STARTED' },
-            data: { status: 'COMPLETED', endTime: new Date() },
-        });
-        for (const r of activeRides) {
-            await redis_1.default.del(`ride:data:${r.id}`);
-            await redis_1.default.del(`ride:latest:${r.id}`);
-        }
-        const newRide = await db_1.default.agentRide.create({
-            data: {
-                agentId,
-                adminId: agent.adminId,
-                status: 'STARTED',
-            }
-        });
-        // Prime Redis cache for the new ride
-        await redis_1.default.set(`ride:data:${newRide.id}`, JSON.stringify(newRide), 'EX', 300);
+        // Concurrency-safe atomic transaction: close any dangling active rides first
+        const [_, newRide] = await db_1.default.$transaction([
+            db_1.default.agentRide.updateMany({
+                where: { agentId, status: 'STARTED' },
+                data: { status: 'COMPLETED', endTime: new Date() },
+            }),
+            db_1.default.agentRide.create({
+                data: {
+                    agentId,
+                    adminId: agent.adminId,
+                    status: 'STARTED',
+                },
+            }),
+        ]);
+        // Clean any previous ride keys and prime Redis
+        await redis_1.default.del(`ride:anchor:${newRide.id}`);
+        await redis_1.default.del(`ride:latest:${newRide.id}`);
+        await redis_1.default.set(`ride:data:${newRide.id}`, JSON.stringify(newRide), 'EX', 600);
         return res.status(201).json({ success: true, data: newRide });
     }
     catch (error) {
@@ -55,20 +106,28 @@ const startRide = async (req, res) => {
     }
 };
 exports.startRide = startRide;
+/**
+ * POST /api/agent/rides/ping
+ * High-precision GPS telemetry logger with anti-fraud filtering and accurate non-lossy distance accumulation.
+ */
 const logLocationPing = async (req, res) => {
     try {
         const agentId = req.user?.id;
-        const { rideId, latitude, longitude, speed } = req.body;
+        const { rideId, latitude, longitude, speed, accuracy } = req.body;
         if (!rideId || latitude == null || longitude == null) {
             metrics_1.gpsPingsTotal.labels('rejected').inc();
             return res.status(400).json({ success: false, message: 'Missing required parameters' });
         }
         const latNum = parseFloat(latitude.toString());
         const lonNum = parseFloat(longitude.toString());
-        const speedNum = speed ? parseFloat(speed.toString()) : 0;
-        // Cache key for the latest location of this active ride
-        const redisKey = `ride:latest:${rideId}`;
-        // Verify ride from Redis cache first! If not found, load from DB and cache
+        const speedNum = speed ? Math.max(0, parseFloat(speed.toString())) : 0;
+        const accNum = accuracy ? parseFloat(accuracy.toString()) : null;
+        // Coordinate integrity validation
+        if (isNaN(latNum) || latNum < -90 || latNum > 90 || isNaN(lonNum) || lonNum < -180 || lonNum > 180) {
+            metrics_1.gpsPingsTotal.labels('rejected').inc();
+            return res.status(400).json({ success: false, message: 'Invalid GPS coordinates' });
+        }
+        // Verify ride is active
         let rideDataStr = await redis_1.default.get(`ride:data:${rideId}`);
         let ride = null;
         if (rideDataStr) {
@@ -78,11 +137,11 @@ const logLocationPing = async (req, res) => {
             ride = await db_1.default.agentRide.findUnique({
                 where: { id: rideId },
                 include: {
-                    agent: { select: { firstName: true, lastName: true } }
-                }
+                    agent: { select: { firstName: true, lastName: true } },
+                },
             });
             if (ride) {
-                await redis_1.default.set(`ride:data:${rideId}`, JSON.stringify(ride), 'EX', 300); // cache for 5 mins
+                await redis_1.default.set(`ride:data:${rideId}`, JSON.stringify(ride), 'EX', 300);
             }
         }
         if (!ride || ride.agentId !== agentId || ride.status !== 'STARTED') {
@@ -90,56 +149,76 @@ const logLocationPing = async (req, res) => {
             return res.status(403).json({ success: false, message: 'Invalid or inactive ride' });
         }
         metrics_1.gpsPingsTotal.labels('accepted').inc();
-        // Retrieve last location from Redis to calculate distance
-        const lastLocStr = await redis_1.default.get(redisKey);
-        let lastLoc = null;
-        if (lastLocStr) {
-            lastLoc = JSON.parse(lastLocStr);
+        // Accuracy Filter: If accuracy > 100 meters, discard or log as low-confidence noise
+        const isLowAccuracy = accNum !== null && accNum > 100;
+        // Anchor Distance Accumulator Logic
+        // We maintain a dedicated distance anchor coordinate in Redis
+        const anchorKey = `ride:anchor:${rideId}`;
+        const anchorStr = await redis_1.default.get(anchorKey);
+        let anchor = null;
+        if (anchorStr) {
+            try {
+                anchor = JSON.parse(anchorStr);
+            }
+            catch { }
         }
         let addedDistance = 0;
-        if (lastLoc) {
-            addedDistance = calculateDistance(lastLoc.latitude, lastLoc.longitude, latNum, lonNum);
-        }
-        else {
-            // If not in Redis, try checking the database for the last location
-            const dbLastLoc = await db_1.default.agentLocation.findFirst({
-                where: { rideId },
-                orderBy: { timestamp: 'desc' }
-            });
-            if (dbLastLoc) {
-                addedDistance = calculateDistance(dbLastLoc.latitude, dbLastLoc.longitude, latNum, lonNum);
+        let isAnomaly = false;
+        let anomalyReason = null;
+        if (anchor) {
+            const distFromAnchor = calculateDistance(anchor.lat, anchor.lon, latNum, lonNum);
+            const timeDeltaSec = Math.max(1, (Date.now() - anchor.timestamp) / 1000);
+            const inferredSpeedKmh = (distFromAnchor / (timeDeltaSec / 3600));
+            // Anti-Fraud Implausible Jump / Speed Check (> 120 km/h)
+            if (timeDeltaSec > 3 && inferredSpeedKmh > 120) {
+                isAnomaly = true;
+                anomalyReason = `Implausible speed jump (${inferredSpeedKmh.toFixed(1)} km/h)`;
+            }
+            else if (!isLowAccuracy && distFromAnchor >= 0.015) {
+                // Advanced anchor: threshold 15 meters reached!
+                addedDistance = distFromAnchor;
+                // Advance anchor
+                await redis_1.default.set(anchorKey, JSON.stringify({ lat: latNum, lon: lonNum, timestamp: Date.now() }), 'EX', 86400);
             }
         }
-        // Cache the latest location to Redis instantly (expiring in 10 minutes)
-        const newLocData = {
+        else if (!isLowAccuracy) {
+            // First accepted point becomes anchor
+            await redis_1.default.set(anchorKey, JSON.stringify({ lat: latNum, lon: lonNum, timestamp: Date.now() }), 'EX', 86400);
+        }
+        // Cache latest telemetry coordinate for instant sub-second admin map display
+        const latestLocData = {
             latitude: latNum,
             longitude: lonNum,
             speed: speedNum,
+            accuracy: accNum,
             timestamp: new Date().toISOString(),
-            agentName: `${ride.agent?.firstName || ''} ${ride.agent?.lastName || ''}`.trim()
+            agentName: `${ride.agent?.firstName || ''} ${ride.agent?.lastName || ''}`.trim(),
         };
-        await redis_1.default.set(redisKey, JSON.stringify(newLocData), 'EX', 600);
-        // DB Write Optimization: Only write to PostgreSQL if agent has moved at least 10 meters (0.01 km) or if there was no last location
-        let updatedRideDistance = ride.totalDistance;
-        if (!lastLoc || addedDistance >= 0.01) {
-            // Insert to DB and update total distance
-            const [newLocation, updatedRide] = await db_1.default.$transaction([
+        await redis_1.default.set(`ride:latest:${rideId}`, JSON.stringify(latestLocData), 'EX', 600);
+        let updatedDistance = ride.totalDistance;
+        // If anchor advanced or first coordinate, persist to PostgreSQL
+        if (addedDistance > 0 || !anchor) {
+            updatedDistance = parseFloat((ride.totalDistance + addedDistance).toFixed(3));
+            const [_, updatedRideRecord] = await db_1.default.$transaction([
                 db_1.default.agentLocation.create({
                     data: {
                         rideId,
                         latitude: latNum,
                         longitude: lonNum,
                         speed: speedNum,
-                    }
+                        accuracy: accNum,
+                        isAnomaly,
+                        anomalyReason,
+                    },
                 }),
                 db_1.default.agentRide.update({
                     where: { id: rideId },
-                    data: { totalDistance: { increment: addedDistance } }
-                })
+                    data: {
+                        totalDistance: updatedDistance,
+                    },
+                }),
             ]);
-            updatedRideDistance = updatedRide.totalDistance;
-            // Update cached ride details with new distance
-            ride.totalDistance = updatedRide.totalDistance;
+            ride.totalDistance = updatedRideRecord.totalDistance;
             await redis_1.default.set(`ride:data:${rideId}`, JSON.stringify(ride), 'EX', 300);
         }
         return res.status(200).json({
@@ -147,9 +226,10 @@ const logLocationPing = async (req, res) => {
             data: {
                 id: rideId,
                 status: ride.status,
-                totalDistance: updatedRideDistance,
-                latestLocation: newLocData
-            }
+                totalDistance: updatedDistance,
+                latestLocation: latestLocData,
+                isAnomaly,
+            },
         });
     }
     catch (error) {
@@ -157,6 +237,10 @@ const logLocationPing = async (req, res) => {
     }
 };
 exports.logLocationPing = logLocationPing;
+/**
+ * POST /api/agent/rides/end
+ * Concludes ride session and finalizes odometer distance.
+ */
 const endRide = async (req, res) => {
     try {
         const agentId = req.user?.id;
@@ -165,17 +249,17 @@ const endRide = async (req, res) => {
         if (!ride || ride.agentId !== agentId) {
             return res.status(403).json({ success: false, message: 'Invalid ride' });
         }
-        // Update DB first, then clean up Redis cache keys (race-condition safe).
-        // getActiveRides reads the DB as the source of truth, so committing the
-        // status change BEFORE removing the cache guarantees the admin never sees
-        // a ghost ride for a ride that has already ended. A leftover ride:latest
-        // key is harmless (a new ride always gets a fresh id).
         const updatedRide = await db_1.default.agentRide.update({
             where: { id: rideId },
-            data: { status: 'COMPLETED', endTime: new Date() }
+            data: {
+                status: 'COMPLETED',
+                endTime: new Date(),
+            },
         });
+        // Cleanup Redis caches
         await redis_1.default.del(`ride:data:${rideId}`);
         await redis_1.default.del(`ride:latest:${rideId}`);
+        await redis_1.default.del(`ride:anchor:${rideId}`);
         return res.status(200).json({ success: true, data: updatedRide });
     }
     catch (error) {
@@ -183,3 +267,41 @@ const endRide = async (req, res) => {
     }
 };
 exports.endRide = endRide;
+/**
+ * GET /api/agent/rides/daily-summary
+ * Fetches today's odometer travel distance and individual trip legs.
+ */
+const getAgentDailySummary = async (req, res) => {
+    try {
+        const agentId = req.user?.id;
+        if (!agentId)
+            return res.status(401).json({ success: false, message: 'Unauthorized' });
+        const dateParam = req.query.date || new Date().toISOString().split('T')[0];
+        const startOfDay = new Date(`${dateParam}T00:00:00.000Z`);
+        const endOfDay = new Date(`${dateParam}T23:59:59.999Z`);
+        const rides = await db_1.default.agentRide.findMany({
+            where: {
+                agentId,
+                createdAt: { gte: startOfDay, lte: endOfDay },
+            },
+            include: {
+                tripSegments: true,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+        const totalDistance = parseFloat(rides.reduce((sum, r) => sum + (r.totalDistance || 0), 0).toFixed(2));
+        return res.status(200).json({
+            success: true,
+            data: {
+                date: dateParam,
+                totalDistance,
+                totalRides: rides.length,
+                rides,
+            },
+        });
+    }
+    catch (error) {
+        return (0, helpers_1.apiError)(res, 'Failed to fetch daily summary', 500, error);
+    }
+};
+exports.getAgentDailySummary = getAgentDailySummary;

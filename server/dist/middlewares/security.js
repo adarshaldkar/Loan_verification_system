@@ -7,19 +7,27 @@ exports.forgotPasswordLimiter = exports.trackSecurityFailures = exports.ipBlackl
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const rate_limit_redis_1 = __importDefault(require("rate-limit-redis"));
 const redis_1 = __importDefault(require("../config/redis"));
-const createLimiterStore = () => new rate_limit_redis_1.default({
+// Each limiter MUST have its own prefix; otherwise all limiters share the same
+// Redis counter per IP and e.g. normal API traffic burns the login attempt budget.
+const createLimiterStore = (prefix) => new rate_limit_redis_1.default({
+    prefix: `rl:${prefix}:`,
     sendCommand: async (...args) => {
         return redis_1.default.call(args[0], ...args.slice(1));
     },
 });
 const isDev = process.env.NODE_ENV !== 'production';
+// Tunable via environment (no code change needed)
+const envInt = (key, fallback) => {
+    const n = parseInt(process.env[key] || '', 10);
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+};
 // 1. Global Rate Limiter
 // Dev: 100,000 req / 15 min (effectively disabled)
-// Prod: 1,000 req / 15 min
+// Prod: 3,000 req / 15 min per IP (dashboards poll; many agents may share one office IP)
 exports.globalLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000,
-    max: isDev ? 100_000 : 1000,
-    store: createLimiterStore(),
+    max: isDev ? 100_000 : envInt('RATE_LIMIT_GLOBAL_MAX', 3000),
+    store: createLimiterStore('global'),
     message: {
         success: false,
         message: 'Too many requests from this IP, please try again after 15 minutes',
@@ -30,14 +38,15 @@ exports.globalLimiter = (0, express_rate_limit_1.default)({
 });
 // 2. Brute-Force Login Limiter
 // Dev: 1,000 attempts / 5 min (effectively disabled)
-// Prod: 10 attempts / 5 min
+// Prod: 20 FAILED attempts / 15 min per IP. Successful logins are not counted.
 exports.authLimiter = (0, express_rate_limit_1.default)({
-    windowMs: 5 * 60 * 1000,
-    max: isDev ? 1_000 : 10,
-    store: createLimiterStore(),
+    windowMs: 15 * 60 * 1000,
+    max: isDev ? 1_000 : envInt('RATE_LIMIT_LOGIN_MAX', 20),
+    skipSuccessfulRequests: true,
+    store: createLimiterStore('login'),
     message: {
         success: false,
-        message: 'Too many login attempts. Access blocked for 5 minutes.',
+        message: 'Too many failed login attempts. Please try again in 15 minutes.',
     },
     standardHeaders: true,
     legacyHeaders: false,
@@ -49,7 +58,7 @@ exports.authLimiter = (0, express_rate_limit_1.default)({
 exports.pingLimiter = (0, express_rate_limit_1.default)({
     windowMs: 3 * 1000,
     max: isDev ? 1_000 : 1,
-    store: createLimiterStore(),
+    store: createLimiterStore('ping'),
     keyGenerator: (req) => {
         return req.user?.id || req.ip;
     },
@@ -113,7 +122,7 @@ exports.trackSecurityFailures = trackSecurityFailures;
 exports.forgotPasswordLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000,
     max: 3,
-    store: createLimiterStore(),
+    store: createLimiterStore('forgot'),
     message: {
         success: false,
         message: 'Too many reset requests, please try again later',

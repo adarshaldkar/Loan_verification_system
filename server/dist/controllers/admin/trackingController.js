@@ -7,6 +7,10 @@ exports.forceEndRide = exports.getRideHistory = exports.getActiveRides = void 0;
 const db_1 = __importDefault(require("../../config/db"));
 const helpers_1 = require("../../utils/helpers");
 const redis_1 = __importDefault(require("../../config/redis"));
+/**
+ * GET /api/admin/tracking/active
+ * Real-time map telemetry for all active field agents with Swiggy/Rapido style movement states.
+ */
 const getActiveRides = async (req, res) => {
     try {
         const adminId = req.user?.id;
@@ -15,7 +19,7 @@ const getActiveRides = async (req, res) => {
         if (!isSuperAdmin) {
             whereClause.adminId = adminId;
         }
-        // Fetch rides that are STARTED, newest first
+        // Fetch active rides with recent 10 location breadcrumbs for drawing the live trail
         const activeRides = await db_1.default.agentRide.findMany({
             where: whereClause,
             include: {
@@ -24,12 +28,12 @@ const getActiveRides = async (req, res) => {
                 },
                 locations: {
                     orderBy: { timestamp: 'desc' },
-                    take: 1, // Only get the latest known location
+                    take: 10,
                 },
             },
             orderBy: { startTime: 'desc' },
         });
-        // Deduplicate rides so each agent only has 1 active ride card
+        // Deduplicate rides per agent
         const agentSeen = new Set();
         const deduplicatedRides = [];
         for (const ride of activeRides) {
@@ -37,46 +41,73 @@ const getActiveRides = async (req, res) => {
                 agentSeen.add(ride.agentId);
                 deduplicatedRides.push(ride);
             }
-            else {
-                // Auto-close stale duplicate ride in DB asynchronously
-                db_1.default.agentRide
-                    .update({
-                    where: { id: ride.id },
-                    data: { status: 'COMPLETED', endTime: new Date() },
-                })
-                    .catch(() => { });
-            }
         }
-        // Merge in the latest real-time coordinates cached in Redis (sub-second accuracy)
-        const activeRidesWithLatest = await Promise.all(deduplicatedRides.map(async (ride) => {
+        // Enhance each ride with live telemetry and movement states
+        const now = Date.now();
+        const enrichedRides = await Promise.all(deduplicatedRides.map(async (ride) => {
+            let latestLoc = ride.locations[0] || null;
+            // Try getting latest sub-second coordinate from Redis
             try {
-                const latestLocStr = await redis_1.default.get(`ride:latest:${ride.id}`);
-                if (latestLocStr) {
-                    const cachedLoc = JSON.parse(latestLocStr);
-                    ride.locations = [
-                        {
-                            id: `cached-${ride.id}`,
-                            rideId: ride.id,
-                            latitude: cachedLoc.latitude,
-                            longitude: cachedLoc.longitude,
-                            speed: cachedLoc.speed,
-                            timestamp: new Date(cachedLoc.timestamp),
-                        },
-                    ];
+                const cachedStr = await redis_1.default.get(`ride:latest:${ride.id}`);
+                if (cachedStr) {
+                    const cached = JSON.parse(cachedStr);
+                    latestLoc = {
+                        id: `cached-${ride.id}`,
+                        rideId: ride.id,
+                        latitude: cached.latitude,
+                        longitude: cached.longitude,
+                        speed: cached.speed || 0,
+                        accuracy: cached.accuracy || null,
+                        timestamp: new Date(cached.timestamp),
+                    };
+                    // Prepend to locations trail if not identical
+                    if (!ride.locations.length || Math.abs(ride.locations[0].latitude - cached.latitude) > 0.0001) {
+                        ride.locations.unshift(latestLoc);
+                    }
                 }
             }
-            catch (err) {
-                // Fail-safe fallback to DB coordinates
+            catch { }
+            // Movement State Classification
+            let movementStatus = 'IDLE';
+            let secondsAgo = 9999;
+            if (latestLoc) {
+                const pingTime = new Date(latestLoc.timestamp).getTime();
+                secondsAgo = Math.max(0, Math.floor((now - pingTime) / 1000));
+                const speedKmh = (latestLoc.speed || 0) * 3.6;
+                if (secondsAgo <= 60 && speedKmh >= 4.0) {
+                    movementStatus = 'MOVING';
+                }
+                else if (secondsAgo <= 180) {
+                    movementStatus = 'ON_SITE';
+                }
+                else {
+                    movementStatus = 'IDLE';
+                }
             }
-            return ride;
+            return {
+                ...ride,
+                movementStatus,
+                secondsAgo,
+                latestLocation: latestLoc,
+                recentTrail: ride.locations.map((l) => ({
+                    lat: l.latitude,
+                    lng: l.longitude,
+                    speed: l.speed,
+                    time: l.timestamp,
+                })),
+            };
         }));
-        return res.status(200).json({ success: true, data: activeRidesWithLatest });
+        return res.status(200).json({ success: true, data: enrichedRides });
     }
     catch (error) {
         return (0, helpers_1.apiError)(res, 'Failed to get active rides', 500, error);
     }
 };
 exports.getActiveRides = getActiveRides;
+/**
+ * GET /api/admin/tracking/history/:rideId
+ * Retrieves full path history and trip segments for playback.
+ */
 const getRideHistory = async (req, res) => {
     try {
         const adminId = req.user?.id;
@@ -86,12 +117,13 @@ const getRideHistory = async (req, res) => {
             where: { id: rideId },
             include: {
                 agent: {
-                    select: { id: true, firstName: true, lastName: true }
+                    select: { id: true, firstName: true, lastName: true, phone: true, branch: true },
                 },
                 locations: {
-                    orderBy: { timestamp: 'asc' } // Ascending to draw path correctly
-                }
-            }
+                    orderBy: { timestamp: 'asc' }, // Path in chronological order
+                },
+                tripSegments: true,
+            },
         });
         if (!ride || (!isSuperAdmin && ride.adminId !== adminId)) {
             return res.status(404).json({ success: false, message: 'Ride not found' });
@@ -103,6 +135,10 @@ const getRideHistory = async (req, res) => {
     }
 };
 exports.getRideHistory = getRideHistory;
+/**
+ * POST /api/admin/tracking/force-end/:rideId
+ * Emergency stop for an active ride.
+ */
 const forceEndRide = async (req, res) => {
     try {
         const adminId = req.user?.id;
@@ -115,14 +151,16 @@ const forceEndRide = async (req, res) => {
         if (ride.status !== 'STARTED') {
             return res.status(400).json({ success: false, message: 'Ride is not active' });
         }
-        // Update DB first (fixes race condition)
         await db_1.default.agentRide.update({
             where: { id: rideId },
-            data: { status: 'COMPLETED', endTime: new Date() },
+            data: {
+                status: 'COMPLETED',
+                endTime: new Date(),
+            },
         });
-        // Then clean Redis
         await redis_1.default.del(`ride:data:${rideId}`);
         await redis_1.default.del(`ride:latest:${rideId}`);
+        await redis_1.default.del(`ride:anchor:${rideId}`);
         return res.status(200).json({ success: true, message: 'Ride ended successfully' });
     }
     catch (error) {

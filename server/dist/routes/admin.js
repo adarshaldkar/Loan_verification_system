@@ -87,9 +87,13 @@ router.get('/upload/batch/:batchId', uploadController_1.getBatchStatus);
 router.get('/admins', manageAdminsController_1.getAdmins);
 router.post('/admins/register', (0, validate_1.validate)(registerAdminSchema), manageAdminsController_1.registerAdmin);
 router.put('/admins/:adminId', (0, validate_1.validate)(updateAdminSchema), manageAdminsController_1.updateAdmin);
-// ── Tracking ───────────────────────────────────────────────────────────────
+// ── Agent Live Tracking ─────────────────────────────────────────────
 const trackingController_1 = require("../controllers/admin/trackingController");
 router.get('/tracking/active', trackingController_1.getActiveRides);
 router.get('/tracking/history/:rideId', trackingController_1.getRideHistory);
 router.post('/tracking/rides/:rideId/end', trackingController_1.forceEndRide);
+// ── Automated Database Backup & Mirroring ───────────────────────────
+const backupController_1 = require("../controllers/admin/backupController");
+router.post('/backup/trigger', (0, auth_1.requireRole)(['SUPER_ADMIN']), backupController_1.triggerManualBackup);
+router.get('/backup/status', (0, auth_1.requireRole)(['SUPER_ADMIN']), backupController_1.getStatus);
 exports.default = router;

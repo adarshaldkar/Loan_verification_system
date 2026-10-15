@@ -27,6 +27,9 @@ for (const key of requiredEnvVars) {
 }
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
+// Running behind Nginx reverse proxy: trust X-Forwarded-For so req.ip is the real client IP.
+// Required for correct per-user rate limiting and IP blacklisting.
+app.set('trust proxy', 1);
 // Allowed CORS Origins
 const allowedOrigins = [
     'http://localhost:3000',
@@ -100,7 +103,9 @@ app.use((err, req, res, next) => {
     logger_1.logger.error({ err, req_id: req.headers['x-request-id'] }, 'Unhandled Application Error');
     res.status(500).json({ success: false, message: 'Internal Server Error', error: process.env.NODE_ENV === 'production' ? undefined : err.message });
 });
+const backupService_1 = require("./services/backupService");
 // Start the server
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
+    (0, backupService_1.startAutoBackupScheduler)();
 });
