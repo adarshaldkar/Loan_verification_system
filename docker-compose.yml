@@ -48,7 +48,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=5000
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/${POSTGRES_DB:-loan_verification_db}?schema=public
+      - DATABASE_URL=${DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-loan_verification_db}?schema=public}
       - JWT_SECRET=${JWT_SECRET:?set JWT_SECRET in .env}
       - CLIENT_URL=${CLIENT_URL:?set CLIENT_URL in .env}
       - COOKIE_SECURE=${COOKIE_SECURE:-true}
