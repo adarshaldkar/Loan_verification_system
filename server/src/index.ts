@@ -26,6 +26,10 @@ for (const key of requiredEnvVars) {
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Running behind Nginx reverse proxy: trust X-Forwarded-For so req.ip is the real client IP.
+// Required for correct per-user rate limiting and IP blacklisting.
+app.set('trust proxy', 1);
+
 // Allowed CORS Origins
 const allowedOrigins = [
   'http://localhost:3000',

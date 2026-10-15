@@ -12,6 +12,11 @@ if (!resendApiKey) {
 }
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
+// Cookie flags. Secure+SameSite=None is required for HTTPS cross-origin; over plain HTTP
+// (before SSL is set up) browsers reject such cookies, so set COOKIE_SECURE=false there.
+const cookieSecure = process.env.NODE_ENV === 'production' && process.env.COOKIE_SECURE !== 'false';
+const cookieSameSite: 'none' | 'lax' = cookieSecure ? 'none' : 'lax';
+
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   console.error('CRITICAL: JWT_SECRET is not defined in environment variables.');
@@ -80,8 +85,8 @@ export const loginUser = async (req: Request, res: Response) => {
     // Set JWT in HttpOnly cookie (sameSite=none + secure=true for cross-origin Vercel to Render)
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: cookieSecure,
+      sameSite: cookieSameSite,
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
@@ -107,8 +112,8 @@ export const loginUser = async (req: Request, res: Response) => {
 export const logoutUser = (req: Request, res: Response) => {
   res.clearCookie('token', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    secure: cookieSecure,
+    sameSite: cookieSameSite
   });
   res.status(200).json({ success: true, message: 'Logged out successfully' });
 };
