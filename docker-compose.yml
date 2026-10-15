@@ -41,6 +41,8 @@ services:
       dockerfile: Dockerfile
     container_name: lvms-backend
     restart: always
+    ports:
+      - "5000:5000"
     environment:
       - NODE_ENV=production
       - PORT=5000
