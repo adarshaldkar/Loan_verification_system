@@ -142,10 +142,11 @@ const forgotPassword = async (req, res) => {
       </div>
     `;
         if (resend) {
+            const fromAddress = process.env.RESEND_FROM_EMAIL || 'Sky Line Risk Audits <notifications@skylineriskaudits.in>';
             await resend.emails.send({
-                from: 'LVMS System <onboarding@resend.dev>',
+                from: fromAddress,
                 to: user.email,
-                subject: 'LVMS Password Reset Code',
+                subject: 'LVMS Password Reset Code - Sky Line Risk Audits',
                 html: emailHtml
             });
         }
