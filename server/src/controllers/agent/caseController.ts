@@ -90,6 +90,9 @@ export const getAgentCases = async (req: AuthRequest, res: Response) => {
         branch: c.branch ?? c.customer?.branch ?? 'Unassigned',
         assignedOn: formatDateTime(c.createdAt),
         mediaCount: c.media.length,
+        addressLatitude: c.addressLatitude ?? null,
+        addressLongitude: c.addressLongitude ?? null,
+        addressAccuracy: c.addressAccuracy ?? null,
       };
     });
 

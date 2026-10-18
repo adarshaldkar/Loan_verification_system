@@ -20,6 +20,7 @@ import {
   getCurrentRideApi, getAgentDailySummaryApi
 } from "@/lib/api";
 import { getProfileByCode } from "@/lib/verificationProfiles";
+import { lookupCityAnchor } from "@/lib/geocoding";
 import DateRangePicker, { DateRangeOption, getDynamicDateRanges } from "@/components/shared/DateRangePicker";
 
 /* ─── Agent Dashboard ─────────────────────────────────────────────────────── */
@@ -246,18 +247,32 @@ export default function AgentDashboard() {
 
   const [caseCoords, setCaseCoords] = useState<Record<string, { lat: number | null; lng: number | null }>>({});
 
-  // Resolve schedule locations
+  // Resolve schedule & case locations
   useEffect(() => {
-    if (!dashboardData?.todaySchedule) return;
+    const allCasesList = [
+      ...(dashboardData?.todaySchedule || []),
+      ...(dashboardData?.recentCases || []),
+      ...(liveCases || []),
+    ];
 
-    const coords: Record<string, { lat: number | null; lng: number | null }> = {};
+    if (!allCasesList.length) return;
+
+    const coords: Record<string, { lat: number | null; lng: number | null }> = { ...caseCoords };
     const needGeocode: string[] = [];
 
-    for (const s of dashboardData.todaySchedule) {
+    for (const s of allCasesList) {
+      if (!s || !s.id) continue;
+      if (coords[s.id]?.lat != null && coords[s.id]?.lng != null) continue;
+
       if (s.addressLatitude != null && s.addressLongitude != null) {
-        coords[s.id] = { lat: s.addressLatitude, lng: s.addressLongitude };
+        coords[s.id] = { lat: Number(s.addressLatitude), lng: Number(s.addressLongitude) };
       } else if (s.address) {
-        needGeocode.push(s.id);
+        const anchor = lookupCityAnchor(s.address);
+        if (anchor) {
+          coords[s.id] = anchor;
+        } else {
+          needGeocode.push(s.id);
+        }
       }
     }
 
@@ -282,12 +297,19 @@ export default function AgentDashboard() {
         console.warn("Failed to geocode schedule locations:", err);
       }
     })();
-  }, [dashboardData]);
+  }, [dashboardData, liveCases]);
 
   const destinations = dashboardData?.todaySchedule?.map((s: any) => {
     const known = caseCoords[s.id];
-    const lat = typeof s.addressLatitude === "number" ? s.addressLatitude : (known?.lat ?? null);
-    const lng = typeof s.addressLongitude === "number" ? s.addressLongitude : (known?.lng ?? null);
+    let lat = typeof s.addressLatitude === "number" ? s.addressLatitude : (known?.lat ?? null);
+    let lng = typeof s.addressLongitude === "number" ? s.addressLongitude : (known?.lng ?? null);
+    if ((lat == null || lng == null) && s.address) {
+      const anchor = lookupCityAnchor(s.address);
+      if (anchor) {
+        lat = anchor.lat;
+        lng = anchor.lng;
+      }
+    }
     return {
       id: s.id,
       name: s.name,
@@ -389,17 +411,28 @@ export default function AgentDashboard() {
 
     return result.map(c => {
       const coords = caseCoords[c.id];
+      let lat = typeof c.addressLatitude === "number" ? c.addressLatitude : (coords?.lat ?? null);
+      let lng = typeof c.addressLongitude === "number" ? c.addressLongitude : (coords?.lng ?? null);
+
+      if ((lat == null || lng == null) && c.address) {
+        const anchor = lookupCityAnchor(c.address);
+        if (anchor) {
+          lat = anchor.lat;
+          lng = anchor.lng;
+        }
+      }
+
       let distance = "Location unknown";
-      if (coords && typeof coords.lat === "number" && typeof coords.lng === "number") {
-        const distanceVal = haversineDistance(agentCoords.lat, agentCoords.lng, coords.lat, coords.lng);
+      if (typeof lat === "number" && typeof lng === "number") {
+        const distanceVal = haversineDistance(agentCoords.lat, agentCoords.lng, lat, lng);
         distance = `${distanceVal.toFixed(1)} km away`;
       }
 
       return {
         ...c,
         distance,
-        lat: coords?.lat ?? null,
-        lng: coords?.lng ?? null,
+        lat,
+        lng,
       };
     });
   }, [liveCases, activeKpi, selectedFilter, searchQuery, caseCoords, agentCoords]);

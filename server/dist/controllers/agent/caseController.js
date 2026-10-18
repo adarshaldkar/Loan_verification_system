@@ -93,6 +93,9 @@ const getAgentCases = async (req, res) => {
                 branch: c.branch ?? c.customer?.branch ?? 'Unassigned',
                 assignedOn: (0, helpers_1.formatDateTime)(c.createdAt),
                 mediaCount: c.media.length,
+                addressLatitude: c.addressLatitude ?? null,
+                addressLongitude: c.addressLongitude ?? null,
+                addressAccuracy: c.addressAccuracy ?? null,
             };
         });
         return res.status(200).json({ success: true, data });
