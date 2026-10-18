@@ -41,8 +41,18 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Exclude API requests and uploads from static cache
-  if (url.pathname.startsWith('/api/') || event.request.method !== 'GET') {
+  // Only handle GET requests on the same origin
+  if (event.request.method !== 'GET' || url.origin !== self.location.origin) {
+    return;
+  }
+
+  // Exclude API requests, login pages, and uploads from interception
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname === '/login' ||
+    url.pathname === '/agent/login' ||
+    url.pathname.includes('invalid')
+  ) {
     return;
   }
 
